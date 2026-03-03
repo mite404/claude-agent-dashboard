@@ -14,6 +14,7 @@ The source of truth is `db.json` in the project root.
 ```
 
 json-server automatically exposes:
+
 - `GET /tasks` — list all tasks
 - `GET /tasks/:id` — get single task
 - `POST /tasks` — create task

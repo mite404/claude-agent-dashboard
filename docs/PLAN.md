@@ -1,445 +1,126 @@
 # Claude Agent Dashboard - Implementation Plan
 
 ## Overview
-A real-time web dashboard for tracking Claude Code subagent task execution. The dashboard polls a local JSON file (updated via a Claude Code hook) and displays task status, relationships, logs, and provides control buttons (cancel/pause/retry).
 
-**Tech Stack**: Bun + React + Tailwind + shadcn/ui + Radix UI
+A real-time web dashboard for tracking Claude Code subagent task execution. The dashboard polls json-server (backed by `db.json`) every 2.5 seconds and displays task status, relationships, logs, and control buttons (cancel/pause/retry).
 
----
-
-## Phase 1: Project Setup & Infrastructure
-
-### 1.1 Install Dependencies
-```bash
-bun install
-```
-
-**Files Modified**: `package.json` (already done)
-
-### 1.2 Create Core Project Structure
-
-Create the following directory structure:
-```
-claude-agent-dashboard/
-├── src/
-│   ├── components/
-│   │   ├── TaskCard.tsx          # Individual task display
-│   │   ├── TaskTree.tsx          # Hierarchical task relationships
-│   │   ├── LogViewer.tsx         # Accordion-style log viewer
-│   │   ├── ControlButtons.tsx    # Cancel/Pause/Retry buttons
-│   │   └── Dashboard.tsx         # Main dashboard container
-│   ├── types/
-│   │   └── task.ts              # TypeScript interfaces for tasks
-│   ├── hooks/
-│   │   └── useTaskPolling.ts    # Hook for polling /tmp/claude-tasks.json
-│   ├── utils/
-│   │   └── taskParser.ts        # Parse /tasks CLI output
-│   ├── styles/
-│   │   ├── globals.css          # Global styles + Tailwind
-│   │   └── variables.css        # CSS variables for theming
-│   └── frontend.tsx             # React app entry point
-├── public/
-│   └── index.html               # HTML template
-├── index.ts                     # Bun server entry point
-├── tailwind.config.ts           # Tailwind configuration
-├── postcss.config.js            # PostCSS configuration
-├── tsconfig.json                # Already created
-└── docs/
-    ├── PLAN.md                  # This file
-    ├── HOOK.md                  # Hook setup instructions
-    └── API.md                   # Data format specification
-```
-
-### 1.3 Configure Tailwind
-**File**: `tailwind.config.ts`
-
-```typescript
-import type { Config } from 'tailwindcss'
-
-export default {
-  content: ['./src/**/*.{ts,tsx}', './public/**/*.html'],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-} satisfies Config
-```
-
-### 1.4 Configure PostCSS
-**File**: `postcss.config.js`
-
-```javascript
-export default {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
-```
-
-### 1.5 Create Global Styles
-**File**: `src/styles/globals.css`
-
-```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 3.6%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.6%;
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 96.1%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 89.5%;
-  --muted-foreground: 0 0% 45.9%;
-  --accent: 0 84.2% 60.2%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 0 0% 89.5%;
-  --input: 0 0% 89.5%;
-  --ring: 0 0% 9%;
-  --radius: 0.5rem;
-}
-
-* {
-  @apply border-border;
-}
-
-body {
-  @apply bg-background text-foreground;
-}
-```
+**Tech Stack**: Bun + Vite 6 + React 19 + Tailwind v4 + Radix UI + json-server
 
 ---
 
-## Phase 2: Type Definitions & Interfaces
+## Current Status (as of 2026-03-03)
 
-### 2.1 Define Task Type
-**File**: `src/types/task.ts`
+### ✅ Completed
 
-```typescript
-export interface Task {
-  id: string;
-  name: string;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'paused';
-  parentTaskId?: string;
-  childTaskIds: string[];
-  createdAt: number; // timestamp
-  startedAt?: number;
-  completedAt?: number;
-  progressPercentage: number; // 0-100
-  logs: string[];
-}
+- **Project initialized** — Vite + React 19 + TypeScript 5.7
+- **Tailwind v4** configured via `@tailwindcss/vite` plugin (CSS-first, no `tailwind.config.ts`)
+- **Dependencies installed** — Radix UI (accordion, slot), lucide-react, class-variance-authority, json-server, concurrently, vite-tsconfig-paths
+- **TypeScript** — tsconfig.app.json + tsconfig.node.json project references, `@/*` path alias working via `vite-tsconfig-paths`
+- **All React components built**:
+  - `Dashboard.tsx` — main container, stats strip, polling state
+  - `TaskTree.tsx` — recursive parent/child hierarchy with connector lines
+  - `TaskCard.tsx` — status badge, progress bar, elapsed time, accent bar
+  - `LogViewer.tsx` — Radix Accordion, terminal-style log table (line numbers, timestamps, levels)
+  - `ControlButtons.tsx` — Cancel/Pause/Retry via PATCH to json-server
+  - `ui/button.tsx`, `ui/badge.tsx`, `ui/progress.tsx` — custom shadcn-style primitives
+- **Bun server** — replaced by Vite dev server + json-server combo
+- **json-server** — serves `db.json` as REST API on port 3001
+- **Vite proxy** — `/api/*` → `http://localhost:3001/*` (no CORS needed)
+- **Mock data** — `db.json` has 6 realistic tasks with parent/child relationships, logs, varied statuses
+- **Vite watcher** — `db.json` excluded from HMR (`server.watch.ignored`) so json-server writes don't trigger page reloads
+- **Docs** — `docs/API.md`, `docs/HOOK.md`, `docs/FOR_ETHAN.md`
 
-export interface TasksState {
-  tasks: Record<string, Task>;
-  lastUpdated: number;
-}
-```
+### 🔄 In Progress / Known Issues
 
-### 2.2 Create Task Parser Utility
-**File**: `src/utils/taskParser.ts`
+- `@/` alias path resolution was failing; fixed with `vite-tsconfig-paths` — **requires a full `bun run dev` restart to take effect**
+- Hook integration is documented but not yet connected to a live Claude Code session
 
-This utility parses the `/tasks` CLI output and converts it into our `Task` interface. Expected to handle:
-- Parse text output from `bun run /tasks`
-- Extract task ID, status, agent name, timing
-- Build parent-child relationships
-- Format logs with timestamps
+### ⏳ Remaining Work
 
 ---
 
-## Phase 3: React Components
+## Phase 5 (Remaining): Claude Code Hook Integration
 
-### 3.1 useTaskPolling Hook
-**File**: `src/hooks/useTaskPolling.ts`
+### 5.1 Create the hook shell script
 
-```typescript
-export function useTaskPolling(interval: number = 2000) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(false);
+**File**: `scripts/update-tasks.sh`
 
-  useEffect(() => {
-    const poll = async () => {
-      setLoading(true);
-      try {
-        // Read from /tmp/claude-tasks.json
-        const response = await fetch('/api/tasks');
-        const data = await response.json();
-        setTasks(data.tasks);
-      } catch (error) {
-        console.error('Failed to poll tasks:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+The script reads stdin from the Claude Code hook (JSON with tool_use_id, tool_input, tool_result), builds a Task object, and upserts it into `db.json` using `jq`.
 
-    const timer = setInterval(poll, interval);
-    poll(); // Initial fetch
+See `docs/HOOK.md` for the full script and instructions.
 
-    return () => clearInterval(timer);
-  }, [interval]);
+### 5.2 Wire up the hook in Claude Code settings
 
-  return { tasks, loading };
-}
-```
+Add to `~/.claude/settings.json`:
 
-### 3.2 ControlButtons Component
-**File**: `src/components/ControlButtons.tsx`
-
-Displays three buttons in order: Cancel | Pause | Retry
-- Cancel: POSTs to `/api/tasks/:id/cancel`
-- Pause: POSTs to `/api/tasks/:id/pause`
-- Retry: POSTs to `/api/tasks/:id/retry`
-
-Uses shadcn button component.
-
-### 3.3 LogViewer Component
-**File**: `src/components/LogViewer.tsx`
-
-- Accordion-style display of task logs
-- Expandable/collapsible sections
-- Syntax highlighting for log entries
-- Timestamps for each log entry
-- Similar UX to GitHub Actions logs on PRs
-
-Uses Radix UI Accordion component.
-
-### 3.4 TaskCard Component
-**File**: `src/components/TaskCard.tsx`
-
-Displays single task with:
-- Task ID (small monospace)
-- Task name (large)
-- Status badge (color-coded)
-- Progress bar (0-100%)
-- Agent time / Elapsed time
-- Expandable log viewer
-- Control buttons
-
-Uses shadcn Card component.
-
-### 3.5 TaskTree Component
-**File**: `src/components/TaskTree.tsx`
-
-Displays hierarchical relationship between parent and child tasks:
-- Parent task at top
-- Child tasks indented below
-- Connection lines showing relationships
-- Recursive rendering
-
-### 3.6 Dashboard Component
-**File**: `src/components/Dashboard.tsx`
-
-Main container that:
-- Uses `useTaskPolling` hook
-- Displays task list/tree
-- Shows last update timestamp
-- Indicates polling status (loading spinner)
-- Handles empty states
-
----
-
-## Phase 4: Server & Data Synchronization
-
-### 4.1 Bun Server
-**File**: `index.ts`
-
-```typescript
-import fs from 'fs';
-import path from 'path';
-import index from './public/index.html';
-
-const TASKS_FILE = '/tmp/claude-tasks.json';
-
-Bun.serve({
-  routes: {
-    '/': index,
-    '/api/tasks': {
-      GET: () => {
-        try {
-          const data = fs.readFileSync(TASKS_FILE, 'utf-8');
-          return new Response(data, {
-            headers: { 'Content-Type': 'application/json' },
-          });
-        } catch {
-          return new Response(JSON.stringify({ tasks: [] }), {
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      },
-    },
-    '/api/tasks/:id/cancel': {
-      POST: (req) => {
-        // Implementation: send cancel signal to Claude Code
-        return new Response(JSON.stringify({ status: 'cancelled' }));
-      },
-    },
-    '/api/tasks/:id/pause': {
-      POST: (req) => {
-        return new Response(JSON.stringify({ status: 'paused' }));
-      },
-    },
-    '/api/tasks/:id/retry': {
-      POST: (req) => {
-        return new Response(JSON.stringify({ status: 'retrying' }));
-      },
-    },
-  },
-  development: {
-    hmr: true,
-    console: true,
-  },
-});
-
-console.log('Dashboard available at http://localhost:3000');
-```
-
-### 4.2 Create HTML Template
-**File**: `public/index.html`
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Claude Agent Dashboard</title>
-  <link rel="stylesheet" href="../src/styles/globals.css">
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="../src/frontend.tsx"></script>
-</body>
-</html>
-```
-
-### 4.3 React App Entry Point
-**File**: `src/frontend.tsx`
-
-```typescript
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import Dashboard from './components/Dashboard';
-
-const root = createRoot(document.getElementById('root')!);
-root.render(<Dashboard />);
-```
-
----
-
-## Phase 5: Claude Code Hook Integration
-
-### 5.1 Create Hook Documentation
-**File**: `docs/HOOK.md`
-
-Provide instructions for Claude Code hook setup that:
-1. Runs `bun run /tasks` command periodically
-2. Parses the output
-3. Writes to `/tmp/claude-tasks.json` with enriched metadata
-4. Can be triggered via `PostToolUse` hook on Agent tool
-
-Example hook format:
-```bash
-/tasks | jq 'parse_tasks_output' > /tmp/claude-tasks.json
-```
-
-### 5.2 Create Data Format Spec
-**File**: `docs/API.md`
-
-Document the expected JSON format in `/tmp/claude-tasks.json`:
 ```json
 {
-  "tasks": [
-    {
-      "id": "task-123",
-      "name": "Research API endpoints",
-      "status": "running",
-      "parentTaskId": null,
-      "childTaskIds": ["task-124"],
-      "createdAt": 1234567890,
-      "startedAt": 1234567891,
-      "progressPercentage": 45,
-      "logs": [
-        "[10:30:45] Starting task...",
-        "[10:30:50] Fetching data..."
-      ]
-    }
-  ]
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/path/to/claude-agent-dashboard/scripts/update-tasks.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
+
+### 5.3 Add a PreToolUse hook for "running" state
+
+The current hook only fires *after* a task completes. Add a `PreToolUse` hook on the Agent tool to mark tasks as `running` when they start — so the dashboard shows them mid-flight, not just when they finish.
 
 ---
 
 ## Phase 6: Testing & Validation
 
-### 6.1 Manual Testing
-- [ ] Start server: `bun run dev`
-- [ ] Open `http://localhost:3000`
-- [ ] Verify Tailwind styles load
-- [ ] Verify layout renders without errors
-
-### 6.2 Mock Data Testing
-- Create a mock `/tmp/claude-tasks.json` with sample data
-- Verify dashboard displays tasks correctly
-- Verify polling updates UI
-
-### 6.3 Real Integration Testing
-- Set up Claude Code hook
-- Run actual subagent tasks
-- Verify tasks appear in dashboard
-- Test control buttons
+- [ ] Restart dev server after vite-tsconfig-paths fix and confirm no import errors
+- [ ] Confirm Cancel/Pause/Retry buttons PATCH correctly without page flash
+- [ ] Confirm polling updates status without full reload
+- [ ] Wire up hook and run a real parallel agent task to confirm live data flows through
+- [ ] Confirm `parentId` relationships render correctly in TaskTree
 
 ---
 
-## Phase 7: Documentation & Polish
+## Phase 7: Polish & Iteration Ideas
 
-### 7.1 Update Root README
-Add setup and usage instructions for the dashboard.
-
-### 7.2 Add Component Documentation
-Document shadcn/ui components used and customizations.
-
-### 7.3 Performance Optimization
-- Memoize components to avoid unnecessary re-renders
-- Debounce polling if needed
-- Optimize log rendering for large outputs
+- [ ] Add a "Clear completed" button to remove finished tasks from db.json
+- [ ] Add a timestamp filter (only show tasks from current session)
+- [ ] Add task duration column to a sortable table view (alternative to card view)
+- [ ] Auto-scroll logs to bottom when new entries arrive
+- [ ] Animate new tasks appearing (fade in)
+- [ ] Dark/light mode toggle (the `@theme` CSS vars make this easy)
 
 ---
 
-## Verification Criteria
+## Running the Project
 
-✅ **Phase 1**: Project initializes and Tailwind builds without errors
-✅ **Phase 2**: TypeScript compiles with no errors
-✅ **Phase 3**: React components render without errors
-✅ **Phase 4**: Server starts on `http://localhost:3000`
-✅ **Phase 5**: Dashboard correctly reads and displays `/tmp/claude-tasks.json`
-✅ **Phase 6**: Polling works every 2-3 seconds
-✅ **Phase 7**: Control buttons POST to correct endpoints
-✅ **Phase 8**: Logs display in accordion without breaking layout
-✅ **Phase 9**: Subagent relationships render hierarchically
+```bash
+# Install
+bun install
 
----
+# Start both servers
+bun run dev
+# → Vite UI at http://localhost:5173
+# → json-server at http://localhost:3001
 
-## Key Decisions
-
-1. **No Backend Complexity**: Using simple file-based state (`/tmp/claude-tasks.json`) instead of a full backend server
-2. **React Required**: shadcn/ui requires React, so we're using React despite initial consideration of pure HTML5
-3. **File Polling**: Hook writes to a JSON file, dashboard reads periodically—simpler than WebSocket/API
-4. **Tailwind + Radix**: shadcn/ui provides pre-built accessible components built on Radix UI
-5. **Bun Serving**: Using Bun's built-in server for simplicity—no Express needed
+# json-server only (if you want to test the API separately)
+bun run server
+```
 
 ---
 
-## Next Steps for Sonnet
+## Key Architectural Decisions
 
-1. Execute Phase 1-2 (Setup, types, utilities)
-2. Build Phase 3 (React components)
-3. Complete Phase 4 (Server, HTML, entry point)
-4. Create hook documentation in Phase 5
-5. Test and validate against verification criteria
-6. Polish and document
+1. **Vite** over Bun's built-in server — better plugin ecosystem, mature HMR
+2. **json-server** over a custom Bun server — zero-code REST API from a flat file
+3. **File-based state (`db.json`)** over in-memory — survives server restarts, hookable by shell scripts
+4. **Polling** over WebSockets — simpler for a single-user local tool; 2.5s lag is imperceptible
+5. **Tailwind v4** CSS-first `@theme {}` — no JS config, tokens are CSS variables usable everywhere
+6. **vite-tsconfig-paths** — single source of truth for `@/` alias (reads tsconfig, no duplication)
+7. **Radix UI primitives** — accessible accordion for logs, slot for polymorphic Button component
