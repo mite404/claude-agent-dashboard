@@ -1,0 +1,233 @@
+{
+  "tasks": [
+    {
+      "id": "task-001",
+      "name": "Implement authentication system",
+      "status": "running",
+      "agentType": "general-purpose",
+      "parentId": null,
+      "createdAt": "2026-03-03T10:28:00.000Z",
+      "startedAt": "2026-03-03T10:28:05.000Z",
+      "completedAt": null,
+      "progressPercentage": 45,
+      "logs": [
+        {
+          "timestamp": "2026-03-03T10:28:05.000Z",
+          "level": "info",
+          "message": "Task started: Implement authentication system"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:06.000Z",
+          "level": "info",
+          "message": "Analyzing codebase structure..."
+        },
+        {
+          "timestamp": "2026-03-03T10:28:10.000Z",
+          "level": "info",
+          "message": "Found existing auth middleware at src/middleware/auth.ts"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:15.000Z",
+          "level": "info",
+          "message": "Spawning subagents for parallel implementation"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:16.000Z",
+          "level": "debug",
+          "message": "Agent type: general-purpose | Model: claude-sonnet-4-6"
+        }
+      ]
+    },
+    {
+      "id": "task-002",
+      "name": "Write JWT token service",
+      "status": "completed",
+      "agentType": "feature-dev:code-architect",
+      "parentId": "task-001",
+      "createdAt": "2026-03-03T10:28:15.000Z",
+      "startedAt": "2026-03-03T10:28:16.000Z",
+      "completedAt": "2026-03-03T10:29:45.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-03T10:28:16.000Z",
+          "level": "info",
+          "message": "Starting JWT token service implementation"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:20.000Z",
+          "level": "info",
+          "message": "Reading existing token utils..."
+        },
+        {
+          "timestamp": "2026-03-03T10:28:35.000Z",
+          "level": "info",
+          "message": "Writing src/services/token.service.ts"
+        },
+        {
+          "timestamp": "2026-03-03T10:29:10.000Z",
+          "level": "info",
+          "message": "Writing unit tests at src/services/token.service.test.ts"
+        },
+        {
+          "timestamp": "2026-03-03T10:29:44.000Z",
+          "level": "info",
+          "message": "All tests passing (12/12)"
+        },
+        {
+          "timestamp": "2026-03-03T10:29:45.000Z",
+          "level": "info",
+          "message": "Task completed successfully"
+        }
+      ]
+    },
+    {
+      "id": "task-003",
+      "name": "Build login UI components",
+      "status": "running",
+      "agentType": "feature-dev:code-architect",
+      "parentId": "task-001",
+      "createdAt": "2026-03-03T10:28:15.000Z",
+      "startedAt": "2026-03-03T10:28:17.000Z",
+      "completedAt": null,
+      "progressPercentage": 68,
+      "logs": [
+        {
+          "timestamp": "2026-03-03T10:28:17.000Z",
+          "level": "info",
+          "message": "Starting login UI implementation"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:22.000Z",
+          "level": "info",
+          "message": "Reading design system tokens..."
+        },
+        {
+          "timestamp": "2026-03-03T10:28:40.000Z",
+          "level": "info",
+          "message": "Creating LoginForm component"
+        },
+        {
+          "timestamp": "2026-03-03T10:29:00.000Z",
+          "level": "warn",
+          "message": "Missing aria-label on email input — adding accessibility attribute"
+        },
+        {
+          "timestamp": "2026-03-03T10:29:20.000Z",
+          "level": "info",
+          "message": "Creating PasswordInput component with visibility toggle"
+        },
+        {
+          "timestamp": "2026-03-03T10:29:55.000Z",
+          "level": "info",
+          "message": "Integrating with token service..."
+        }
+      ]
+    },
+    {
+      "id": "task-004",
+      "name": "Audit password hashing strategy",
+      "status": "running",
+      "agentType": "Explore",
+      "parentId": "task-001",
+      "createdAt": "2026-03-03T10:28:15.000Z",
+      "startedAt": "2026-03-03T10:28:20.000Z",
+      "completedAt": null,
+      "progressPercentage": 30,
+      "logs": [
+        {
+          "timestamp": "2026-03-03T10:28:20.000Z",
+          "level": "info",
+          "message": "Starting security audit of password hashing"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:25.000Z",
+          "level": "info",
+          "message": "Scanning for bcrypt/argon2 usage..."
+        },
+        {
+          "timestamp": "2026-03-03T10:28:30.000Z",
+          "level": "error",
+          "message": "Found MD5 usage in legacy hash function at src/utils/legacy-hash.ts:14"
+        },
+        {
+          "timestamp": "2026-03-03T10:28:35.000Z",
+          "level": "warn",
+          "message": "Documenting insecure patterns for remediation report"
+        }
+      ]
+    },
+    {
+      "id": "task-005",
+      "name": "Refactor database schema",
+      "status": "paused",
+      "agentType": "general-purpose",
+      "parentId": null,
+      "createdAt": "2026-03-03T10:15:00.000Z",
+      "startedAt": "2026-03-03T10:15:30.000Z",
+      "completedAt": null,
+      "progressPercentage": 55,
+      "logs": [
+        {
+          "timestamp": "2026-03-03T10:15:30.000Z",
+          "level": "info",
+          "message": "Starting schema refactor"
+        },
+        {
+          "timestamp": "2026-03-03T10:18:00.000Z",
+          "level": "info",
+          "message": "Mapped 14 tables for migration"
+        },
+        {
+          "timestamp": "2026-03-03T10:22:00.000Z",
+          "level": "warn",
+          "message": "Circular FK dependency detected between users → orgs → teams"
+        },
+        {
+          "timestamp": "2026-03-03T10:23:00.000Z",
+          "level": "info",
+          "message": "Task paused — awaiting user input on FK resolution strategy"
+        }
+      ]
+    },
+    {
+      "id": "task-006",
+      "name": "Generate API documentation",
+      "status": "cancelled",
+      "agentType": "general-purpose",
+      "parentId": null,
+      "createdAt": "2026-03-03T10:05:00.000Z",
+      "startedAt": "2026-03-03T10:05:10.000Z",
+      "completedAt": "2026-03-03T10:07:30.000Z",
+      "progressPercentage": 0,
+      "logs": [
+        {
+          "timestamp": "2026-03-03T10:05:10.000Z",
+          "level": "info",
+          "message": "Starting API documentation generation"
+        },
+        {
+          "timestamp": "2026-03-03T10:05:20.000Z",
+          "level": "info",
+          "message": "Scanning OpenAPI spec..."
+        },
+        {
+          "timestamp": "2026-03-03T10:06:00.000Z",
+          "level": "error",
+          "message": "OpenAPI spec validation failed: missing required field 'info.version'"
+        },
+        {
+          "timestamp": "2026-03-03T10:07:25.000Z",
+          "level": "error",
+          "message": "Cannot recover — spec file is malformed. Exiting."
+        },
+        {
+          "timestamp": "2026-03-03T10:07:30.000Z",
+          "level": "error",
+          "message": "Task failed after 2m 20s"
+        }
+      ]
+    }
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
+}
