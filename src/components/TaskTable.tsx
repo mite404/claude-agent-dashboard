@@ -68,12 +68,12 @@ const STATUS_ORDER: Record<TaskStatus, number> = {
 };
 
 const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
-  running: <IconClockHour4 size={14} className="text-stone-300" />,
-  completed: <IconCircleCheck size={14} className="text-stone-500" />,
-  failed: <IconCircleX size={14} className="text-stone-300" />,
-  paused: <IconPlayerPause size={14} className="text-stone-400" />,
-  pending: <IconCircle size={14} className="text-stone-600" />,
-  cancelled: <IconCircleOff size={14} className="text-stone-700" />,
+  running: <IconClockHour4 size={14} aria-hidden="true" className="text-slate-400" />,
+  completed: <IconCircleCheck size={14} aria-hidden="true" className="text-stone-500" />,
+  failed: <IconCircleX size={14} aria-hidden="true" className="text-red-500" />,
+  paused: <IconPlayerPause size={14} aria-hidden="true" className="text-amber-400" />,
+  pending: <IconCircle size={14} aria-hidden="true" className="text-stone-500" />,
+  cancelled: <IconCircleOff size={14} aria-hidden="true" className="text-stone-500" />,
 };
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -86,12 +86,12 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 const STATUS_TEXT: Record<TaskStatus, string> = {
-  running: "text-stone-200", // brightest — actively doing work
-  failed: "text-stone-300", // needs attention
-  paused: "text-stone-400",
+  running: "text-slate-400",  // blue-gray — actively doing work
+  failed: "text-red-500",     // red — needs attention
+  paused: "text-amber-400",   // amber — suspended
   pending: "text-stone-500",
-  completed: "text-stone-500", // dim — done, no longer needs focus
-  cancelled: "text-stone-600", // dimmest — terminal & dismissed
+  completed: "text-stone-500",
+  cancelled: "text-stone-500",
 };
 
 const PROGRESS_BAR: Record<TaskStatus, string> = {
@@ -236,7 +236,7 @@ function FilterPopover({
         {selected.size > 0 && (
           <button
             onClick={onClear}
-            className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-500 hover:text-stone-300 hover:bg-stone-800"
+            className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-400 hover:text-stone-300 hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
           >
             <IconX size={11} />
             Clear filter
@@ -246,7 +246,7 @@ function FilterPopover({
           <button
             key={opt}
             onClick={() => onToggle(opt)}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800"
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
           >
             <Checkbox checked={selected.has(opt)} className="pointer-events-none" />
             <span className="capitalize text-stone-300">{opt}</span>
@@ -278,15 +278,16 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
         <div className="mx-[30px] mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-64">
           {/* Header bar */}
           <div className="sticky top-0 flex items-center gap-2 border-b border-stone-800 bg-stone-900/80 px-3 py-1.5">
-            <IconTerminal2 size={15} className="text-stone-500" />
+            <IconTerminal2 size={15} aria-hidden="true" className="text-stone-500" />
             <span className="text-stone-500 uppercase tracking-widest text-[10px] font-bold">
               Logs
             </span>
-            <span className="ml-auto text-stone-600 text-[10px]">{logs.length} lines</span>
+            <span className="ml-auto text-stone-500 text-[10px]">{logs.length} lines</span>
             <button
               onClick={copyLogs}
               title="Copy logs"
-              className="ml-1 text-stone-600 hover:text-stone-300 transition-colors"
+              aria-label={copied ? "Logs copied" : "Copy logs"}
+              className="ml-1 text-stone-500 hover:text-stone-300 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded"
             >
               {copied ? <IconCheck size={13} className="text-stone-400" /> : <IconCopy size={13} />}
             </button>
@@ -302,10 +303,10 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
                     entry.level === "warn" && "bg-amber-950/20",
                   )}
                 >
-                  <td className="select-none px-2 py-0.5 text-right text-[10px] text-stone-700 w-8">
+                  <td className="select-none px-2 py-0.5 text-right text-[10px] text-stone-600 w-8">
                     {i + 1}
                   </td>
-                  <td className="px-2 py-0.5 text-stone-600 whitespace-nowrap w-24">
+                  <td className="px-2 py-0.5 text-stone-500 whitespace-nowrap w-24">
                     {formatTimestamp(entry.timestamp)}
                   </td>
                   <td className={cn("px-2 py-0.5 font-bold w-12", LOG_LEVEL_STYLE[entry.level])}>
@@ -360,11 +361,15 @@ function TaskRow({
   const isFailed = task.status === "failed";
   const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
+  const hasLogs = task.logs.length > 0;
   return (
     <TableRow
       data-state={selected ? "selected" : undefined}
-      onClick={task.logs.length > 0 ? onToggleLogs : undefined}
-      className={task.logs.length > 0 ? "cursor-pointer" : undefined}
+      onClick={hasLogs ? onToggleLogs : undefined}
+      onKeyDown={hasLogs ? (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleLogs(); } } : undefined}
+      tabIndex={hasLogs ? 0 : undefined}
+      aria-expanded={hasLogs ? logsOpen : undefined}
+      className={hasLogs ? "cursor-pointer" : undefined}
     >
       {/* Select */}
       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
@@ -375,7 +380,7 @@ function TaskRow({
       <TableCell className="w-28">
         {task.parentId ? (
           <span className="flex items-center gap-1 font-mono text-[10px] leading-none">
-            <span className="text-stone-600">{task.parentId.slice(0, 6)}</span>
+            <span className="text-stone-500">{task.parentId.slice(0, 6)}</span>
             <span className="text-stone-700">›</span>
             <span className="text-stone-400">{task.id.slice(0, 6)}</span>
           </span>
@@ -399,8 +404,9 @@ function TaskRow({
                 e.stopPropagation();
                 onToggleExpand();
               }}
-              className="shrink-0 flex h-5 w-5 items-center justify-center rounded hover:bg-stone-700 text-stone-500 hover:text-stone-200 transition-colors"
-              title={expanded ? "Collapse subtasks" : "Expand subtasks"}
+              className="shrink-0 flex h-5 w-5 items-center justify-center rounded hover:bg-stone-700 text-stone-500 hover:text-stone-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 p-2 -m-2"
+              aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
+              aria-expanded={expanded}
             >
               <IconChevronRight
                 size={13}
@@ -421,7 +427,7 @@ function TaskRow({
             <span
               className={cn(
                 "shrink-0 font-mono text-[10px] rounded px-1.5 py-0.5 transition-colors",
-                logsOpen ? "bg-stone-700 text-stone-300" : "text-stone-600",
+                logsOpen ? "bg-stone-700 text-stone-300" : "text-stone-500",
               )}
             >
               {task.logs.length} LOGS
@@ -457,6 +463,11 @@ function TaskRow({
                 PROGRESS_BAR[task.status],
               )}
               style={{ width: `${task.progressPercentage}%` }}
+              role="progressbar"
+              aria-valuenow={task.progressPercentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Task progress"
             />
           </div>
           <span className="shrink-0 w-8 text-right text-xs tabular-nums text-stone-500">
@@ -476,9 +487,10 @@ function TaskRow({
               variant="ghost"
               size="icon"
               disabled={isBusy}
-              className="h-6 w-6 data-state-open:bg-stone-800"
+              aria-label="Task actions"
+              className="h-8 w-8 data-state-open:bg-stone-800"
             >
-              <IconDotsVertical size={13} />
+              <IconDotsVertical size={13} aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -549,7 +561,7 @@ function SortHeader({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1 text-stone-400 hover:text-stone-200 transition-colors group">
+        <button className="flex items-center gap-1 text-stone-400 hover:text-stone-200 transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded">
           {label}
           <span className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-40 group-hover:opacity-100")}>
             {isActive && sort.dir === "asc" ? (
@@ -818,6 +830,7 @@ export function TaskTable({
         <div className="relative flex-1 min-w-48 max-w-sm">
           <IconSearch
             size={13}
+            aria-hidden="true"
             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
           />
           <Input
@@ -825,6 +838,7 @@ export function TaskTable({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-8"
+            aria-label="Filter tasks"
           />
         </div>
 
@@ -886,7 +900,7 @@ export function TaskTable({
                   <button
                     key={col}
                     onClick={() => visible ? hideCol(col) : showCol(col)}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-stone-300 hover:bg-stone-800 transition-colors"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-stone-300 hover:bg-stone-800 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
                   >
                     <span className="w-3.5 shrink-0">
                       {visible && <IconCheck size={13} className="text-stone-400" />}
@@ -1002,7 +1016,7 @@ export function TaskTable({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-1 text-xs text-stone-600">
+      <div className="flex items-center justify-between px-1 text-xs text-stone-500">
         <span>
           {selectedRows.size > 0
             ? `${selectedRows.size} of ${flatTasks.length} selected`
