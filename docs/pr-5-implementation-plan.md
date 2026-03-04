@@ -1,7 +1,9 @@
 # TaskTable Feature Expansion
 
 ## Context
+
 The TaskTable component needs several UX improvements discovered during active use:
+
 - Checkboxes are barely visible against the dark background
 - Only the Status column is sortable; all other columns should be too
 - Column visibility (hide/show) is missing
@@ -13,6 +15,7 @@ Single-column sort at a time (Option A). Task ID and Status always visible.
 ---
 
 ## Critical Files
+
 - `src/components/TaskTable.tsx` — main file (~750 lines), all sort/visibility/bulk/spawn logic
 - `src/components/ui/checkbox.tsx` — one-line border fix
 - `package.json` — add spawn server to dev script
@@ -21,9 +24,11 @@ Single-column sort at a time (Option A). Task ID and Status always visible.
 ---
 
 ## Step 1: Checkbox Visibility Fix
+
 **File:** `src/components/ui/checkbox.tsx` line 17
 
 Change unchecked border:
+
 ```
 border-stone-600  →  border-stone-400
 ```
@@ -33,22 +38,26 @@ border-stone-600  →  border-stone-400
 ## Step 2: Sort State Refactor
 
 **Remove** from `TaskTable.tsx`:
+
 - `type SortDir = 'asc' | 'desc' | null` (line 111)
 - `const [sortDir, setSortDir] = useState<SortDir>(null)` (line 461)
 - `const cycleSort = ...` (lines 605-607)
 
 **Add** new types (after existing interfaces):
+
 ```ts
 type SortCol = 'task' | 'status' | 'agent' | 'progress' | 'duration'
 interface SortState { col: SortCol | null; dir: 'asc' | 'desc' }
 ```
 
 **Add** state:
+
 ```ts
 const [sort, setSort] = useState<SortState>({ col: null, dir: 'asc' })
 ```
 
 **Replace** `sortNodes()` helper:
+
 ```ts
 function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
   if (!sort.col) return nodes
@@ -110,6 +119,7 @@ Add to Tabler icon imports: `IconCheck`, `IconEyeOff`, `IconLayoutColumns`
 Replace all column headers (Task, Status, Agent, Progress, Duration) with `<SortableColumnHeader>`.
 
 **UX behavior:**
+
 - Active sort: always shows ↑ or ↓ (no hover needed)
 - Inactive: shows `IconArrowsSort` on hover only at 60% opacity
 
@@ -118,16 +128,19 @@ Replace all column headers (Task, Status, Agent, Progress, Duration) with `<Sort
 ## Step 4: Column Visibility
 
 **Add state:**
+
 ```ts
 const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set())
 ```
 
 **Move `TOTAL_COLS`** from module scope (line 452) into component body:
+
 ```ts
 const TOTAL_COLS = 8 - hiddenCols.size  // toggleable: task, agent, progress, duration
 ```
 
 **Add `toggleCol` helper** (clears sort if hiding active column):
+
 ```ts
 const ALWAYS_VISIBLE = new Set(['status'])
 const toggleCol = (col: string) => {
@@ -149,6 +162,7 @@ const toggleCol = (col: string) => {
 **Wrap toggleable columns** in both `TableHeader` and `TaskRow` with `{!hiddenCols.has('X') && ...}` guards for: `task`, `agent`, `progress`, `duration`.
 
 **"View" button** in toolbar (right cluster, before New Agent and Refresh):
+
 ```tsx
 <DropdownMenu>
   <DropdownMenuTrigger asChild>
@@ -179,6 +193,7 @@ Wrap right cluster in `<div className="flex items-center gap-1 ml-auto">`.
 ## Step 5: Bulk Actions
 
 **Add `deleteTask` helper** (alongside `patchTask`):
+
 ```ts
 async function deleteTask(id: string) {
   const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
@@ -187,6 +202,7 @@ async function deleteTask(id: string) {
 ```
 
 **Add bulk handlers** inside component:
+
 ```ts
 const handleBulkAction = async (action: 'cancel' | 'pause' | 'retry') => {
   setBusy(prev => { const n = {...prev}; for (const id of selectedRows) n[id] = action; return n })
@@ -215,6 +231,7 @@ const handleBulkDelete = async () => {
 ```
 
 **Bulk action bar JSX** (between toolbar and table, renders when `selectedRows.size > 0`):
+
 ```tsx
 {selectedRows.size > 0 && (
   <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
@@ -239,6 +256,7 @@ Note: Delete removes the record from db.json. "Kill process" applies when real C
 ## Step 6: Spawn Terminal Micro-Server
 
 **New file:** `scripts/spawn-terminal.ts`
+
 ```ts
 const PORT = 3002
 const cors = {
@@ -263,11 +281,13 @@ console.log(`Spawn server on http://localhost:${PORT}`)
 ```
 
 **Update `package.json` dev script:**
+
 ```json
 "dev": "concurrently \"vite --port 5173\" \"json-server --watch db.json --port 3001\" \"bun scripts/spawn-terminal.ts\""
 ```
 
 **"New Agent" button** in toolbar (right cluster):
+
 ```tsx
 <Button variant="ghost" size="sm" className="gap-1.5"
   onClick={() => fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error)}>

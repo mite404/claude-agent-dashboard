@@ -9,6 +9,7 @@ A concise record of what was built, what changed, and the current system contrac
 **Stack**: Bun · Vite 6 · React 19 · TypeScript · Tailwind v4 (CSS-first) · json-server
 
 **Ports**:
+
 - `5173` — Vite dev server (React UI)
 - `3001` — json-server (REST API over `db.json`)
 - `3002` — spawn-terminal server (AppleScript bridge for "New Agent" button)
@@ -49,6 +50,7 @@ A concise record of what was built, what changed, and the current system contrac
 **Goal**: Replace mock data with live Claude Code agent events.
 
 **Delivered**:
+
 - `scripts/pre-tool-agent.sh` — PreToolUse hook; creates `running` task on agent start
 - `scripts/post-tool-agent.sh` — PostToolUse hook; resolves task to `completed` / `failed`
 - `~/.claude/settings.json` — global hook wiring (fires across all Claude Code sessions)
@@ -65,6 +67,7 @@ A concise record of what was built, what changed, and the current system contrac
 **Goal**: Replace the dark-blue card tree view with a professional data table.
 
 **Delivered**:
+
 - `TaskTable.tsx` — sortable table with toolbar, inline log rows, tree expansion, row actions
 - Stone dark OKLCH palette, Figtree font, Tabler icons, small-radius Mira style
 - Toolbar: search, Status filter, Agent filter, bulk-select checkbox

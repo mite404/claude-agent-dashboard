@@ -56,6 +56,7 @@ Two bash scripts in `scripts/` handle the full task lifecycle:
 | `scripts/post-tool-agent.sh` | `PostToolUse` | Updates the task to `completed` / `failed` (or keeps `running` for background tasks) when the call ends |
 
 Both scripts:
+
 - Read JSON from stdin (`INPUT=$(cat)`)
 - Use `tool_use_id` as the stable task ID linking pre and post calls
 - Write atomically via `jq ... > db.json.tmp && mv db.json.tmp db.json`
