@@ -68,7 +68,7 @@ const STATUS_ORDER: Record<TaskStatus, number> = {
 };
 
 const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
-  running: <IconClockHour4 size={14} aria-hidden="true" className="text-slate-400" />,
+  running: <IconClockHour4 size={14} aria-hidden="true" className="text-lime-400" />,
   completed: <IconCircleCheck size={14} aria-hidden="true" className="text-stone-500" />,
   failed: <IconCircleX size={14} aria-hidden="true" className="text-red-500" />,
   paused: <IconPlayerPause size={14} aria-hidden="true" className="text-amber-400" />,
@@ -86,7 +86,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 };
 
 const STATUS_TEXT: Record<TaskStatus, string> = {
-  running: "text-slate-400",  // blue-gray — actively doing work
+  running: "text-lime-400",   // lime — actively doing work
   failed: "text-red-500",     // red — needs attention
   paused: "text-amber-400",   // amber — suspended
   pending: "text-stone-500",
