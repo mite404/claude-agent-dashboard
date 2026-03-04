@@ -8,7 +8,7 @@ A real-time web dashboard for tracking Claude Code subagent task execution. The 
 
 ---
 
-## Current Status (as of 2026-03-03)
+## Current Status (as of 2026-03-04)
 
 ### ✅ Completed
 
@@ -29,61 +29,64 @@ A real-time web dashboard for tracking Claude Code subagent task execution. The 
 - **Mock data** — `db.json` has 6 realistic tasks with parent/child relationships, logs, varied statuses
 - **Vite watcher** — `db.json` excluded from HMR (`server.watch.ignored`) so json-server writes don't trigger page reloads
 - **Docs** — `docs/API.md`, `docs/HOOK.md`, `docs/FOR_ETHAN.md`
-
-### 🔄 In Progress / Known Issues
-
-- `@/` alias path resolution was failing; fixed with `vite-tsconfig-paths` — **requires a full `bun run dev` restart to take effect**
-- Hook integration is documented but not yet connected to a live Claude Code session
-
-### ⏳ Remaining Work
+- **Phase 5 — Claude Code Hook Integration** ✅
+  - `scripts/pre-tool-agent.sh` — PreToolUse hook; creates `running` task on agent start
+  - `scripts/post-tool-agent.sh` — PostToolUse hook; marks `completed` / `failed` on finish
+  - `~/.claude/settings.json` — global hook wiring for both hooks on the `Agent` tool
+  - Bootstrap guard: recreates `db.json` if missing or if `.tasks` key is absent/null
+  - Atomic writes via `jq ... > file.tmp && mv file.tmp file`
+  - Verified live: tasks appear in dashboard within 2.5s of Agent tool use
+- **UI Polish (2026-03-04)**
+  - Copy-log button with `IconCopy` → `IconCheck` 1.5s feedback in log panel header
+  - Log count chip: `N LOGS` monospace text (replaces terminal icon in Name cell)
+  - Log panel margin tuned to `mx-[30px]` (was `mx-10`)
+- **New Agent button** (`scripts/spawn-terminal.ts`) — detects `$TERM_PROGRAM` and uses terminal-specific AppleScript to open a new window and run `claude`
 
 ---
 
-## Phase 5 (Remaining): Claude Code Hook Integration
+## Phase 5 (✅ Completed 2026-03-04): Claude Code Hook Integration
 
-### 5.1 Create the hook shell script
+### 5.1 Hook scripts
 
-**File**: `scripts/update-tasks.sh`
+Two bash scripts in `scripts/` handle the full task lifecycle:
 
-The script reads stdin from the Claude Code hook (JSON with tool_use_id, tool_input, tool_result), builds a Task object, and upserts it into `db.json` using `jq`.
+| Script | Hook type | What it does |
+|--------|-----------|--------------|
+| `scripts/pre-tool-agent.sh` | `PreToolUse` | Creates a `running` task record in `db.json` when an Agent tool call starts |
+| `scripts/post-tool-agent.sh` | `PostToolUse` | Updates the task to `completed` / `failed` (or keeps `running` for background tasks) when the call ends |
 
-See `docs/HOOK.md` for the full script and instructions.
+Both scripts:
+- Read JSON from stdin (`INPUT=$(cat)`)
+- Use `tool_use_id` as the stable task ID linking pre and post calls
+- Write atomically via `jq ... > db.json.tmp && mv db.json.tmp db.json`
+- Bootstrap `db.json` if it doesn't exist or if `.tasks` is missing/null
 
-### 5.2 Wire up the hook in Claude Code settings
-
-Add to `~/.claude/settings.json`:
+### 5.2 Global hook wiring (`~/.claude/settings.json`)
 
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.sh" }] }
+    ],
     "PostToolUse": [
-      {
-        "matcher": "Agent",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/path/to/claude-agent-dashboard/scripts/update-tasks.sh"
-          }
-        ]
-      }
+      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh" }] }
     ]
   }
 }
 ```
 
-### 5.3 Add a PreToolUse hook for "running" state
-
-The current hook only fires *after* a task completes. Add a `PreToolUse` hook on the Agent tool to mark tasks as `running` when they start — so the dashboard shows them mid-flight, not just when they finish.
+Wired globally (not project-level) so the dashboard monitors all Claude Code sessions.
 
 ---
 
 ## Phase 6: Testing & Validation
 
-- [ ] Restart dev server after vite-tsconfig-paths fix and confirm no import errors
-- [ ] Confirm Cancel/Pause/Retry buttons PATCH correctly without page flash
-- [ ] Confirm polling updates status without full reload
-- [ ] Wire up hook and run a real parallel agent task to confirm live data flows through
-- [ ] Confirm `parentId` relationships render correctly in TaskTree
+- [x] Restart dev server after vite-tsconfig-paths fix and confirm no import errors
+- [x] Confirm Cancel/Pause/Retry buttons PATCH correctly without page flash
+- [x] Confirm polling updates status without full reload
+- [x] Wire up hook and run a real parallel agent task to confirm live data flows through
+- [ ] Confirm `parentId` relationships render correctly in TaskTree (child task support not yet exercised with live hook data)
 
 ---
 
@@ -189,7 +192,7 @@ Replaced the dark-blue card tree view with a shadcn-style Tasks table using the 
 ### Key Interactions in TaskTable
 
 - **`▶` toggle** in Name cell → expands/collapses child task rows (tree stays intact, rows shift down)
-- **Terminal icon + count** in Name cell → expands/collapses an inline log detail row (`<tr colSpan={8}>`) below that task
+- **`N LOGS` chip** in Name cell → expands/collapses an inline log detail row (`<tr colSpan={8}>`) below that task; chip uses monospace font and highlights when the panel is open
 - **Status column header** → click cycles sort: `default → asc → desc → default` with arrow icons
 - **Status / Agent filters** → Popover with checkboxes; count badge appears on button when active
 - **`⋮` actions** → Dropdown per row: Pause/Resume (label is context-aware), Retry, Cancel

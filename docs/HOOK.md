@@ -1,33 +1,58 @@
 # Claude Code Hook Integration
 
-The dashboard reads task data from the json-server REST API (`db.json`).
-A Claude Code hook is responsible for writing current task state to `db.json`
-whenever the Agent tool fires.
+The dashboard reads task data from `db.json` via json-server. Two shell scripts act as
+Claude Code hooks — they fire automatically whenever the Agent tool is used and write task
+state to `db.json`, which the dashboard polls every 2.5 seconds.
 
 ---
 
-## How it works
+## Signal Chain
 
 ```
-Claude Code agent runs → PostToolUse hook fires → script updates db.json → dashboard polls & renders
+User invokes Agent tool
+  → PreToolUse hook → scripts/pre-tool-agent.sh
+      → upserts { status: "running", progressPercentage: 0 } into db.json
+
+  → Agent executes (seconds to minutes)
+
+  → PostToolUse hook → scripts/post-tool-agent.sh
+      → updates { status: "completed" | "failed", progressPercentage: 100 } in db.json
+
+Dashboard polls /api/tasks every 2.5s → React table updates
 ```
+
+`tool_use_id` is the stable identifier that links both hook calls for the same agent
+invocation. The pre-hook creates a task record under that ID; the post-hook finds and
+updates it by the same ID.
 
 ---
 
-## Hook type: PostToolUse (Agent tool)
+## Hook configuration (`~/.claude/settings.json`)
 
-Add this to your `~/.claude/settings.json` (or project `.claude/settings.json`):
+Wired **globally** so the dashboard tracks all Claude Code sessions, not just sessions
+inside this project directory.
 
 ```json
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Agent",
         "hooks": [
           {
             "type": "command",
-            "command": "/path/to/claude-agent-dashboard/scripts/update-tasks.sh"
+            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh"
           }
         ]
       }
@@ -38,80 +63,85 @@ Add this to your `~/.claude/settings.json` (or project `.claude/settings.json`):
 
 ---
 
-## update-tasks.sh
+## `scripts/pre-tool-agent.sh` — PreToolUse hook
 
-Create `scripts/update-tasks.sh` in this repo (make it executable: `chmod +x`):
+Fires when an Agent tool call **starts**. Creates a `running` task in `db.json`.
 
-```bash
-#!/usr/bin/env bash
-# Reads the hook input from stdin, extracts task data,
-# and appends/updates it in db.json
+**Stdin fields used:**
 
-DASHBOARD_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DB_FILE="$DASHBOARD_DIR/db.json"
+| Field | Used as |
+|-------|---------|
+| `.tool_use_id` | task `id` |
+| `.tool_input.description` | task `name` |
+| `.tool_input.subagent_type` | task `agentType` |
 
-# Hook stdin provides JSON context including tool_use_id, tool_input, tool_result
-INPUT=$(cat)
+**Task record created:**
 
-TASK_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
-TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input // {}')
-TOOL_RESULT=$(echo "$INPUT" | jq -r '.tool_result // {}')
-
-TASK_NAME=$(echo "$TOOL_INPUT" | jq -r '.description // "Unnamed task"')
-SUBAGENT_TYPE=$(echo "$TOOL_INPUT" | jq -r '.subagent_type // "general-purpose"')
-IS_BG=$(echo "$TOOL_INPUT" | jq -r '.run_in_background // false')
-STATUS="completed"
-
-NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-
-# Build a log entry from the tool result
-LOG_MSG=$(echo "$TOOL_RESULT" | jq -r 'if type == "string" then . else tostring end' | head -c 200)
-
-NEW_TASK=$(jq -n \
-  --arg id "$TASK_ID" \
-  --arg name "$TASK_NAME" \
-  --arg status "$STATUS" \
-  --arg agent "$SUBAGENT_TYPE" \
-  --arg now "$NOW" \
-  --arg logmsg "$LOG_MSG" \
-  '{
-    id: $id,
-    name: $name,
-    status: $status,
-    agentType: $agent,
-    parentId: null,
-    createdAt: $now,
-    startedAt: $now,
-    completedAt: $now,
-    progressPercentage: 100,
-    logs: [
-      { timestamp: $now, level: "info", message: ("Task completed: " + $logmsg) }
-    ]
-  }')
-
-# Read current db.json, upsert the task (replace if id exists, otherwise append)
-if [ ! -f "$DB_FILE" ]; then
-  echo '{"tasks":[]}' > "$DB_FILE"
-fi
-
-jq --argjson task "$NEW_TASK" '
-  .tasks = (
-    if any(.tasks[]; .id == $task.id)
-    then [.tasks[] | if .id == $task.id then $task else . end]
-    else .tasks + [$task]
-    end
-  )
-' "$DB_FILE" > "$DB_FILE.tmp" && mv "$DB_FILE.tmp" "$DB_FILE"
+```json
+{
+  "id":                 "<tool_use_id>",
+  "name":               "<description or 'Unnamed task'>",
+  "status":             "running",
+  "agentType":          "<subagent_type or 'general-purpose'>",
+  "parentId":           null,
+  "createdAt":          "<now>",
+  "startedAt":          "<now>",
+  "completedAt":        null,
+  "progressPercentage": 0,
+  "logs": [{ "timestamp": "<now>", "level": "info", "message": "Task started: <name>" }]
+}
 ```
+
+Upsert logic: replaces the task if the ID already exists, appends if new.
+
+---
+
+## `scripts/post-tool-agent.sh` — PostToolUse hook
+
+Fires when an Agent tool call **ends**. Updates the existing task in `db.json`.
+
+**Stdin fields used:**
+
+| Field | Used as |
+|-------|---------|
+| `.tool_use_id` | identifies which task to update |
+| `.tool_input.run_in_background` | if `true`, task is still running — don't mark complete |
+| `.tool_response // .tool_result` | completion content for the log message |
+| `.tool_response.is_error` | `true` if the agent failed |
+
+**Status logic:**
+
+| Condition | Status | Progress |
+|-----------|--------|----------|
+| `run_in_background == true` | `running` | unchanged |
+| `is_error == true` | `failed` | 0 |
+| otherwise | `completed` | 100 |
+
+**Fields updated on the existing record:**
+
+```json
+{
+  "status":             "completed | failed | running",
+  "completedAt":        "<now>",   // only if not background
+  "progressPercentage": 100 | 0,
+  "logs":               "<existing logs> + [new entry]"
+}
+```
+
+If the task doesn't exist yet (pre-hook didn't fire), a fallback record is created with
+best-effort data so the dashboard still shows something.
 
 ---
 
 ## Notes
 
-- The hook fires **after** each Agent tool call completes.
-- For **background tasks** (run_in_background: true), status will initially be `running`.
-  You'd need a second hook on task completion to update it to `completed`.
-- For richer progress tracking, emit intermediate log entries using a custom
-  `PreToolUse` hook that marks the task as `running` when it starts.
-- `tool_use_id` is used as the unique task ID — this matches what Claude Code
-  internally tracks.
+- **Background tasks** — PostToolUse fires when the task is *dispatched*, not when it
+  finishes. The post-hook detects `run_in_background: true` and leaves status as `running`.
+  Phase 7 will add completion tracking for background tasks.
+- **Atomic writes** — scripts always write to `db.json.tmp` then `mv` it into place.
+  This prevents json-server from reading a half-written file.
+- **Bootstrap guard** — both scripts recreate `db.json` as `{"tasks":[]}` if the file
+  doesn't exist or if the `.tasks` key is missing/null (e.g., after manual edits).
+- **Why bash** — hooks must run in any shell environment. Bash + `jq` is universally
+  available on macOS; `bun` may not be in the hook runner's `$PATH`.
+- **`jq` required** — install via `brew install jq` if not present.

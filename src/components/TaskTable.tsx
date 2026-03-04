@@ -18,6 +18,10 @@ import {
   IconArrowUp,
   IconArrowDown,
   IconArrowsSort,
+  IconEyeOff,
+  IconAdjustmentsHorizontal,
+  IconCheck,
+  IconCopy,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -130,6 +134,15 @@ interface TaskTableProps {
 }
 
 type SortCol = "task" | "status" | "agent" | "progress" | "duration";
+type HideableCol = "task" | "status" | "agent" | "progress" | "duration";
+
+const HIDEABLE_COLS: { col: HideableCol; label: string }[] = [
+  { col: "task", label: "Task" },
+  { col: "status", label: "Status" },
+  { col: "agent", label: "Agent" },
+  { col: "progress", label: "Progress" },
+  { col: "duration", label: "Duration" },
+];
 
 interface SortState {
   col: SortCol | null;
@@ -247,10 +260,22 @@ function FilterPopover({
 // ─── LogDetailRow ─────────────────────────────────────────────────────────────
 
 function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyLogs = () => {
+    const text = logs
+      .map((e) => `${formatTimestamp(e.timestamp)}  ${LOG_LEVEL_LABEL[e.level]}  ${e.message}`)
+      .join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
   return (
     <TableRow className="hover:bg-transparent border-b-0">
       <TableCell colSpan={colSpan} className="p-0">
-        <div className="mx-10 mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-64">
+        <div className="mx-[30px] mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-64">
           {/* Header bar */}
           <div className="sticky top-0 flex items-center gap-2 border-b border-stone-800 bg-stone-900/80 px-3 py-1.5">
             <IconTerminal2 size={15} className="text-stone-500" />
@@ -258,6 +283,13 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
               Logs
             </span>
             <span className="ml-auto text-stone-600 text-[10px]">{logs.length} lines</span>
+            <button
+              onClick={copyLogs}
+              title="Copy logs"
+              className="ml-1 text-stone-600 hover:text-stone-300 transition-colors"
+            >
+              {copied ? <IconCheck size={13} className="text-stone-400" /> : <IconCopy size={13} />}
+            </button>
           </div>
           <table className="w-full border-collapse">
             <tbody>
@@ -302,6 +334,7 @@ interface TaskRowProps {
   logsOpen: boolean;
   selected: boolean;
   isBusy: boolean;
+  hiddenCols: Set<HideableCol>;
   onToggleExpand: () => void;
   onToggleLogs: () => void;
   onToggleSelect: () => void;
@@ -316,6 +349,7 @@ function TaskRow({
   logsOpen,
   selected,
   isBusy,
+  hiddenCols,
   onToggleExpand,
   onToggleLogs,
   onToggleSelect,
@@ -353,7 +387,7 @@ function TaskRow({
       </TableCell>
 
       {/* Name */}
-      <TableCell>
+      {!hiddenCols.has("task") && <TableCell>
         <div
           className="flex items-center gap-1.5"
           style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}
@@ -386,36 +420,35 @@ function TaskRow({
           {task.logs.length > 0 && (
             <span
               className={cn(
-                "shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors",
+                "shrink-0 font-mono text-[10px] rounded px-1.5 py-0.5 transition-colors",
                 logsOpen ? "bg-stone-700 text-stone-300" : "text-stone-600",
               )}
             >
-              <IconTerminal2 size={14} />
-              <span>{task.logs.length}</span>
+              {task.logs.length} LOGS
             </span>
           )}
         </div>
-      </TableCell>
+      </TableCell>}
 
       {/* Status */}
-      <TableCell className="w-28">
+      {!hiddenCols.has("status") && <TableCell className="w-28">
         <div className="flex items-center gap-1.5">
           {STATUS_ICON[task.status]}
           <span className={cn("text-sm", STATUS_TEXT[task.status])}>
             {STATUS_LABEL[task.status]}
           </span>
         </div>
-      </TableCell>
+      </TableCell>}
 
       {/* Agent Type */}
-      <TableCell className="w-32">
+      {!hiddenCols.has("agent") && <TableCell className="w-32">
         <span className="rounded-(--radius-sm) bg-stone-800 px-1.5 py-0.5 text-[11px] text-stone-400 font-medium">
           {task.agentType}
         </span>
-      </TableCell>
+      </TableCell>}
 
       {/* Progress */}
-      <TableCell className="w-36">
+      {!hiddenCols.has("progress") && <TableCell className="w-36">
         <div className="flex items-center gap-2">
           <div className="h-1.5 flex-1 rounded-full bg-stone-800 min-w-0">
             <div
@@ -430,10 +463,10 @@ function TaskRow({
             {task.progressPercentage}%
           </span>
         </div>
-      </TableCell>
+      </TableCell>}
 
       {/* Duration */}
-      <TableCell className="w-20 text-xs tabular-nums text-stone-500">{elapsed}</TableCell>
+      {!hiddenCols.has("duration") && <TableCell className="w-20 text-xs tabular-nums text-stone-500">{elapsed}</TableCell>}
 
       {/* Actions */}
       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
@@ -497,9 +530,58 @@ function TaskRow({
   );
 }
 
-// ─── TaskTable (main export) ──────────────────────────────────────────────────
+// ─── SortHeader ───────────────────────────────────────────────────────────────
 
-const TOTAL_COLS = 8;
+function SortHeader({
+  col,
+  label,
+  sort,
+  onSort,
+  onHide,
+}: {
+  col: SortCol;
+  label: string;
+  sort: SortState;
+  onSort: (col: SortCol, dir: "asc" | "desc") => void;
+  onHide: (col: HideableCol) => void;
+}) {
+  const isActive = sort.col === col;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1 text-stone-400 hover:text-stone-200 transition-colors group">
+          {label}
+          <span className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-40 group-hover:opacity-100")}>
+            {isActive && sort.dir === "asc" ? (
+              <IconArrowUp size={12} />
+            ) : isActive && sort.dir === "desc" ? (
+              <IconArrowDown size={12} />
+            ) : (
+              <IconArrowsSort size={12} />
+            )}
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-36">
+        <DropdownMenuItem onClick={() => onSort(col, "asc")}>
+          <IconArrowUp size={13} />
+          Asc
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onSort(col, "desc")}>
+          <IconArrowDown size={13} />
+          Desc
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => onHide(col as HideableCol)} className="text-stone-500">
+          <IconEyeOff size={13} />
+          Hide
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// ─── TaskTable (main export) ──────────────────────────────────────────────────
 
 export function TaskTable({
   tree,
@@ -515,6 +597,7 @@ export function TaskTable({
   const [agentFilter, setAgentFilter] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
+  const [hiddenCols, setHiddenCols] = useState<Set<HideableCol>>(new Set());
   const [busy, setBusy] = useState<Record<string, string>>({});
 
   // Auto-expand parent tasks as tree updates (new parents appear)
@@ -710,19 +793,19 @@ export function TaskTable({
     });
   };
 
-  // ── Sort cycle: null → asc → desc → null ─────────────────────────────────
+  // ── Sort & column visibility ───────────────────────────────────────────────
 
-  const cycleSort = () => {
-    setSort((prev) => {
-      if (prev.col !== "status") {
-        return { col: "status", dir: "asc" };
-      }
-      if (prev.dir === "asc") {
-        return { col: "status", dir: "desc" };
-      }
-      return { col: null, dir: "asc" };
-    });
+  const handleSort = (col: SortCol, dir: "asc" | "desc") => setSort({ col, dir });
+
+  const hideCol = (col: HideableCol) => {
+    setHiddenCols((prev) => new Set([...prev, col]));
+    if (sort.col === col) setSort({ col: null, dir: "asc" });
   };
+
+  const showCol = (col: HideableCol) =>
+    setHiddenCols((prev) => { const next = new Set(prev); next.delete(col); return next; });
+
+  const totalCols = 8 - hiddenCols.size;
 
   const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "";
 
@@ -787,6 +870,33 @@ export function TaskTable({
             <IconTerminal2 size={13} />
             New Agent
           </Button>
+          {/* View — column visibility toggle */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <IconAdjustmentsHorizontal size={13} />
+                View
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-44 p-1">
+              <p className="px-2 py-1.5 text-xs font-medium text-stone-500">Toggle columns</p>
+              {HIDEABLE_COLS.map(({ col, label }) => {
+                const visible = !hiddenCols.has(col);
+                return (
+                  <button
+                    key={col}
+                    onClick={() => visible ? hideCol(col) : showCol(col)}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-stone-300 hover:bg-stone-800 transition-colors"
+                  >
+                    <span className="w-3.5 shrink-0">
+                      {visible && <IconCheck size={13} className="text-stone-400" />}
+                    </span>
+                    {label}
+                  </button>
+                );
+              })}
+            </PopoverContent>
+          </Popover>
           <Button
             variant="ghost"
             size="sm"
@@ -838,31 +948,19 @@ export function TaskTable({
                 <Checkbox checked={headerChecked} onChange={toggleAll} />
               </TableHead>
               <TableHead className="w-24">ID</TableHead>
-              <TableHead>Task</TableHead>
-
-              {/* Sortable Status column */}
-              <TableHead className="w-28">
-                <button
-                  onClick={cycleSort}
-                  className="flex items-center gap-1.5 text-stone-400 hover:text-stone-200 transition-colors group"
-                  title="Sort by status"
-                >
-                  Status
-                  <span className="opacity-50 group-hover:opacity-100">
-                    {sort.dir === "asc" ? (
-                      <IconArrowUp size={12} />
-                    ) : sort.dir === "desc" ? (
-                      <IconArrowDown size={12} />
-                    ) : (
-                      <IconArrowsSort size={12} />
-                    )}
-                  </span>
-                </button>
-              </TableHead>
-
-              <TableHead className="w-32">Agent</TableHead>
-              <TableHead className="w-36">Progress</TableHead>
-              <TableHead className="w-20">Duration</TableHead>
+              {!hiddenCols.has("task") && <TableHead>
+                <SortHeader col="task" label="Task" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
+              {!hiddenCols.has("status") && <TableHead className="w-28">
+                <SortHeader col="status" label="Status" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
+              {!hiddenCols.has("agent") && <TableHead className="w-32">Agent</TableHead>}
+              {!hiddenCols.has("progress") && <TableHead className="w-36">
+                <SortHeader col="progress" label="Progress" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
+              {!hiddenCols.has("duration") && <TableHead className="w-20">
+                <SortHeader col="duration" label="Duration" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -870,7 +968,7 @@ export function TaskTable({
           <TableBody>
             {flatTasks.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={TOTAL_COLS} className="h-32 text-center text-stone-500">
+                <TableCell colSpan={totalCols} className="h-32 text-center text-stone-500">
                   {tree.length === 0
                     ? "No tasks yet — start a Claude Code agent session to see tasks appear here."
                     : "No tasks match the current filters."}
@@ -887,13 +985,14 @@ export function TaskTable({
                     logsOpen={expandedLogs.has(task.id)}
                     selected={selectedRows.has(task.id)}
                     isBusy={task.id in busy}
+                    hiddenCols={hiddenCols}
                     onToggleExpand={() => toggleExpand(task.id)}
                     onToggleLogs={() => toggleLogs(task.id)}
                     onToggleSelect={() => toggleRow(task.id)}
                     onAction={(action) => handleAction(task.id, action)}
                   />
                   {expandedLogs.has(task.id) && task.logs.length > 0 && (
-                    <LogDetailRow logs={task.logs} colSpan={TOTAL_COLS} />
+                    <LogDetailRow logs={task.logs} colSpan={totalCols} />
                   )}
                 </React.Fragment>
               ))
