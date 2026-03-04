@@ -176,6 +176,146 @@ server: {
 
 ---
 
+## 4b. Bloopers — Card-to-Table Refactor (2026-03-03)
+
+### 🎬 Blooper 6: You can't just sort a flat list when your data is a tree
+
+**The situation:** The first instinct when adding "sort by status" was: grab all the tasks, sort the array by status, render them. Done, right?
+
+**Why that breaks:** Our tasks have parent/child relationships. If you sort a flat list, a child task ("Build CI pipeline") could end up rendered *above* its parent ("Orchestrate workflow"). The tree hierarchy falls apart — orphaned rows floating in the wrong order.
+
+**The fix:** Sort *recursively*. Sort the top-level parent nodes relative to each other, then for each parent, sort *its children* relative to each other. The family units stay intact.
+
+```typescript
+function sortNodes(nodes: TaskNode[], dir: SortDir): TaskNode[] {
+  if (!dir) return nodes
+  const sorted = [...nodes].sort((a, b) => {
+    const cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+    return dir === 'asc' ? cmp : -cmp
+  })
+  return sorted.map(n => ({ ...n, children: sortNodes(n.children, dir) }))
+}
+```
+
+**Film analogy:** It's like sorting a shoot schedule by scene type. You can reorder the *days* of production, but you can't separate a director from their crew within a given day. The hierarchy is the atomic unit.
+
+**Lesson:** When your data is a tree, any sorting or filtering must be recursive. An operation that flattens the tree first and then acts on the flat list will always break parent/child groupings.
+
+---
+
+### 🎬 Blooper 7: The card "owned" its own controls — the table can't work that way
+
+**The old architecture:** Each `TaskCard` contained `ControlButtons`, which contained its own `fetch` call to PATCH json-server. The card was a self-contained unit — it knew how to cancel itself, pause itself, retry itself. This is called a **fat component**: it owns both rendering *and* actions.
+
+**Why that pattern breaks in a table:** In a table, each row is a thin data renderer. If Cancel/Retry lived inside each row with their own `fetch` logic and `busy` state, you'd have dozens of independent state machines — and no single place to coordinate "which row is currently doing something."
+
+**The fix:** Lift the action logic up to the parent. `TaskTable` owns a single `handleAction` function and a single `busy: Record<string, string>` tracker. Each row receives an `onAction` callback prop. The row calls `onAction('cancel')` — it has no idea what that actually does.
+
+```
+TaskTable         ← owns: busy, expandedRows, selectedRows, filters, sort
+  └── TaskRow     ← calls: onAction, onToggleExpand, onToggleLogs (thin)
+```
+
+**Film analogy:** The old card system was like every actor booking their own car. The table system has one production coordinator who handles all logistics. The actors just say "I need a ride."
+
+**Lesson:** Fat components are fine for isolated widgets. But once components need to *share* state or *coordinate*, lift that state to the nearest common ancestor. This is one of React's core patterns: "lifting state up."
+
+---
+
+### 🎬 Blooper 8: You can't put a `key` prop on a `<>` fragment shorthand
+
+**The situation:** The table needed to render *two sibling `<tr>` elements* per task — the task row, and an optional log detail row directly below it. In a `.map()`, React requires a `key` on the outermost element of each item so it can track list order efficiently.
+
+**The problem:** `<>...</>` is shorthand for `React.Fragment`, but **`<>` does not accept any props — including `key`**. This silently fails or errors:
+
+```tsx
+tasks.map(({ task }) => (
+  <>  {/* ← can't put key here */}
+    <TaskRow ... />
+    {logsOpen && <LogDetailRow ... />}
+  </>
+))
+```
+
+**The fix:** Use the explicit long form `<React.Fragment key={task.id}>`. This is identical at runtime but accepts `key`:
+
+```tsx
+tasks.map(({ task }) => (
+  <React.Fragment key={task.id}>
+    <TaskRow ... />
+    {expandedLogs.has(task.id) && <LogDetailRow ... />}
+  </React.Fragment>
+))
+```
+
+React now treats the pair (task row + log row) as one keyed unit. When the log row appears or disappears, React reconciles it correctly against the right task.
+
+**Lesson:** `<>` is syntax sugar — convenient, but it strips away the ability to pass props. Whenever you need `key` on a fragment (which happens in any `.map()` that renders sibling element groups), switch to `<React.Fragment key={...}>`.
+
+---
+
+### 🎬 Blooper 9: The checkbox "indeterminate" state doesn't exist as a React prop
+
+**The situation:** The "select all" checkbox in the table header needs three states: unchecked (nothing selected), checked (everything selected), and *indeterminate* (some selected — the ⊟ half-filled visual). That third state is how every professional data table signals partial selection.
+
+**The problem:** HTML checkboxes have an `indeterminate` property — but it's a **DOM property**, not an HTML attribute. React's model is built on attributes (things you set in JSX). To set a DOM property imperatively, you'd need a `useRef` + `useEffect`:
+
+```tsx
+// The ugly raw HTML way
+const ref = useRef<HTMLInputElement>(null)
+useEffect(() => { if (ref.current) ref.current.indeterminate = someSelected }, [someSelected])
+<input type="checkbox" ref={ref} ... />
+```
+
+**The fix:** Radix UI's `<Checkbox>` accepts `checked="indeterminate"` as a special value and handles the DOM property internally. One clean prop, no refs.
+
+```tsx
+const headerChecked = allSelected ? true : someSelected ? 'indeterminate' : false
+<Checkbox checked={headerChecked} onChange={toggleAll} />
+```
+
+**Lesson:** Some browser behaviors don't map cleanly to React's prop model because they're DOM *properties* (set via JavaScript), not HTML *attributes* (set via markup). Radix UI exists partly to paper over exactly these gaps — it wraps the imperative DOM API in a declarative React interface.
+
+---
+
+### 🎬 Blooper 10: Auto-expanding new task rows without clobbering the user's manual state
+
+**The situation:** When the table first loads, parent tasks should be expanded by default so you can see their children. But the tree updates every 2.5 seconds from polling. If you reset `expandedRows` on every poll, any row the user manually collapsed would instantly snap back open — the UI fighting the user.
+
+**The wrong fix:**
+
+```tsx
+// ❌ This resets ALL expanded state on every poll
+useEffect(() => {
+  const parentIds = new Set(tree.filter(n => n.children.length > 0).map(n => n.id))
+  setExpandedRows(parentIds) // blows away manual collapses
+}, [tree])
+```
+
+**The right fix:** Only *add* newly-seen parent IDs — never remove ones already tracked. The `Set` grows monotonically from polling, but only *shrinks* when the user manually clicks a collapse toggle.
+
+```tsx
+useEffect(() => {
+  setExpandedRows(prev => {
+    const next = new Set(prev)           // start from existing state
+    const collect = (nodes: TaskNode[]) => {
+      for (const n of nodes) {
+        if (n.children.length > 0) next.add(n.id)  // only add, never remove
+        collect(n.children)
+      }
+    }
+    collect(tree)
+    return next
+  })
+}, [tree])
+```
+
+**Film analogy:** Think of `expandedRows` like a director's shot list. New shots get appended as production evolves — you never throw away the whole list just because a new day of shooting started.
+
+**Lesson:** When polling data updates state that users also control manually, always *merge* incoming data into existing user state rather than replacing it. Replacing feels like the app is fighting the user. The rule of thumb: polling can only *add* to user-driven state, never *reset* it.
+
+---
+
 ## 5. Director's Commentary
 
 ### On "boring technology"
