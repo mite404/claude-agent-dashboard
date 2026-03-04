@@ -98,6 +98,7 @@ A comprehensive WCAG 2.1 accessibility review using the RAMS design review proce
 ### 6.2 Fixes Implemented
 
 **A11y Attributes:**
+
 - ✅ `aria-label` on all icon-only buttons (Copy Logs, Expand/Collapse, Action dots)
 - ✅ `aria-label="Filter tasks"` on search input
 - ✅ `aria-expanded` on expandable rows and tree toggles
@@ -106,15 +107,18 @@ A comprehensive WCAG 2.1 accessibility review using the RAMS design review proce
 - ✅ `aria-live="polite"` region in Dashboard for polling announcements
 
 **Keyboard & Focus:**
+
 - ✅ `onKeyDown` handler on clickable `<TableRow>` for Enter/Space keys
 - ✅ `tabIndex={0}` on focusable rows
 - ✅ `focus-visible:ring-1 focus-visible:ring-stone-500` on all bare `<button>` elements
 
 **Touch Targets (WCAG 2.5.5):**
+
 - ✅ Expand/collapse button: `p-2 -m-2` (visual 20px, tappable 36px via invisible padding trick)
 - ✅ Action dots button: `h-6 w-6` → `h-8 w-8` (24px → 32px)
 
 **Semantic Colors & Contrast:**
+
 - ✅ `STATUS_TEXT` colors now semantic: running→`slate-400`, failed→`red-500`, paused→`amber-400`
 - ✅ `STATUS_ICON` colors match their text (decorative, but consistent and colored)
 - ✅ Muted text bumped: `text-stone-600` → `text-stone-500` (footer, timestamps, log counts, parent IDs)
@@ -122,6 +126,7 @@ A comprehensive WCAG 2.1 accessibility review using the RAMS design review proce
 - ✅ All color changes contrast ≥4.5:1 on stone-950 background
 
 **Files Changed:**
+
 - `src/components/TaskTable.tsx` — STATUS_ICON/STATUS_TEXT colors, a11y attributes, touch targets, focus rings
 - `src/components/Dashboard.tsx` — `aria-hidden` on IconActivity, `aria-live` region, subtitle text color
 - Both files: minor text color bumps for contrast

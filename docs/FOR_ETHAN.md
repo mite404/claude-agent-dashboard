@@ -627,6 +627,7 @@ When you outgrow it (auth, complex queries, relations), you swap it for a real b
 **The pattern:** When this project's UI was finished and "visually polished," a RAMS accessibility audit revealed ~12 issues across three severity levels. The first instinct was to think "accessibility is extra work" — but this mindset is backward. Accessibility is architecture.
 
 **What we found:**
+
 - 4 critical issues: icon-only buttons without `aria-label`, searchable inputs without accessible names
 - 4 serious issues: clickable rows without keyboard handlers, missing focus rings, touch targets too small
 - 4 moderate issues: decorative icons not hidden from screen readers, contrast ratios below 4.5:1, missing live regions
@@ -640,6 +641,7 @@ None of these were hard to fix *once discovered*. But they all required **intent
 1. **Icon-only buttons are broken by default.** A button with only an icon (`<button><IconRefresh /></button>`) is invisible to screen readers. The fix is one line: `aria-label="Refresh"`. This isn't extra; it's required. If your icon component doesn't have an accessible name, the button doesn't work.
 
 2. **Clickable elements need keyboard support.** A row with `onClick` is pointless for keyboard users. The fix is straightforward:
+
    ```jsx
    onClick={handleClick}
    onKeyDown={(e) => {
@@ -650,6 +652,7 @@ None of these were hard to fix *once discovered*. But they all required **intent
    }}
    tabIndex={0}
    ```
+
    This is not "extra accessibility code" — it's the price of entry for interactive elements. Expect it.
 
 3. **Invisible UX is real UX.** The `-m-2` padding trick (expanding a 20px button's tap zone to 36px without changing its visual appearance) taught a film-production lesson: what users see isn't all the information your design conveys. Like a film credit that lists production assistants nobody sees — it still matters. `aria-live="polite"` announcements, `aria-expanded` toggles, and unseen focus rings are all real UI. They just happen to be invisible to non-assistive users.
