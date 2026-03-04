@@ -135,6 +135,11 @@ async function patchTask(taskId: string, patch: object) {
   if (!res.ok) throw new Error(`PATCH failed: HTTP ${res.status}`)
 }
 
+async function deleteTask(id: string) {
+  const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`DELETE ${id} failed: HTTP ${res.status}`)
+}
+
 function sortNodes(nodes: TaskNode[], dir: SortDir): TaskNode[] {
   if (!dir) return nodes
   const sorted = [...nodes].sort((a, b) => {
@@ -522,6 +527,33 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
     }
   }
 
+  // ── Bulk Actions ───────────────────────────────────────────────────────────
+
+  const handleBulkAction = async (action: 'cancel' | 'pause' | 'retry') => {
+    setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) n[id] = action; return n })
+    try {
+      const patch = action === 'cancel' ? { status: 'cancelled' as TaskStatus }
+                  : action === 'pause'  ? { status: 'paused'    as TaskStatus }
+                  : { status: 'running' as TaskStatus, progressPercentage: 0 }
+      await Promise.all([...selectedRows].map(id => patchTask(id, patch)))
+      setSelectedRows(new Set())
+      onRefresh()
+    } finally {
+      setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) delete n[id]; return n })
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) n[id] = 'delete'; return n })
+    try {
+      await Promise.all([...selectedRows].map(id => deleteTask(id)))
+      setSelectedRows(new Set())
+      onRefresh()
+    } finally {
+      setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) delete n[id]; return n })
+    }
+  }
+
   // ── Selection ──────────────────────────────────────────────────────────────
 
   const visibleIds    = flatTasks.map(f => f.task.id)
@@ -651,17 +683,44 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
           </Button>
         )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onRefresh}
-          disabled={loading}
-          className="ml-auto gap-1.5"
-        >
-          <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-1 ml-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error)}
+          >
+            <IconTerminal2 size={13} />
+            New Agent
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {/* Bulk action bar — visible when 1+ rows are selected */}
+      {selectedRows.size > 0 && (
+        <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
+          <span className="text-xs text-stone-400 tabular-nums">{selectedRows.size} selected</span>
+          <div className="flex items-center gap-1 ml-2">
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('cancel')}>Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('pause')}>Pause</Button>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('retry')}>Retry</Button>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>Delete</Button>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto gap-1">
+            <IconX size={12} /> Clear
+          </Button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-(--radius-md) border border-stone-800 overflow-hidden">
