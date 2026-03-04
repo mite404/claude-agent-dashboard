@@ -1,0 +1,23 @@
+// Folder-specific settings
+//
+// For a full list of overridable settings, and general information on folder-specific settings,
+// see the documentation: https://zed.dev/docs/configuring-zed#settings-files
+{
+  "lsp": {
+    "stylelint-lsp": {
+      "settings": {
+        "stylelint": {
+          "packageManager": "bun",
+        }
+      }
+    }
+  },
+  "languages": {
+    // language identifier for these settings, see https://zed.dev/docs/configuring-languages#language-specific-settings for more info
+    "CSS": {
+      "code_actions_on_format": {
+        "source.fixAll.stylelint": false
+      }
+    }
+  }
+}

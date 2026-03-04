@@ -40,14 +40,14 @@ export function LogViewer({ logs, taskId }: LogViewerProps) {
         >
           <ChevronDown
             size={12}
-            className="transition-transform duration-200 group-data-[state=open]:rotate-180"
+            className="transition-transform duration-200 group-data-state-open:rotate-180"
           />
           <span>
             {logs.length} log {logs.length === 1 ? 'entry' : 'entries'}
           </span>
         </Accordion.Trigger>
 
-        <Accordion.Content className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+        <Accordion.Content className="overflow-hidden data-state-closed:animate-accordion-up data-state-open:animate-accordion-down">
           <div className="mx-3 mb-3 overflow-auto rounded-md bg-black/40 font-mono text-xs leading-relaxed max-h-64">
             {/* Header bar like GitHub Actions */}
             <div className="sticky top-0 flex items-center gap-2 border-b border-white/5 bg-black/60 px-3 py-1.5">
