@@ -469,6 +469,7 @@ The key insight: **`tool_use_id` is the stable link.** Both hooks receive the sa
 When Claude Code fires a hook, it writes a JSON object to the script's `stdin` (standard input — the pipe that programs read from when you don't give them a file). The script reads it with `INPUT=$(cat)` and parses it with `jq`.
 
 For PreToolUse (Agent starting):
+
 ```json
 {
   "tool_use_id": "toolu_01abc...",
@@ -481,6 +482,7 @@ For PreToolUse (Agent starting):
 ```
 
 For PostToolUse (Agent done):
+
 ```json
 {
   "tool_use_id": "toolu_01abc...",

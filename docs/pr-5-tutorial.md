@@ -38,6 +38,7 @@ The server spawning is a **sidecar pattern**: your browser can't launch native p
 **Problem:** The unchecked checkbox border (currently `stone-600`) has poor contrast against the dark page background. The checkmark also needs better contrast.
 
 **Your Task:**
+
 1. Replace the Tailwind `border-stone-600` with the project's **CSS variable** for better contrast
 2. Fix the checkmark color to ensure visibility
 
@@ -81,6 +82,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
 ```
 
 **Questions to answer:**
+
 - What CSS variable represents the mid-gray unchecked border?
 - What CSS variable represents the light background when checked?
 - What color should the checkmark be for visibility?
@@ -94,6 +96,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
 **Problem:** When users select multiple rows, there's no way to bulk delete, cancel, or pause them.
 
 **Your Task:**
+
 1. Add a `deleteTask()` helper (like `patchTask`, but DELETE)
 2. Add `handleBulkAction()` to patch multiple tasks
 3. Add `handleBulkDelete()` to delete multiple tasks
@@ -101,6 +104,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
 ### Hint
 
 Both handlers follow this pattern:
+
 1. Set busy state for all selected rows
 2. Fire all requests concurrently with `Promise.all()`
 3. On success: clear selection and refresh
@@ -148,6 +152,7 @@ const handleBulkDelete = async () => {
 ```
 
 **Questions to answer:**
+
 - Why do we set busy state at the beginning AND in the finally block?
 - Why use `Promise.all()` instead of `await`ing each request sequentially?
 - What happens if one deletion fails mid-batch?
@@ -161,12 +166,14 @@ const handleBulkDelete = async () => {
 **Problem:** The handlers exist, but there's no UI to trigger them. Also, the "New Agent" button is missing.
 
 **Your Task:**
+
 1. Add a **contextual bulk action bar** that appears when rows are selected
 2. Add a **"New Agent" button** to the toolbar that spawns Ghostty
 
 ### Hint
 
 The bulk action bar is a simple conditional JSX block that:
+
 - Only renders if `selectedRows.size > 0`
 - Has buttons for Cancel / Pause / Retry / Delete
 - Shows "X selected" count
@@ -217,6 +224,7 @@ The "New Agent" button fires a POST to `http://localhost:3002/spawn`.
 ```
 
 **Questions to answer:**
+
 - Why does the action bar only render when `selectedRows.size > 0`?
 - Why is the New Agent button wrapped in a div with `ml-auto`?
 - What error handling should happen if the spawn fetch fails?
@@ -231,6 +239,7 @@ The "New Agent" button fires a POST to `http://localhost:3002/spawn`.
 **Problem:** The "New Agent" button needs a server to launch Ghostty + Claude.
 
 **Your Task:**
+
 1. Create a micro-server on port 3002
 2. Handle `POST /spawn` requests
 3. Use `Bun.spawn()` to launch `open -a Ghostty --args --command claude`
@@ -239,6 +248,7 @@ The "New Agent" button fires a POST to `http://localhost:3002/spawn`.
 ### Hint
 
 The server is minimal:
+
 - Define `PORT = 3002`
 - Define CORS headers (Allow-Origin: localhost:5173)
 - Handle OPTIONS requests (CORS preflight)
@@ -293,6 +303,7 @@ console.log(`Spawn server on http://localhost:${PORT}`)
 ```
 
 **Questions to answer:**
+
 - Why return `status: 204` for OPTIONS instead of 200?
 - Why is CORS needed for a local server?
 - What happens if Ghostty isn't installed?
@@ -332,6 +343,7 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
 ```
 
 **Key points:**
+
 - `[border-color:var(--color-border-muted)]` — unchecked border uses project theme (stone-600)
 - `data-state-checked:` — Radix UI attributes for checked state
 - `text-white` — checkmark stands out against dark page and light checkbox background
@@ -373,6 +385,7 @@ const handleBulkDelete = async () => {
 ```
 
 **Key points:**
+
 - Set busy state BEFORE trying (so loading state appears immediately)
 - Use `Promise.all()` for concurrent requests (all fire at once, wait for all to complete)
 - Clear selection on success
@@ -436,6 +449,7 @@ const handleBulkDelete = async () => {
 ```
 
 **Key points:**
+
 - Conditional rendering: only show if `selectedRows.size > 0`
 - Count display: `{selectedRows.size} selected`
 - Clear button is `ml-auto` to push it to the right
@@ -481,6 +495,7 @@ console.log(`Spawn server on http://localhost:${PORT}`)
 ```
 
 **Key points:**
+
 - Port 3002 (doesn't conflict with Vite 5173 or json-server 3001)
 - CORS headers restrict to localhost:5173 (your frontend)
 - `status: 204` for OPTIONS (successful CORS preflight, no body needed)
@@ -508,19 +523,23 @@ After implementing all four challenges:
 ## Debugging Tips
 
 **Checkbox still hard to see?**
+
 - Check that `src/index.css` defines the CSS variables
 - Verify Tailwind is parsing `[border-color:var(...)]` syntax
 
 **Bulk actions don't appear?**
+
 - Verify `selectedRows.size > 0` is being checked
 - Check browser console for JS errors
 
 **New Agent button doesn't spawn Ghostty?**
+
 - Check spawn server is running (`bun scripts/spawn-terminal.ts`)
 - Verify Ghostty is installed (`which ghostty`)
 - Check browser console Network tab for fetch errors
 
 **Dev script hangs?**
+
 - Make sure `concurrently` is installed
 - Kill any existing processes on 5173, 3001, 3002
 
