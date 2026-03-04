@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from "react";
 import {
   IconSearch,
   IconRefresh,
@@ -18,7 +18,7 @@ import {
   IconArrowUp,
   IconArrowDown,
   IconArrowsSort,
-} from '@tabler/icons-react'
+} from "@tabler/icons-react";
 import {
   Table,
   TableHeader,
@@ -26,10 +26,10 @@ import {
   TableRow,
   TableHead,
   TableCell,
-} from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,128 +37,158 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn, formatElapsed, formatTimestamp } from '@/lib/utils'
-import type { TaskNode, TaskStatus, LogEntry } from '@/types/task'
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn, formatElapsed, formatTimestamp } from "@/lib/utils";
+import type { TaskNode, TaskStatus, LogEntry } from "@/types/task";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const ALL_STATUSES: TaskStatus[] = ['running', 'paused', 'pending', 'failed', 'completed', 'cancelled']
+const ALL_STATUSES: TaskStatus[] = [
+  "running",
+  "paused",
+  "pending",
+  "failed",
+  "completed",
+  "cancelled",
+];
 
 // Sort order: most urgent first
 const STATUS_ORDER: Record<TaskStatus, number> = {
-  running:   0,
-  paused:    1,
-  failed:    2,
-  pending:   3,
+  running: 0,
+  paused: 1,
+  failed: 2,
+  pending: 3,
   completed: 4,
   cancelled: 5,
-}
+};
 
 const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
-  running:   <IconClockHour4  size={14} className="text-stone-300" />,
+  running: <IconClockHour4 size={14} className="text-stone-300" />,
   completed: <IconCircleCheck size={14} className="text-stone-500" />,
-  failed:    <IconCircleX     size={14} className="text-stone-300" />,
-  paused:    <IconPlayerPause size={14} className="text-stone-400" />,
-  pending:   <IconCircle      size={14} className="text-stone-600" />,
-  cancelled: <IconCircleOff   size={14} className="text-stone-700" />,
-}
+  failed: <IconCircleX size={14} className="text-stone-300" />,
+  paused: <IconPlayerPause size={14} className="text-stone-400" />,
+  pending: <IconCircle size={14} className="text-stone-600" />,
+  cancelled: <IconCircleOff size={14} className="text-stone-700" />,
+};
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
-  running:   'Running',
-  completed: 'Done',
-  failed:    'Failed',
-  paused:    'Paused',
-  pending:   'Pending',
-  cancelled: 'Cancelled',
-}
+  running: "Running",
+  completed: "Done",
+  failed: "Failed",
+  paused: "Paused",
+  pending: "Pending",
+  cancelled: "Cancelled",
+};
 
 const STATUS_TEXT: Record<TaskStatus, string> = {
-  running:   'text-stone-200',  // brightest — actively doing work
-  failed:    'text-stone-300',  // needs attention
-  paused:    'text-stone-400',
-  pending:   'text-stone-500',
-  completed: 'text-stone-500',  // dim — done, no longer needs focus
-  cancelled: 'text-stone-600',  // dimmest — terminal & dismissed
-}
+  running: "text-stone-200", // brightest — actively doing work
+  failed: "text-stone-300", // needs attention
+  paused: "text-stone-400",
+  pending: "text-stone-500",
+  completed: "text-stone-500", // dim — done, no longer needs focus
+  cancelled: "text-stone-600", // dimmest — terminal & dismissed
+};
 
 const PROGRESS_BAR: Record<TaskStatus, string> = {
-  running:   'bg-stone-300',
-  completed: 'bg-stone-400',
-  failed:    'bg-stone-500',
-  paused:    'bg-stone-500',
-  pending:   'bg-stone-700',
-  cancelled: 'bg-stone-800',
-}
+  running: "bg-stone-300",
+  completed: "bg-stone-400",
+  failed: "bg-stone-500",
+  paused: "bg-stone-500",
+  pending: "bg-stone-700",
+  cancelled: "bg-stone-800",
+};
 
-const LOG_LEVEL_STYLE: Record<LogEntry['level'], string> = {
-  info:  'text-stone-300',
-  debug: 'text-stone-500',
-  warn:  'text-amber-400',
-  error: 'text-red-400',
-}
+const LOG_LEVEL_STYLE: Record<LogEntry["level"], string> = {
+  info: "text-stone-300",
+  debug: "text-stone-500",
+  warn: "text-amber-400",
+  error: "text-red-400",
+};
 
-const LOG_LEVEL_LABEL: Record<LogEntry['level'], string> = {
-  info:  'INFO ',
-  debug: 'DEBUG',
-  warn:  'WARN ',
-  error: 'ERROR',
-}
+const LOG_LEVEL_LABEL: Record<LogEntry["level"], string> = {
+  info: "INFO ",
+  debug: "DEBUG",
+  warn: "WARN ",
+  error: "ERROR",
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SortDir = 'asc' | 'desc' | null
-
 interface FlatTask {
-  task: TaskNode
-  depth: number
-  hasChildren: boolean
+  task: TaskNode;
+  depth: number;
+  hasChildren: boolean;
 }
 
 interface TaskTableProps {
-  tree: TaskNode[]
-  loading: boolean
-  lastUpdated: Date | null
-  onRefresh: () => void
-  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void
+  tree: TaskNode[];
+  loading: boolean;
+  lastUpdated: Date | null;
+  onRefresh: () => void;
+  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
+}
+
+type SortCol = "task" | "status" | "agent" | "progress" | "duration";
+
+interface SortState {
+  col: SortCol | null;
+  dir: "asc" | "desc";
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function patchTask(taskId: string, patch: object) {
   const res = await fetch(`/api/tasks/${taskId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
-  })
-  if (!res.ok) throw new Error(`PATCH failed: HTTP ${res.status}`)
+  });
+  if (!res.ok) throw new Error(`PATCH failed: HTTP ${res.status}`);
 }
 
 async function deleteTask(id: string) {
-  const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error(`DELETE ${id} failed: HTTP ${res.status}`)
+  const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`DELETE ${id} failed: HTTP ${res.status}`);
 }
 
-function sortNodes(nodes: TaskNode[], dir: SortDir): TaskNode[] {
-  if (!dir) return nodes
+function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
+  if (!sort.col) return nodes;
   const sorted = [...nodes].sort((a, b) => {
-    const cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
-    return dir === 'asc' ? cmp : -cmp
-  })
-  return sorted.map(n => ({ ...n, children: sortNodes(n.children, dir) }))
+    let cmp = 0;
+    if (sort.col === "status") {
+      cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    } else if (sort.col === "task") {
+      cmp = a.name.localeCompare(b.name);
+    } else if (sort.col === "agent") {
+      cmp = a.agentType.localeCompare(b.agentType);
+    } else if (sort.col === "progress") {
+      cmp = a.progressPercentage - b.progressPercentage;
+    } else if (sort.col === "duration") {
+      const aDur = a.startedAt
+        ? new Date(a.completedAt || new Date()).getTime() - new Date(a.startedAt).getTime()
+        : 0;
+      const bDur = b.startedAt
+        ? new Date(b.completedAt || new Date()).getTime() - new Date(b.startedAt).getTime()
+        : 0;
+      cmp = aDur - bDur;
+    }
+
+    return sort.dir === "asc" ? cmp : -cmp;
+  });
+  return sorted.map((n) => ({ ...n, children: sortNodes(n.children, sort) }));
 }
 
 function flattenVisible(nodes: TaskNode[], expanded: Set<string>, depth = 0): FlatTask[] {
-  const result: FlatTask[] = []
+  const result: FlatTask[] = [];
   for (const node of nodes) {
-    const hasChildren = node.children.length > 0
-    result.push({ task: node, depth, hasChildren })
+    const hasChildren = node.children.length > 0;
+    result.push({ task: node, depth, hasChildren });
     if (hasChildren && expanded.has(node.id)) {
-      result.push(...flattenVisible(node.children, expanded, depth + 1))
+      result.push(...flattenVisible(node.children, expanded, depth + 1));
     }
   }
-  return result
+  return result;
 }
 
 // ─── FilterPopover ────────────────────────────────────────────────────────────
@@ -170,11 +200,11 @@ function FilterPopover({
   onToggle,
   onClear,
 }: {
-  label: string
-  options: string[]
-  selected: Set<string>
-  onToggle: (v: string) => void
-  onClear: () => void
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  onClear: () => void;
 }) {
   return (
     <Popover>
@@ -199,22 +229,19 @@ function FilterPopover({
             Clear filter
           </button>
         )}
-        {options.map(opt => (
+        {options.map((opt) => (
           <button
             key={opt}
             onClick={() => onToggle(opt)}
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800"
           >
-            <Checkbox
-              checked={selected.has(opt)}
-              className="pointer-events-none"
-            />
+            <Checkbox checked={selected.has(opt)} className="pointer-events-none" />
             <span className="capitalize text-stone-300">{opt}</span>
           </button>
         ))}
       </PopoverContent>
     </Popover>
-  )
+  );
 }
 
 // ─── LogDetailRow ─────────────────────────────────────────────────────────────
@@ -227,7 +254,9 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
           {/* Header bar */}
           <div className="sticky top-0 flex items-center gap-2 border-b border-stone-800 bg-stone-900/80 px-3 py-1.5">
             <IconTerminal2 size={15} className="text-stone-500" />
-            <span className="text-stone-500 uppercase tracking-widest text-[10px] font-bold">Logs</span>
+            <span className="text-stone-500 uppercase tracking-widest text-[10px] font-bold">
+              Logs
+            </span>
             <span className="ml-auto text-stone-600 text-[10px]">{logs.length} lines</span>
           </div>
           <table className="w-full border-collapse">
@@ -236,9 +265,9 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
                 <tr
                   key={i}
                   className={cn(
-                    'group hover:bg-stone-900/60 transition-colors',
-                    entry.level === 'error' && 'bg-red-950/20',
-                    entry.level === 'warn'  && 'bg-amber-950/20',
+                    "group hover:bg-stone-900/60 transition-colors",
+                    entry.level === "error" && "bg-red-950/20",
+                    entry.level === "warn" && "bg-amber-950/20",
                   )}
                 >
                   <td className="select-none px-2 py-0.5 text-right text-[10px] text-stone-700 w-8">
@@ -247,10 +276,10 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
                   <td className="px-2 py-0.5 text-stone-600 whitespace-nowrap w-24">
                     {formatTimestamp(entry.timestamp)}
                   </td>
-                  <td className={cn('px-2 py-0.5 font-bold w-12', LOG_LEVEL_STYLE[entry.level])}>
+                  <td className={cn("px-2 py-0.5 font-bold w-12", LOG_LEVEL_STYLE[entry.level])}>
                     {LOG_LEVEL_LABEL[entry.level]}
                   </td>
-                  <td className={cn('px-2 py-0.5 pr-4 break-all', LOG_LEVEL_STYLE[entry.level])}>
+                  <td className={cn("px-2 py-0.5 pr-4 break-all", LOG_LEVEL_STYLE[entry.level])}>
                     {entry.message}
                   </td>
                 </tr>
@@ -260,23 +289,23 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
         </div>
       </TableCell>
     </TableRow>
-  )
+  );
 }
 
 // ─── TaskRow ──────────────────────────────────────────────────────────────────
 
 interface TaskRowProps {
-  task: TaskNode
-  depth: number
-  hasChildren: boolean
-  expanded: boolean
-  logsOpen: boolean
-  selected: boolean
-  isBusy: boolean
-  onToggleExpand: () => void
-  onToggleLogs: () => void
-  onToggleSelect: () => void
-  onAction: (action: 'cancel' | 'pause' | 'resume' | 'retry') => void
+  task: TaskNode;
+  depth: number;
+  hasChildren: boolean;
+  expanded: boolean;
+  logsOpen: boolean;
+  selected: boolean;
+  isBusy: boolean;
+  onToggleExpand: () => void;
+  onToggleLogs: () => void;
+  onToggleSelect: () => void;
+  onAction: (action: "cancel" | "pause" | "resume" | "retry") => void;
 }
 
 function TaskRow({
@@ -292,19 +321,19 @@ function TaskRow({
   onToggleSelect,
   onAction,
 }: TaskRowProps) {
-  const isTerminal = task.status === 'completed' || task.status === 'cancelled'
-  const isPaused   = task.status === 'paused'
-  const isFailed   = task.status === 'failed'
-  const elapsed    = formatElapsed(task.startedAt, task.completedAt)
+  const isTerminal = task.status === "completed" || task.status === "cancelled";
+  const isPaused = task.status === "paused";
+  const isFailed = task.status === "failed";
+  const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
   return (
     <TableRow
-      data-state={selected ? 'selected' : undefined}
+      data-state={selected ? "selected" : undefined}
       onClick={task.logs.length > 0 ? onToggleLogs : undefined}
-      className={task.logs.length > 0 ? 'cursor-pointer' : undefined}
+      className={task.logs.length > 0 ? "cursor-pointer" : undefined}
     >
       {/* Select */}
-      <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+      <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
         <Checkbox checked={selected} onChange={onToggleSelect} />
       </TableCell>
 
@@ -332,13 +361,16 @@ function TaskRow({
           {/* Expand/collapse children toggle */}
           {hasChildren ? (
             <button
-              onClick={e => { e.stopPropagation(); onToggleExpand() }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand();
+              }}
               className="shrink-0 flex h-5 w-5 items-center justify-center rounded hover:bg-stone-700 text-stone-500 hover:text-stone-200 transition-colors"
-              title={expanded ? 'Collapse subtasks' : 'Expand subtasks'}
+              title={expanded ? "Collapse subtasks" : "Expand subtasks"}
             >
               <IconChevronRight
                 size={13}
-                className={cn('transition-transform duration-150', expanded && 'rotate-90')}
+                className={cn("transition-transform duration-150", expanded && "rotate-90")}
               />
             </button>
           ) : depth > 0 ? (
@@ -354,8 +386,8 @@ function TaskRow({
           {task.logs.length > 0 && (
             <span
               className={cn(
-                'shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors',
-                logsOpen ? 'bg-stone-700 text-stone-300' : 'text-stone-600',
+                "shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors",
+                logsOpen ? "bg-stone-700 text-stone-300" : "text-stone-600",
               )}
             >
               <IconTerminal2 size={14} />
@@ -369,7 +401,7 @@ function TaskRow({
       <TableCell className="w-28">
         <div className="flex items-center gap-1.5">
           {STATUS_ICON[task.status]}
-          <span className={cn('text-sm', STATUS_TEXT[task.status])}>
+          <span className={cn("text-sm", STATUS_TEXT[task.status])}>
             {STATUS_LABEL[task.status]}
           </span>
         </div>
@@ -387,7 +419,10 @@ function TaskRow({
         <div className="flex items-center gap-2">
           <div className="h-1.5 flex-1 rounded-full bg-stone-800 min-w-0">
             <div
-              className={cn('h-full rounded-full transition-all duration-500', PROGRESS_BAR[task.status])}
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
+                PROGRESS_BAR[task.status],
+              )}
               style={{ width: `${task.progressPercentage}%` }}
             />
           </div>
@@ -398,15 +433,18 @@ function TaskRow({
       </TableCell>
 
       {/* Duration */}
-      <TableCell className="w-20 text-xs tabular-nums text-stone-500">
-        {elapsed}
-      </TableCell>
+      <TableCell className="w-20 text-xs tabular-nums text-stone-500">{elapsed}</TableCell>
 
       {/* Actions */}
-      <TableCell className="w-10" onClick={e => e.stopPropagation()}>
+      <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={isBusy} className="h-6 w-6 data-state-open:bg-stone-800">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={isBusy}
+              className="h-6 w-6 data-state-open:bg-stone-800"
+            >
               <IconDotsVertical size={13} />
             </Button>
           </DropdownMenuTrigger>
@@ -416,19 +454,26 @@ function TaskRow({
 
             {/* Pause / Resume */}
             <DropdownMenuItem
-              onClick={() => onAction(isPaused ? 'resume' : 'pause')}
-              disabled={isTerminal || (!task.status.match(/^(running|paused)$/))}
+              onClick={() => onAction(isPaused ? "resume" : "pause")}
+              disabled={isTerminal || !task.status.match(/^(running|paused)$/)}
             >
-              {isPaused
-                ? <><IconPlayerPlay size={13} />Resume</>
-                : <><IconPlayerPause size={13} />Pause</>
-              }
+              {isPaused ? (
+                <>
+                  <IconPlayerPlay size={13} />
+                  Resume
+                </>
+              ) : (
+                <>
+                  <IconPlayerPause size={13} />
+                  Pause
+                </>
+              )}
             </DropdownMenuItem>
 
             {/* Retry */}
             <DropdownMenuItem
-              onClick={() => onAction('retry')}
-              disabled={!isFailed && task.status !== 'cancelled'}
+              onClick={() => onAction("retry")}
+              disabled={!isFailed && task.status !== "cancelled"}
             >
               <IconRotateDot size={13} />
               Retry
@@ -438,7 +483,7 @@ function TaskRow({
 
             {/* Cancel */}
             <DropdownMenuItem
-              onClick={() => onAction('cancel')}
+              onClick={() => onAction("cancel")}
               disabled={isTerminal}
               className="text-red-400 focus:text-red-300"
             >
@@ -449,210 +494,253 @@ function TaskRow({
         </DropdownMenu>
       </TableCell>
     </TableRow>
-  )
+  );
 }
 
 // ─── TaskTable (main export) ──────────────────────────────────────────────────
 
-const TOTAL_COLS = 8
+const TOTAL_COLS = 8;
 
-export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChange }: TaskTableProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
-  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(new Set())
-  const [agentFilter,  setAgentFilter]  = useState<Set<string>>(new Set())
-  const [search,       setSearch]       = useState('')
-  const [sortDir,      setSortDir]      = useState<SortDir>(null)
-  const [busy,         setBusy]         = useState<Record<string, string>>({})
+export function TaskTable({
+  tree,
+  loading,
+  lastUpdated,
+  onRefresh,
+  onStatusChange,
+}: TaskTableProps) {
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(new Set());
+  const [agentFilter, setAgentFilter] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
+  const [busy, setBusy] = useState<Record<string, string>>({});
 
   // Auto-expand parent tasks as tree updates (new parents appear)
   useEffect(() => {
-    setExpandedRows(prev => {
-      const next = new Set(prev)
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
       const collect = (nodes: TaskNode[]) => {
         for (const n of nodes) {
-          if (n.children.length > 0) next.add(n.id)
-          collect(n.children)
+          if (n.children.length > 0) next.add(n.id);
+          collect(n.children);
         }
-      }
-      collect(tree)
-      return next
-    })
-  }, [tree])
+      };
+      collect(tree);
+      return next;
+    });
+  }, [tree]);
 
   // Unique agent types for the filter popover
   const agentOptions = useMemo(() => {
-    const types = new Set<string>()
+    const types = new Set<string>();
     const collect = (nodes: TaskNode[]) => {
-      for (const n of nodes) { types.add(n.agentType); collect(n.children) }
-    }
-    collect(tree)
-    return [...types].sort()
-  }, [tree])
+      for (const n of nodes) {
+        types.add(n.agentType);
+        collect(n.children);
+      }
+    };
+    collect(tree);
+    return [...types].sort();
+  }, [tree]);
 
   // Sort → flatten → filter
   const flatTasks = useMemo(() => {
-    const sorted = sortNodes(tree, sortDir)
+    const sorted = sortNodes(tree, sort);
     return flattenVisible(sorted, expandedRows).filter(({ task }) => {
-      if (statusFilter.size > 0 && !statusFilter.has(task.status))       return false
-      if (agentFilter.size  > 0 && !agentFilter.has(task.agentType))     return false
+      if (statusFilter.size > 0 && !statusFilter.has(task.status)) return false;
+      if (agentFilter.size > 0 && !agentFilter.has(task.agentType)) return false;
       if (search) {
-        const q = search.toLowerCase()
-        if (!task.name.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q)) return false
+        const q = search.toLowerCase();
+        if (!task.name.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q))
+          return false;
       }
-      return true
-    })
-  }, [tree, expandedRows, statusFilter, agentFilter, search, sortDir])
+      return true;
+    });
+  }, [tree, expandedRows, statusFilter, agentFilter, search, sort]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  const handleAction = async (
-    taskId: string,
-    action: 'cancel' | 'pause' | 'resume' | 'retry',
-  ) => {
-    setBusy(prev => ({ ...prev, [taskId]: action }))
+  const handleAction = async (taskId: string, action: "cancel" | "pause" | "resume" | "retry") => {
+    setBusy((prev) => ({ ...prev, [taskId]: action }));
     try {
       const patch =
-        action === 'cancel' ? { status: 'cancelled' as TaskStatus } :
-        action === 'pause'  ? { status: 'paused'    as TaskStatus } :
-        action === 'resume' ? { status: 'running'   as TaskStatus } :
-        { status: 'running' as TaskStatus, progressPercentage: 0 }
-      await patchTask(taskId, patch)
-      onStatusChange?.(taskId, patch.status)
+        action === "cancel"
+          ? { status: "cancelled" as TaskStatus }
+          : action === "pause"
+            ? { status: "paused" as TaskStatus }
+            : action === "resume"
+              ? { status: "running" as TaskStatus }
+              : { status: "running" as TaskStatus, progressPercentage: 0 };
+      await patchTask(taskId, patch);
+      onStatusChange?.(taskId, patch.status);
     } catch (err) {
-      console.error(`Failed to ${action} task ${taskId}:`, err)
+      console.error(`Failed to ${action} task ${taskId}:`, err);
     } finally {
-      setBusy(prev => { const n = { ...prev }; delete n[taskId]; return n })
+      setBusy((prev) => {
+        const n = { ...prev };
+        delete n[taskId];
+        return n;
+      });
     }
-  }
+  };
 
   // ── Bulk Actions ───────────────────────────────────────────────────────────
 
-  const handleBulkAction = async (action: 'cancel' | 'pause' | 'retry') => {
-    setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) n[id] = action; return n })
+  const handleBulkAction = async (action: "cancel" | "pause" | "retry") => {
+    setBusy((prev) => {
+      const n = { ...prev };
+      for (const id of selectedRows) n[id] = action;
+      return n;
+    });
     try {
-      const patch = action === 'cancel' ? { status: 'cancelled' as TaskStatus }
-                  : action === 'pause'  ? { status: 'paused'    as TaskStatus }
-                  : { status: 'running' as TaskStatus, progressPercentage: 0 }
-      await Promise.all([...selectedRows].map(id => patchTask(id, patch)))
-      setSelectedRows(new Set())
-      onRefresh()
+      const patch =
+        action === "cancel"
+          ? { status: "cancelled" as TaskStatus }
+          : action === "pause"
+            ? { status: "paused" as TaskStatus }
+            : { status: "running" as TaskStatus, progressPercentage: 0 };
+      await Promise.all([...selectedRows].map((id) => patchTask(id, patch)));
+      setSelectedRows(new Set());
+      onRefresh();
     } finally {
-      setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) delete n[id]; return n })
+      setBusy((prev) => {
+        const n = { ...prev };
+        for (const id of selectedRows) delete n[id];
+        return n;
+      });
     }
-  }
+  };
 
   const handleBulkDelete = async () => {
-    setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) n[id] = 'delete'; return n })
+    setBusy((prev) => {
+      const n = { ...prev };
+      for (const id of selectedRows) n[id] = "delete";
+      return n;
+    });
     try {
-      await Promise.all([...selectedRows].map(id => deleteTask(id)))
-      setSelectedRows(new Set())
-      onRefresh()
+      await Promise.all([...selectedRows].map((id) => deleteTask(id)));
+      setSelectedRows(new Set());
+      onRefresh();
     } finally {
-      setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) delete n[id]; return n })
+      setBusy((prev) => {
+        const n = { ...prev };
+        for (const id of selectedRows) delete n[id];
+        return n;
+      });
     }
-  }
+  };
 
   // ── Selection ──────────────────────────────────────────────────────────────
 
-  const visibleIds    = flatTasks.map(f => f.task.id)
-  const allSelected   = visibleIds.length > 0 && visibleIds.every(id => selectedRows.has(id))
-  const someSelected  = visibleIds.some(id => selectedRows.has(id))
-  const headerChecked = allSelected ? true : someSelected ? 'indeterminate' : false
+  const visibleIds = flatTasks.map((f) => f.task.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedRows.has(id));
+  const someSelected = visibleIds.some((id) => selectedRows.has(id));
+  const headerChecked = allSelected ? true : someSelected ? "indeterminate" : false;
 
   const toggleAll = () => {
-    setSelectedRows(prev => {
-      const next = new Set(prev)
-      if (allSelected) visibleIds.forEach(id => next.delete(id))
-      else             visibleIds.forEach(id => next.add(id))
-      return next
-    })
-  }
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (allSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
 
   const toggleRow = (id: string) => {
-    setSelectedRows(prev => {
-      const next = new Set(prev)
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
       if (next.has(id)) {
-        next.delete(id)
+        next.delete(id);
       } else {
-        next.add(id)
+        next.add(id);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   // ── Filter helpers ─────────────────────────────────────────────────────────
 
   const toggleStatusFilter = (v: string) => {
-    setStatusFilter(prev => {
-      const next = new Set(prev)
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
       if (next.has(v as TaskStatus)) {
-        next.delete(v as TaskStatus)
+        next.delete(v as TaskStatus);
       } else {
-        next.add(v as TaskStatus)
+        next.add(v as TaskStatus);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleAgentFilter = (v: string) => {
-    setAgentFilter(prev => {
-      const next = new Set(prev)
+    setAgentFilter((prev) => {
+      const next = new Set(prev);
       if (next.has(v)) {
-        next.delete(v)
+        next.delete(v);
       } else {
-        next.add(v)
+        next.add(v);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleExpand = (id: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev)
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
       if (next.has(id)) {
-        next.delete(id)
+        next.delete(id);
       } else {
-        next.add(id)
+        next.add(id);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   const toggleLogs = (id: string) => {
-    setExpandedLogs(prev => {
-      const next = new Set(prev)
+    setExpandedLogs((prev) => {
+      const next = new Set(prev);
       if (next.has(id)) {
-        next.delete(id)
+        next.delete(id);
       } else {
-        next.add(id)
+        next.add(id);
       }
-      return next
-    })
-  }
+      return next;
+    });
+  };
 
   // ── Sort cycle: null → asc → desc → null ─────────────────────────────────
 
   const cycleSort = () => {
-    setSortDir(prev => prev === null ? 'asc' : prev === 'asc' ? 'desc' : null)
-  }
+    setSort((prev) => {
+      if (prev.col !== "status") {
+        return { col: "status", dir: "asc" };
+      }
+      if (prev.dir === "asc") {
+        return { col: "status", dir: "desc" };
+      }
+      return { col: null, dir: "asc" };
+    });
+  };
 
-  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== ''
+  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "";
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-3">
-
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-48 max-w-sm">
-          <IconSearch size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
+          <IconSearch
+            size={13}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
+          />
           <Input
             placeholder="Filter tasks…"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-8"
           />
         </div>
@@ -676,7 +764,11 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { setStatusFilter(new Set()); setAgentFilter(new Set()); setSearch('') }}
+            onClick={() => {
+              setStatusFilter(new Set());
+              setAgentFilter(new Set());
+              setSearch("");
+            }}
           >
             Reset
             <IconX size={12} />
@@ -688,7 +780,9 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
             variant="ghost"
             size="sm"
             className="gap-1.5"
-            onClick={() => fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error)}
+            onClick={() =>
+              fetch("http://localhost:3002/spawn", { method: "POST" }).catch(console.error)
+            }
           >
             <IconTerminal2 size={13} />
             New Agent
@@ -700,7 +794,7 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
             disabled={loading}
             className="gap-1.5"
           >
-            <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
+            <IconRefresh size={13} className={loading ? "animate-spin" : ""} />
             Refresh
           </Button>
         </div>
@@ -711,12 +805,25 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
         <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
           <span className="text-xs text-stone-400 tabular-nums">{selectedRows.size} selected</span>
           <div className="flex items-center gap-1 ml-2">
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('cancel')}>Cancel</Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('pause')}>Pause</Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('retry')}>Retry</Button>
-            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>Delete</Button>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("cancel")}>
+              Cancel
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("pause")}>
+              Pause
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("retry")}>
+              Retry
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+              Delete
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedRows(new Set())}
+            className="ml-auto gap-1"
+          >
             <IconX size={12} /> Clear
           </Button>
         </div>
@@ -742,9 +849,13 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
                 >
                   Status
                   <span className="opacity-50 group-hover:opacity-100">
-                    {sortDir === 'asc'  ? <IconArrowUp   size={12} /> :
-                     sortDir === 'desc' ? <IconArrowDown size={12} /> :
-                                          <IconArrowsSort size={12} />}
+                    {sort.dir === "asc" ? (
+                      <IconArrowUp size={12} />
+                    ) : sort.dir === "desc" ? (
+                      <IconArrowDown size={12} />
+                    ) : (
+                      <IconArrowsSort size={12} />
+                    )}
                   </span>
                 </button>
               </TableHead>
@@ -761,8 +872,8 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={TOTAL_COLS} className="h-32 text-center text-stone-500">
                   {tree.length === 0
-                    ? 'No tasks yet — start a Claude Code agent session to see tasks appear here.'
-                    : 'No tasks match the current filters.'}
+                    ? "No tasks yet — start a Claude Code agent session to see tasks appear here."
+                    : "No tasks match the current filters."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -779,7 +890,7 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
                     onToggleExpand={() => toggleExpand(task.id)}
                     onToggleLogs={() => toggleLogs(task.id)}
                     onToggleSelect={() => toggleRow(task.id)}
-                    onAction={action => handleAction(task.id, action)}
+                    onAction={(action) => handleAction(task.id, action)}
                   />
                   {expandedLogs.has(task.id) && task.logs.length > 0 && (
                     <LogDetailRow logs={task.logs} colSpan={TOTAL_COLS} />
@@ -796,14 +907,10 @@ export function TaskTable({ tree, loading, lastUpdated, onRefresh, onStatusChang
         <span>
           {selectedRows.size > 0
             ? `${selectedRows.size} of ${flatTasks.length} selected`
-            : `${flatTasks.length} task${flatTasks.length !== 1 ? 's' : ''}`}
+            : `${flatTasks.length} task${flatTasks.length !== 1 ? "s" : ""}`}
         </span>
-        <span>
-          {lastUpdated
-            ? `Updated ${lastUpdated.toLocaleTimeString()}`
-            : 'Connecting…'}
-        </span>
+        <span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Connecting…"}</span>
       </div>
     </div>
-  )
+  );
 }

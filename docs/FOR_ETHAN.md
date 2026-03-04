@@ -316,6 +316,100 @@ useEffect(() => {
 
 ---
 
+### 🎬 Blooper 11: Recursive types and renaming — the refactoring that breaks everything
+
+**The situation:** PR-4 refactored the sort state from `dir: SortDir` (a primitive) to a full `SortState` object with `{ col: SortCol | null; dir: "asc" | "desc" }`. This required updating multiple call sites. The refactoring started fine, but some references were missed.
+
+**The pattern that broke:**
+
+```typescript
+// OLD pattern: sortDir was a primitive
+const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
+const sorted = sortNodes(tree, sortDir);  // ← pass primitive
+
+// NEW pattern: sort is an object
+const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
+const sorted = sortNodes(tree, sort);  // ← pass object
+```
+
+But when the refactoring wasn't complete, the code mixed old and new:
+
+```typescript
+const [sort, setSort] = useState<SortState>({ ... });  // ← new variable name
+const sorted = sortNodes(tree, sortDir);  // ← old variable name (doesn't exist!)
+```
+
+Result: **blank page** — the code tries to use `sortDir` which is undefined.
+
+**Why this happened:**
+
+Variable renames are slippery because they're not caught until runtime (unless TypeScript strict mode is on everywhere). The developer renamed the state variable but didn't update all 6 call sites (`useMemo` dependency array, sort function parameter, rendering logic, `cycleSort` handler, etc.). The app ran fine until it tried to access an undefined variable.
+
+**Why recursive types matter here:**
+
+The `sortNodes` function is **recursive** — it calls itself on the tree's children:
+
+```typescript
+function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
+  // ... sort logic ...
+  return sorted.map((n) => ({
+    ...n,
+    children: sortNodes(n.children, sort)  // ← calls itself with same 'sort' object
+  }));
+}
+```
+
+The `sort` parameter gets passed down through every level of the tree. If you rename it at the top level, you must rename it everywhere it's used — including the recursive calls.
+
+**What's a recursive type?**
+
+A recursive type refers to itself. `TaskNode` is self-referential:
+
+```typescript
+interface Task {
+  id: string;
+  name: string;
+  // ...
+}
+
+interface TaskNode extends Task {
+  children: TaskNode[]  // ← TaskNode contains TaskNode[], which can contain TaskNode[]
+}
+```
+
+This creates an infinitely nestable tree structure — each node can contain nodes of the same type. It's like Russian dolls: a doll (TaskNode) can contain smaller dolls (TaskNode[]).
+
+**The refactoring lesson:**
+
+When you rename a variable that flows through a recursive function:
+
+1. Update the `useState` declaration
+2. Update all `useMemo` / `useCallback` dependency arrays
+3. Update all call sites (where the function is invoked)
+4. Update all references **inside** the function (including recursive calls)
+5. Update UI code that reads the variable
+
+A search for the old name should return zero results. If it doesn't, you missed a spot.
+
+**The pattern to understand:**
+
+Recursion works by **passing the same parameter down** through each level:
+
+```typescript
+function processTree(nodes: TaskNode[], config: SortState) {
+  // Process this level...
+  return nodes.map(n => ({
+    ...n,
+    // Process the next level with the SAME config
+    children: processTree(n.children, config)
+  }));
+}
+```
+
+Each recursive call gets the same `config`. This is why `config` was renamed from `sortDir` to `sort` everywhere — the parameter name must be consistent or the function breaks.
+
+---
+
 ## 5. Director's Commentary
 
 ### On "boring technology"
