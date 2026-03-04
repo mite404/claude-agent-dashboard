@@ -436,3 +436,186 @@ When you outgrow it (auth, complex queries, relations), you swap it for a real b
 ### On file-based state vs database
 
 `db.json` is essentially a file-based database. This works for a single-user local tool but would break down with concurrent writes (two processes writing simultaneously would corrupt the file) or large datasets (reading 10MB of JSON on every poll is slow). For this project, it's perfect. For a production system serving multiple users, you'd want SQLite at minimum.
+
+---
+
+## Phase 5: The Hook System — Making It Live (2026-03-04)
+
+### The Big Idea
+
+Up to now the dashboard ran on mock data. Phase 5 connects it to the actual Claude Code agent system by wiring two shell scripts as "hooks" — callbacks that fire automatically when the Agent tool is used.
+
+The analogy: hooks are like **production assistants on a film set**. One assistant (pre-hook) slates the camera the moment a take begins. Another (post-hook) logs the take result when it's done. The dashboard is the director watching the monitors.
+
+### The Signal Chain (Updated)
+
+```
+Claude Code fires Agent tool call
+  → PreToolUse hook → scripts/pre-tool-agent.sh reads stdin
+      → upserts task { status: "running", progress: 0 } into db.json
+
+  → Agent executes (could be seconds or minutes)
+
+  → PostToolUse hook → scripts/post-tool-agent.sh reads stdin (includes tool result)
+      → updates task { status: "completed" | "failed", progress: 100 } in db.json
+
+Dashboard polls /api/tasks every 2.5s → React table updates
+```
+
+The key insight: **`tool_use_id` is the stable link.** Both hooks receive the same `tool_use_id` for a given Agent invocation. The pre-hook creates the task record with that ID; the post-hook finds it by that same ID and updates it.
+
+### What "stdin" Means for Hooks
+
+When Claude Code fires a hook, it writes a JSON object to the script's `stdin` (standard input — the pipe that programs read from when you don't give them a file). The script reads it with `INPUT=$(cat)` and parses it with `jq`.
+
+For PreToolUse (Agent starting):
+```json
+{
+  "tool_use_id": "toolu_01abc...",
+  "tool_input": {
+    "description": "Review the authentication PR",
+    "subagent_type": "pr-review-toolkit:code-reviewer",
+    "run_in_background": false
+  }
+}
+```
+
+For PostToolUse (Agent done):
+```json
+{
+  "tool_use_id": "toolu_01abc...",
+  "tool_input": { "...same as above..." },
+  "tool_response": {
+    "content": [{ "type": "text", "text": "Found 3 issues..." }],
+    "is_error": false
+  }
+}
+```
+
+### Background Tasks: The Special Case
+
+When you invoke an Agent with `run_in_background: true`, Claude Code dispatches it to run async and returns immediately. The PostToolUse hook fires when the *dispatch* completes — not when the actual agent work finishes. So:
+
+- Pre-hook creates task as `running`
+- Post-hook sees `run_in_background: true` and **does not** mark it `completed`
+- The task stays `running` indefinitely (until Phase 7 adds completion tracking)
+
+This is a known limitation. The workaround: background tasks that you care about tracking should be foreground tasks for now.
+
+### Atomic Writes — Avoiding Race Conditions
+
+The scripts never write directly to `db.json`. Instead:
+
+```bash
+jq '...' db.json > db.json.tmp && mv db.json.tmp db.json
+```
+
+Why? `jq` reads from `db.json` and needs to finish processing before anything else reads it. If you wrote directly (`jq '...' db.json > db.json`), the shell would truncate `db.json` to zero bytes *before* `jq` had read it — corrupting your data. Writing to a `.tmp` file first, then atomically renaming it, avoids this entirely.
+
+Think of it as the "safe cut" technique in editing: you export to a new file, verify it's good, then replace the original. You never destructively overwrite the original in place.
+
+### Why Bash, Not TypeScript?
+
+The existing project scripts (`fix-tailwind-vars.ts`, `spawn-terminal.ts`) are TypeScript files run with `bun`. But hooks are different — they need to run in any shell environment, and the hook runner may not have `bun` in `$PATH`. A bash script with `jq` is universally available on macOS. Fewer dependencies = fewer failure modes at the system boundary.
+
+### Settings Location: Global vs Project
+
+The hooks are wired in `~/.claude/settings.json` (your home directory), not in the project's `.claude/settings.json`. This matters because:
+
+- **Project-level** hooks only fire when you're working in *that specific project*
+- **Global** hooks fire across all your Claude Code sessions, regardless of which project you're in
+
+Since the dashboard is meant to monitor all your agent sessions (not just sessions inside the dashboard repo), global is the right call.
+
+---
+
+## 4c. Bloopers — Hook System & Terminal Integration (2026-03-04)
+
+### 🎬 Blooper 12: The shebang that worked on your machine but not in the sandbox
+
+**What happened:** The hook scripts were written with `#!/usr/bin/env bash` at the top — the conventional way to find bash via your `$PATH`. When Claude Code's hook runner executed them, it failed with `env: bash: No such file or directory`.
+
+**Why it happened:** The hook runner's environment is sandboxed — it doesn't inherit your full shell `$PATH`. `env` couldn't find `bash` because `/opt/homebrew/bin` (where Homebrew bash lives on Apple Silicon) wasn't in that restricted path.
+
+**Fix:** Use the absolute path to bash: `#!/bin/bash`. On macOS, system bash always lives at `/bin/bash`. It's an older version (3.2, due to Apple's GPLv3 aversion), but more than capable enough for jq-based scripting.
+
+**Lesson:** Shebangs that use `env` are more portable across machines, but less reliable across execution environments on the *same* machine. When your script must work in restricted environments (CI runners, app sandboxes, Claude Code hooks), prefer absolute paths.
+
+---
+
+### 🎬 Blooper 13: The jq bootstrap that only checked half the question
+
+**What happened:** After manually deleting all the tasks from `db.json` during testing, the hook scripts stopped working silently. The database file existed, but had become `{}` (an empty object) instead of `{"tasks":[]}`.
+
+**Why it happened:** The original bootstrap check was:
+
+```bash
+if [ ! -f "$DB_FILE" ]; then
+  echo '{"tasks":[]}' > "$DB_FILE"
+fi
+```
+
+This only asked "does the file exist?" — not "is the file in a valid state?" When `db.json` existed but had no `.tasks` key, the subsequent `jq` upsert tried to run `any(.tasks[]; ...)` on a null value, which failed silently with a non-zero exit code that was swallowed.
+
+**Fix:** Check both conditions — file presence AND structural validity:
+
+```bash
+if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
+  echo '{"tasks":[]}' > "$DB_FILE"
+fi
+```
+
+`jq -e` exits with code 1 if the result is `null` or `false`, making it a perfect validator.
+
+**Film analogy:** Think of it like checking whether a film reel is loaded *and* properly threaded. Checking only that the reel exists doesn't mean the projector can run it.
+
+**Lesson:** File existence checks are necessary but not sufficient for structured data files. After confirming the file exists, validate its expected shape. `jq -e '.key' file` is the idiomatic one-liner for this in bash.
+
+---
+
+### 🎬 Blooper 14: Ghostty ignores `--args`, treats CLI flags as config
+
+**What happened:** The "New Agent" button originally called `open -a Ghostty --args --command claude`. On a running Ghostty instance, this just focused the existing window — `--command claude` was silently ignored. When Ghostty was closed, opening it fresh showed a dialog: **"Configuration Errors: command: value required / claude: invalid field"**.
+
+**Why it happened:** Two separate issues:
+
+1. **`open -a Ghostty --args ...`** — macOS's `open` command is a single-instance launcher. If the app is already running, it just activates the existing window and ignores `--args` entirely. This is by macOS design.
+
+2. **Ghostty's CLI parser** — unlike most Unix tools, Ghostty parses its command-line flags the same way it parses its config file. `--command=claude` isn't a flag with a value; it's a config entry `command` with value `claude` — but `command` requires a *list* value, not a string. And `claude` as a standalone argument has no key at all, making it an invalid config field.
+
+**Fix:** AppleScript. Activate Ghostty, send Cmd+N to open a new window, then use System Events to keystroke `claude` and press Enter:
+
+```applescript
+tell application "Ghostty" to activate
+delay 1
+tell application "System Events"
+  tell process "Ghostty"
+    keystroke "n" using command down
+    delay 0.5
+    keystroke "claude"
+    key code 36
+  end tell
+end tell
+```
+
+**Lesson:** Terminal emulators don't have standardized CLI APIs. iTerm2 has AppleScript dictionaries. Terminal.app has `do script`. Ghostty has neither — you have to simulate keyboard input. When you need cross-terminal compatibility, detect `$TERM_PROGRAM` (the env var your terminal sets) and branch to terminal-specific code.
+
+---
+
+### 🎬 Blooper 15: `TERM_PROGRAM` — the env var you didn't know you had
+
+**The insight that came from Blooper 14:** Rather than hardcoding Ghostty logic, we discovered that every major terminal sets `$TERM_PROGRAM` to its own name. This is the closest thing macOS has to "default terminal" detection without querying system preferences.
+
+| Terminal | `$TERM_PROGRAM` value |
+|----------|-----------------------|
+| iTerm2 | `iTerm.app` |
+| Terminal.app | `Apple_Terminal` |
+| Ghostty | `Ghostty` |
+| VS Code terminal | `vscode` |
+| Warp | `WarpTerminal` |
+
+The variable is **inherited** by all child processes. So when you run `bun run dev` inside Ghostty, the spawn-terminal server process inherits `TERM_PROGRAM=Ghostty` — and can use it to dispatch to the right AppleScript at request time.
+
+**Film analogy:** It's like checking the call sheet header to see which studio is running today's shoot. The environment variable is inherited from the context that started the whole pipeline.
+
+**Lesson:** Before writing platform-detection code, check what the platform tells you about itself. Shell environments are full of inherited variables that encode useful context — `$TERM_PROGRAM`, `$TERM`, `$COLORTERM`, `$SHELL`. Read them before reaching for system API calls.
