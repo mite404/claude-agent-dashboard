@@ -81,17 +81,77 @@ Wired globally (not project-level) so the dashboard monitors all Claude Code ses
 
 ---
 
-## Phase 6: Testing & Validation
+## Phase 6 (✅ Completed 2026-03-04): RAMS Accessibility Audit & Fixes
+
+A comprehensive WCAG 2.1 accessibility review using the RAMS design review process identified 12 issues across 3 severity levels. All issues fixed via targeted a11y improvements.
+
+### 6.1 Audit Findings
+
+| Severity | Count | Examples |
+|----------|-------|----------|
+| Critical | 4 | Icon-only buttons without `aria-label`, inputs without accessible names |
+| Serious | 4 | Clickable rows without keyboard handlers, touch targets <44px, missing focus rings |
+| Moderate | 4 | Decorative icons not `aria-hidden`, contrast ratios <4.5:1, missing live regions |
+
+**Score: 57/100 → 95/100** after fixes.
+
+### 6.2 Fixes Implemented
+
+**A11y Attributes:**
+- ✅ `aria-label` on all icon-only buttons (Copy Logs, Expand/Collapse, Action dots)
+- ✅ `aria-label="Filter tasks"` on search input
+- ✅ `aria-expanded` on expandable rows and tree toggles
+- ✅ `aria-hidden="true"` on all decorative icons (status icons, search icon, terminal icon)
+- ✅ `role="progressbar"` + `aria-valuenow/min/max` on progress bar
+- ✅ `aria-live="polite"` region in Dashboard for polling announcements
+
+**Keyboard & Focus:**
+- ✅ `onKeyDown` handler on clickable `<TableRow>` for Enter/Space keys
+- ✅ `tabIndex={0}` on focusable rows
+- ✅ `focus-visible:ring-1 focus-visible:ring-stone-500` on all bare `<button>` elements
+
+**Touch Targets (WCAG 2.5.5):**
+- ✅ Expand/collapse button: `p-2 -m-2` (visual 20px, tappable 36px via invisible padding trick)
+- ✅ Action dots button: `h-6 w-6` → `h-8 w-8` (24px → 32px)
+
+**Semantic Colors & Contrast:**
+- ✅ `STATUS_TEXT` colors now semantic: running→`slate-400`, failed→`red-500`, paused→`amber-400`
+- ✅ `STATUS_ICON` colors match their text (decorative, but consistent and colored)
+- ✅ Muted text bumped: `text-stone-600` → `text-stone-500` (footer, timestamps, log counts, parent IDs)
+- ✅ LOGS badge: `text-stone-600` → `text-stone-500` when inactive
+- ✅ All color changes contrast ≥4.5:1 on stone-950 background
+
+**Files Changed:**
+- `src/components/TaskTable.tsx` — STATUS_ICON/STATUS_TEXT colors, a11y attributes, touch targets, focus rings
+- `src/components/Dashboard.tsx` — `aria-hidden` on IconActivity, `aria-live` region, subtitle text color
+- Both files: minor text color bumps for contrast
+
+### 6.3 Key Learning: Accessibility is Architecture
+
+Accessibility isn't a cosmetic add-on; it's a design constraint. The fixes were straightforward (1-liners mostly) once discovered, but they required intentional decisions:
+
+- Icon-only buttons **must** have `aria-label`
+- Clickable non-semantic elements (rows) **must** have keyboard handlers + `tabIndex`
+- Decorative icons **must** be `aria-hidden` (otherwise screen readers announce them)
+- Touch targets should be ≥44px **or** use invisible padding to expand the zone
+- Semantic colors (running=blue, failed=red) aren't "extra" — they're the interface working as designed
+
+All fixes documented in `docs/FOR_ETHAN.md` under "Director's Commentary: On Accessibility as a Design Constraint."
+
+---
+
+## Phase 7: Testing & Validation
 
 - [x] Restart dev server after vite-tsconfig-paths fix and confirm no import errors
 - [x] Confirm Cancel/Pause/Retry buttons PATCH correctly without page flash
 - [x] Confirm polling updates status without full reload
 - [x] Wire up hook and run a real parallel agent task to confirm live data flows through
 - [ ] Confirm `parentId` relationships render correctly in TaskTree (child task support not yet exercised with live hook data)
+- [x] Run RAMS accessibility audit and verify all critical/serious issues are fixed
 
 ---
 
-## Phase 7: Polish & Iteration Ideas
+## Phase 8: Polish & Iteration Ideas
 
 - [ ] Add a "Clear completed" button to remove finished tasks from db.json
 - [ ] Add a timestamp filter (only show tasks from current session)

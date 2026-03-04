@@ -410,35 +410,6 @@ Each recursive call gets the same `config`. This is why `config` was renamed fro
 
 ---
 
-## 5. Director's Commentary
-
-### On "boring technology"
-
-The architecture of this project deliberately avoids exciting choices: no WebSockets, no Redux, no GraphQL, no edge functions. Each of those would solve a real problem — but not a problem *this* project actually has. Senior engineers have a bias toward solutions that are simple enough to be understood at 2am when something breaks.
-
-Ask yourself before adding complexity: "Does this project *actually need* this, or does it just feel more impressive?"
-
-### On the `@/` path alias pattern
-
-The `@/` prefix for imports (e.g., `@/components/Button`) is a convention that means "root of the src directory." It prevents deeply-nested relative imports like `../../../components/Button`. You'll see this in nearly every React/Vue/Next.js project. The machinery behind it:
-
-1. TypeScript uses `tsconfig paths` to understand it for type-checking
-2. The bundler (Vite) uses an alias or plugin to resolve it at build time
-
-They must agree. `vite-tsconfig-paths` makes them agree automatically.
-
-### On json-server as a prototyping tool
-
-json-server is one of those tools that looks like a toy but saves hours of work. It's a REST API from a flat JSON file — reads, writes, filters, pagination, all included. For any project where you need a backend for prototyping but don't want to write one, reach for json-server first.
-
-When you outgrow it (auth, complex queries, relations), you swap it for a real backend. The frontend code doesn't change because the API contract (REST over HTTP) stays the same.
-
-### On file-based state vs database
-
-`db.json` is essentially a file-based database. This works for a single-user local tool but would break down with concurrent writes (two processes writing simultaneously would corrupt the file) or large datasets (reading 10MB of JSON on every poll is slow). For this project, it's perfect. For a production system serving multiple users, you'd want SQLite at minimum.
-
----
-
 ## Phase 5: The Hook System — Making It Live (2026-03-04)
 
 ### The Big Idea
@@ -621,3 +592,70 @@ The variable is **inherited** by all child processes. So when you run `bun run d
 **Film analogy:** It's like checking the call sheet header to see which studio is running today's shoot. The environment variable is inherited from the context that started the whole pipeline.
 
 **Lesson:** Before writing platform-detection code, check what the platform tells you about itself. Shell environments are full of inherited variables that encode useful context — `$TERM_PROGRAM`, `$TERM`, `$COLORTERM`, `$SHELL`. Read them before reaching for system API calls.
+
+---
+
+## 6. Director's Commentary
+
+### On "boring technology"
+
+The architecture of this project deliberately avoids exciting choices: no WebSockets, no Redux, no GraphQL, no edge functions. Each of those would solve a real problem — but not a problem *this* project actually has. Senior engineers have a bias toward solutions that are simple enough to be understood at 2am when something breaks.
+
+Ask yourself before adding complexity: "Does this project *actually need* this, or does it just feel more impressive?"
+
+### On the `@/` path alias pattern
+
+The `@/` prefix for imports (e.g., `@/components/Button`) is a convention that means "root of the src directory." It prevents deeply-nested relative imports like `../../../components/Button`. You'll see this in nearly every React/Vue/Next.js project. The machinery behind it:
+
+1. TypeScript uses `tsconfig paths` to understand it for type-checking
+2. The bundler (Vite) uses an alias or plugin to resolve it at build time
+
+They must agree. `vite-tsconfig-paths` makes them agree automatically.
+
+### On json-server as a prototyping tool
+
+json-server is one of those tools that looks like a toy but saves hours of work. It's a REST API from a flat JSON file — reads, writes, filters, pagination, all included. For any project where you need a backend for prototyping but don't want to write one, reach for json-server first.
+
+When you outgrow it (auth, complex queries, relations), you swap it for a real backend. The frontend code doesn't change because the API contract (REST over HTTP) stays the same.
+
+### On file-based state vs database
+
+`db.json` is essentially a file-based database. This works for a single-user local tool but would break down with concurrent writes (two processes writing simultaneously would corrupt the file) or large datasets (reading 10MB of JSON on every poll is slow). For this project, it's perfect. For a production system serving multiple users, you'd want SQLite at minimum.
+
+### On Accessibility as a Design Constraint (Not an Afterthought)
+
+**The pattern:** When this project's UI was finished and "visually polished," a RAMS accessibility audit revealed ~12 issues across three severity levels. The first instinct was to think "accessibility is extra work" — but this mindset is backward. Accessibility is architecture.
+
+**What we found:**
+- 4 critical issues: icon-only buttons without `aria-label`, searchable inputs without accessible names
+- 4 serious issues: clickable rows without keyboard handlers, missing focus rings, touch targets too small
+- 4 moderate issues: decorative icons not hidden from screen readers, contrast ratios below 4.5:1, missing live regions
+
+None of these were hard to fix *once discovered*. But they all required **intentional design decisions**, not coding heroics.
+
+**The mental model shift:** Accessibility isn't a "nice-to-have" feature. It's part of the fundamental contract between your code and the browser. The browser has features (aria attributes, semantic HTML, keyboard handling) specifically for this. Ignoring them is like ignoring TypeScript errors — you're trading short-term speed for long-term fragility.
+
+**Three concrete learnings:**
+
+1. **Icon-only buttons are broken by default.** A button with only an icon (`<button><IconRefresh /></button>`) is invisible to screen readers. The fix is one line: `aria-label="Refresh"`. This isn't extra; it's required. If your icon component doesn't have an accessible name, the button doesn't work.
+
+2. **Clickable elements need keyboard support.** A row with `onClick` is pointless for keyboard users. The fix is straightforward:
+   ```jsx
+   onClick={handleClick}
+   onKeyDown={(e) => {
+     if (e.key === 'Enter' || e.key === ' ') {
+       e.preventDefault();
+       handleClick();
+     }
+   }}
+   tabIndex={0}
+   ```
+   This is not "extra accessibility code" — it's the price of entry for interactive elements. Expect it.
+
+3. **Invisible UX is real UX.** The `-m-2` padding trick (expanding a 20px button's tap zone to 36px without changing its visual appearance) taught a film-production lesson: what users see isn't all the information your design conveys. Like a film credit that lists production assistants nobody sees — it still matters. `aria-live="polite"` announcements, `aria-expanded` toggles, and unseen focus rings are all real UI. They just happen to be invisible to non-assistive users.
+
+**The color palette example:** This project uses a minimalist stone-based palette. During the audit, it became clear that "running" (stone-200) vs "failed" (stone-300) — both in muted gray — was hard to scan. The design fix wasn't to compromise the aesthetic. It was to use semantic colors intentionally: "running" → slate-400 (blue-gray), "failed" → red-500, "paused" → amber-400. These colors were *always in the Tailwind palette* — they just hadn't been chosen. The RAMS review surfaced a design decision that was always available.
+
+**Film production analogy:** Accessibility is like continuity in film. You might not consciously notice a well-maintained prop across cuts, but you *will* notice if it's wrong. The viewer doesn't see the continuity supervisor's notes — but without them, the film falls apart. Accessibility is the continuity supervisor of the web.
+
+**The lesson:** Don't save accessibility for the end. Make it a design constraint from the start. Choose semantic colors. Use Radix UI primitives (they handle a11y internally). Plan for keyboard navigation. These decisions cost nothing early but everything later.

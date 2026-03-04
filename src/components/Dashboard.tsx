@@ -25,7 +25,7 @@ export default function Dashboard() {
       {/* Page header */}
       <header className="mb-6">
         <div className="flex items-center gap-2 mb-0.5">
-          <IconActivity size={15} className="text-stone-500" />
+          <IconActivity size={15} aria-hidden="true" className="text-stone-500" />
           <h1 className="text-sm font-semibold tracking-tight text-stone-300">
             Claude Agent Dashboard
           </h1>
@@ -33,12 +33,19 @@ export default function Dashboard() {
             <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
           )}
         </div>
-        <p className="text-xs text-stone-600 ml-5">
+        <p className="text-xs text-stone-500 ml-5">
           {tasks.length > 0
             ? `${running} running · ${completed} done · ${failed} failed`
             : 'No active session'}
         </p>
       </header>
+
+      {/* Screen reader live region — announces polling updates */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {tasks.length > 0
+          ? `${running} running, ${completed} done, ${failed} failed`
+          : 'No active tasks'}
+      </div>
 
       {/* Connection error */}
       {error && (
