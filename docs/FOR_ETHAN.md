@@ -612,6 +612,188 @@ The `@/` prefix for imports (e.g., `@/components/Button`) is a convention that m
 
 They must agree. `vite-tsconfig-paths` makes them agree automatically.
 
+### On Testing: DOM, React, and the Tools That Test Them
+
+Three concepts that seem obvious once you understand them, but can be fuzzy at first:
+
+1. **jsdom is the stage, testing-library is the audience.**
+   - jsdom creates a fake DOM environment so your test can actually query nodes (`document.querySelector`, etc.). Without it, there's no browser-like environment to test against.
+   - `@testing-library/react` runs your React components *into* that jsdom stage and provides queries (`getByRole`, `getByLabelText`) that mimic how a user finds elements. The queries themselves are generic (they work with any framework), but React's test library wraps them with React-specific tooling (render functions, component lifecycle handling).
+   - Think of it this way: jsdom is the empty theater, testing-library is the script the actors follow, `render()` puts the actors on stage, and queries find them from the audience's perspective.
+
+2. **vitest vs Jest: Pick the tool that speaks your bundler's language.**
+   - Jest is a general-purpose test runner that works everywhere. It's battle-tested, well-documented, but doesn't know about your Vite config.
+   - vitest is Jest-compatible but built *for* Vite. It understands your module resolution, path aliases, and dev setup automatically. No extra config. The terminal output is also cleaner — easier to read at a glance.
+   - For a Vite project, vitest is the obvious choice. For a non-Vite project, Jest is fine.
+
+3. **Why @testing-library/dom exists separately from @testing-library/react:**
+   - DOM testing is framework-agnostic. The query logic ("find an element by role") works with React, Vue, Svelte, plain HTML, etc.
+   - React testing adds React-specific concerns: how to render a component, how to interact with hooks, how to handle component state changes.
+   - Separating them lets other frameworks (Vue, Svelte) build their own testing libraries on top of @testing-library/dom without reinventing the query logic.
+   - **The lesson:** Good libraries separate concerns. Don't couple framework-specific code to generic code. It makes both parts harder to maintain.
+
+**Three vitest config details that tie everything together:**
+
+1. **`globals: true` injects test functions globally** — `describe`, `it`, `expect`, `beforeEach`, `afterEach` become available without imports. Cleaner test files, but requires `vitest/globals` in your tsconfig.json types so TypeScript recognizes them. Some libraries (like @testing-library/react) depend on globals being present to auto-cleanup.
+
+2. **`environment: jsdom`** — Tells vitest to use jsdom instead of Node's default environment. Without this, tests that interact with the DOM (component rendering, querying elements) fail because `document` doesn't exist.
+
+3. **Path aliases need both TypeScript and Vite to understand them** — If you use `@/components` in test files, both the TS compiler and vitest's module resolution must know what `@/` means. This is why `vite-tsconfig-paths` plugin + `tsconfig.json paths` are essential. Without them, import resolution fails in tests, and you get module-not-found errors.
+
+**On Test Utilities: The Mock Factory Pattern:**
+
+**The problem it solves:**
+
+When testing, you need realistic test data. The naive approach is to hand-craft every object in every test:
+
+```ts
+test("builds tree correctly", () => {
+  const task1 = {
+    id: "1",
+    name: "Test Task",
+    status: "pending" as TaskStatus,
+    agentType: "Explore",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    completedAt: null,
+    progressPercentage: 0,
+    logs: [],
+  };
+
+  const task2 = {
+    id: "2",
+    name: "Another Task",
+    status: "pending" as TaskStatus,
+    agentType: "Explore",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    completedAt: null,
+    progressPercentage: 0,
+    logs: [],
+  };
+
+  // ... finally, the actual test logic
+});
+```
+
+**The smell:** You're writing 20 lines of setup to test 2 lines of actual logic. Every test needs the same boilerplate. And if the `Task` type changes (you add a new required field), you have to update *every single test*.
+
+**The factory pattern solves this:**
+
+A **factory function** is a helper that creates objects for you with sensible defaults. You give it *only the parts that matter for this test*, and it fills in the rest:
+
+```ts
+function createMockTask(overrides: Partial<Task>): Task {
+  return {
+    // Sensible defaults — these work for most tests
+    id: "1",
+    name: "Test Task",
+    status: "pending",
+    agentType: "Explore",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    completedAt: null,
+    progressPercentage: 0,
+    logs: [],
+    // Let the caller override what matters for *this specific test*
+    ...overrides,
+  };
+}
+```
+
+Now the same test becomes:
+
+```ts
+test("builds tree correctly", () => {
+  const task1 = createMockTask({ id: "1" });
+  const task2 = createMockTask({ id: "2" });
+  // ... test logic
+});
+```
+
+**How it works technically:**
+
+- `Partial<Task>` is a TypeScript utility that makes all Task properties optional (not required). So you can pass `{ id: "2" }` without typing out `name`, `status`, etc.
+- The spread operator `...overrides` takes whatever the caller passed and **overwrites** the defaults. If you call `createMockTask({ status: "running" })`, the returned object will have `status: "running"` instead of `"pending"`.
+- The caller can pass `{}` (empty object) to get all defaults, or pass specific fields they care about for this test.
+
+**When to smell that you need a factory:**
+
+- You're writing the same object literal in 3+ tests
+- The object has 5+ properties
+- You find yourself copy-pasting setup code between tests
+- When the type definition changes, you have to update 10 test files
+
+**Why it's valuable:**
+
+1. **Less boilerplate** — tests focus on the logic, not object construction
+2. **Single source of truth** — if `Task` type changes, update one factory, all tests work
+3. **Readable tests** — `createMockTask({ parentId: "1" })` is self-documenting. It says "I need a task with a parent, and I don't care about the rest."
+
+**This pattern appears in every mature codebase** — sometimes it's called a "factory," sometimes a "builder," sometimes a "test fixture." The idea is always the same: **provide sensible defaults, let tests override what matters.**
+
+This is not vitest-specific — it's a general TypeScript testing pattern that works with any framework.
+
+**Pattern Recognition: When to Smell "I Need a Pattern"**
+
+As you move from beginner to intermediate, you'll start noticing code smells — signs that something could be structured better. Here's a cheat sheet:
+
+| Smell | What's happening | Pattern to consider | Why |
+|-------|------------------|-------------------|-----|
+| Copy-pasting the same code 3+ times | You're repeating setup, logic, or initialization | **Factory** (for creation) or **Helper function** (for logic) | DRY principle: Don't Repeat Yourself. One change should update one place, not ten. |
+| You have one object but need it in multiple variants | Creating `UserAdmin`, `UserGuest`, `UserViewer` separately | **Factory** or **Builder** | Factory with options (`createUser({ role: 'admin' })`) is cleaner than three separate functions. |
+| State that's used everywhere in your component | A value passed as a prop through 5 layers of components | **Context API** (React) or **State management** | Prop drilling (passing props through intermediate components that don't use them) is a smell. |
+| Same logic appears in 2+ files | A sorting algorithm, validation rule, or data transformer | **Utility module** (a `.ts` file with reusable functions) | Extracting shared logic to one place makes it testable and maintainable. |
+| Conditionals checking the same thing repeatedly | `if (user.role === 'admin')` appears in 5 places | **Helper function** like `function isAdmin(user) { return user.role === 'admin' }` | Centralizes the logic. If the definition of "admin" changes, you update one place. |
+| Your component has multiple responsibilities | Rendering *and* fetching *and* filtering *and* formatting | **Split into smaller components** or **extract hooks** | One component should do one thing well. Easier to test, reuse, and understand. |
+| You need to create complex objects with many options | Building a request with headers, auth, retry config, etc. | **Builder pattern** | Example: `new RequestBuilder().withAuth(token).withRetry(3).build()` reads left-to-right like instructions. |
+| The same default values appear in many places | Every test file uses `status: "pending"`, every form has the same validation | **Constants file** or **Factory** | If defaults live in one place, they're easy to update. If they're scattered, you'll miss some. |
+
+**The unifying principle:** All patterns exist to solve **repetition** and **clarity**. Ask yourself:
+- "If this changed, how many files would I need to update?"
+- "If I read this code 6 months from now, would I understand it?"
+
+If the answer to #1 is "many" or #2 is "no," a pattern could help.
+
+**On Nested Data Structures in Tests: Array vs Object Confusion:**
+
+When testing tree-structured data (like `TaskNode[]`), a common mental model mistake is confusing which parts are arrays and which are objects:
+
+```typescript
+// Result structure
+const result = [
+  {
+    id: "1",
+    name: "Parent",
+    children: [      // ← children is an ARRAY
+      { id: "2", ... }  // ← this is an OBJECT (a child task)
+    ]
+  },
+  { id: "3", ... }  // ← this is an OBJECT (a root task)
+];
+
+// DON'T DO THIS:
+expect(result[1]).toHaveLength(2);  // ❌ result[1] is an object, not an array!
+
+// DO THIS:
+expect(result).toHaveLength(2);              // ✓ result is an array with 2 root tasks
+expect(result[0].children).toHaveLength(1); // ✓ first root has 1 child
+```
+
+The pattern: **Array access uses numeric indices. Objects use dot notation.** When testing nested data:
+- `result` = array → can use `.length`, `.map()`, `.filter()`
+- `result[0]` = object → can use dot notation to access properties (`.id`, `.name`, `.children`)
+- `result[0].children` = array → can use `.length` again
+
+**Visualization trick:** When logging nested data with `console.log(JSON.stringify(result, null, 2))`, look at the brackets:
+- `[ { ... }, { ... } ]` — outer brackets mean this level is an array
+- `{ "children": [ { ... } ] }` — inner brackets mean `.children` is an array
+
+If you're about to call `.length`, the thing you're calling it on must be inside square brackets in the JSON.
+
 ### On json-server as a prototyping tool
 
 json-server is one of those tools that looks like a toy but saves hours of work. It's a REST API from a flat JSON file — reads, writes, filters, pagination, all included. For any project where you need a backend for prototyping but don't want to write one, reach for json-server first.
