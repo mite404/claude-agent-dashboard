@@ -14,7 +14,8 @@ A concise record of what was built, what changed, and the current system contrac
 - `3001` — json-server (REST API over `db.json`)
 - `3002` — spawn-terminal server (AppleScript bridge for "New Agent" button)
 
-**State**: `db.json` — flat JSON array of task records. Written by hook scripts, read by json-server, polled by React every 2.5s.
+**State**: `db.json` — flat JSON array of task records. Written by hook scripts, read by
+json-server, polled by React every 2.5s.
 
 **Start**: `bun run dev` — starts all three servers via `concurrently`.
 
@@ -58,7 +59,8 @@ A concise record of what was built, what changed, and the current system contrac
 - Background task detection: tasks dispatched with `run_in_background: true` stay `running`
 - Atomic writes: `jq ... > tmp && mv tmp db.json` prevents partial-read corruption
 
-**How to verify**: Start `bun run dev`, invoke any Agent tool in Claude Code, check the dashboard within 2.5s.
+**How to verify**: Start `bun run dev`, invoke any Agent tool in Claude Code, check the dashboard
+within 2.5s.
 
 ---
 
@@ -79,10 +81,12 @@ A concise record of what was built, what changed, and the current system contrac
 
 ### UI Polish (2026-03-04)
 
-- **Copy-log button** in log panel header — `IconCopy` → `IconCheck` with 1.5s reset, uses `navigator.clipboard.writeText`
+- **Copy-log button** in log panel header — `IconCopy` → `IconCheck` with 1.5s reset,
+  uses `navigator.clipboard.writeText`
 - **`N LOGS` chip** — replaces terminal icon; monospace text highlights when panel is open
 - **Log panel margin** — adjusted to `mx-[30px]` for tighter alignment with row content
-- **"New Agent" button** (`scripts/spawn-terminal.ts`) — detects `$TERM_PROGRAM` and spawns `claude` via terminal-specific AppleScript:
+- **"New Agent" button** (`scripts/spawn-terminal.ts`) — detects `$TERM_PROGRAM` and spawns
+  `claude` via terminal-specific AppleScript:
   - **iTerm2**: `create window with default profile command "claude"` (native API)
   - **Terminal.app**: `do script "claude"` (native API)
   - **Ghostty / other**: activate → Cmd+N → keystroke `claude` → Enter (AppleScript)

@@ -9,7 +9,7 @@ TaskTree renders parentId relationships correctly
 
 ## Table of Contents
 
-1. [Mental Model: The Test Stage](#mental-model)
+1. [Mental Model: The Test Stage](#mental-model-the-test-stage)
 2. [Challenge 1: Install Testing Dependencies](#challenge-1-install-testing-dependencies)
 3. [Challenge 2: Configure vitest](#challenge-2-configure-vitest)
    - Sets up jsdom environment
@@ -54,7 +54,8 @@ that structure and brings it to life on screen.
 
 **File:** `package.json`
 
-**Problem:** The project has no testing infrastructure. Vitest doesn't exist, and neither do the @testing-library packages.
+**Problem:** The project has no testing infrastructure. Vitest doesn't exist, and neither do
+the @testing-library packages.
 
 **Your Task:**
 
@@ -255,7 +256,8 @@ tasks and their children indented beneath them.
 ### Hint
 
 Use `render()` from @testing-library/react to render the component. Use `screen.getByText()` or
-`screen.getByRole()` to query the rendered output. Check for DOM structure using `within()` and check classes for indentation (`pl-6`).
+`screen.getByRole()` to query the rendered output. Check for DOM structure using `within()` and
+check classes for indentation (`pl-6`).
 
 ### Starting Code
 
@@ -705,12 +707,15 @@ After implementing all four challenges:
 
 ## Key Takeaways
 
-1. **Testing pyramid:** Write many unit tests (buildTree logic), fewer integration tests (TaskTree rendering), fewer E2E tests
-2. **Factory functions:** Create mock data factories for consistency and readability
-3. **Accessibility-first:** Use `screen.getByRole()` and `screen.getByText()` (they follow a11y best practices)
-4. **One assertion per concept:** Don't cram unrelated assertions into one test
-5. **Test behavior, not implementation:** Test "parent shows with children," not "map.get() returns correct node"
-6. **Vitest for speed:** Vitest is significantly faster than Jest for modern projects using ES modules
+1. **Testing pyramid:** Write many unit tests (buildTree logic), fewer integration tests
+2. (TaskTree rendering), fewer E2E tests
+3. **Factory functions:** Create mock data factories for consistency and readability
+4. **Accessibility-first:** Use `screen.getByRole()` and `screen.getByText()` (they follow
+   a11y best practices)
+5. **One assertion per concept:** Don't cram unrelated assertions into one test
+6. **Test behavior, not implementation:** Test "parent shows with children," not "map.get()
+   returns correct node"
+7. **Vitest for speed:** Vitest is significantly faster than Jest for modern projects using ES modules
 
 **The pattern:**
 
@@ -718,6 +723,7 @@ After implementing all four challenges:
 Arrange (create mock data) → Act (render component) → Assert (check output)
 ```
 
-Remember: tests are documentation. They tell future you (and your team) how the code is *supposed* to work.
+Remember: tests are documentation. They tell future you (and your team) how the code
+is *supposed* to work.
 
 Good luck! 🎬
