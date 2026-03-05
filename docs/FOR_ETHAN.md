@@ -827,6 +827,136 @@ test files, both the TS compiler and vitest's module resolution must know what `
 why `vite-tsconfig-paths` plugin + `tsconfig.json paths` are essential. Without them, import
 resolution fails in tests, and you get module-not-found errors.
 
+**The Complete Testing Stack: Four Layers That Work Together**
+
+When you `bun test`, there are four distinct tools at play, each doing one job:
+
+| Layer | Package | What it does | Analogy |
+|-------|---------|-------------|---------|
+| **Virtual Browser** | `jsdom` | Creates a fake DOM environment (`document`, `window`, `querySelector`). Without it, there's no browser to test against — you'd be testing React in a void. | The **stage backlot**. A physical place where your actors (components) can be placed. |
+| **Test Runner** | `vitest` | Runs tests, provides `describe`, `it`, `expect`, `vi`. Understands Vite aliases and config automatically. The assertion engine that says "yes" or "no" about your code. | The **director and cinematographer**. Sets up the scene, calls action, reviews the footage. |
+| **Render & Query** | `@testing-library/react` | Takes your React components and renders them *into* that jsdom stage. Provides queries (`getByText`, `getByRole`, `within`) that mimic how a real user finds elements on a page. | The **camera crew and lighting**. They put the actors on the stage and position the camera to see what the audience would see. |
+| **DOM Matchers** | `@testing-library/jest-dom` | Adds **custom `expect` matchers** for DOM elements — `.toBeInTheDocument()`, `.toBeDisabled()`, `.toHaveClass()`, `.toHaveValue()`. Without it, vitest's generic assertions (`toBe`, `toEqual`) don't know what a DOM element is. | The **focus puller and script supervisor**. They ensure the camera is focused on the right thing and verify it matches the script. |
+
+**Why all four?**
+
+`jsdom` + `vitest` alone = you can run code, but you can't test DOM behavior.
+
+`jsdom` + `vitest` + `@testing-library/react` alone = you can render React and query elements, but assertions are clunky:
+
+```ts
+// Without jest-dom — technically works, but terrible feedback:
+expect(screen.queryByText('Test Node')).not.toBeNull()
+```
+
+All four together = clear, readable tests with useful failure messages:
+
+```ts
+// With jest-dom — reads like English, fails with actionable info:
+expect(screen.getByText('Test Node')).toBeInTheDocument()
+```
+
+**Setup checklist:**
+
+1. ✅ `jsdom` and `vitest` — configured in `vite.config.ts` (`environment: "jsdom"`, `globals: true`)
+2. ✅ `@testing-library/react` and `@testing-library/dom` — already in package.json
+3. ✅ `@testing-library/jest-dom` — install + setup file
+
+**The Setup Files: How a Modern TypeScript Vitest Suite Boots Up**
+
+A testing suite has **one job at startup:** extend `expect()` with DOM matchers before running tests. Here's the choreography:
+
+**The three-file handshake:**
+
+1. **vite.config.ts** — Tells vitest where to find the setup:
+```ts
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
+  setupFiles: ['./vitest-setup.ts'],  // ← Run this file before tests
+});
+```
+
+2. **vitest-setup.ts** — The setup file that runs BEFORE all tests. It's where imports that affect global state live:
+```ts
+// vitest-setup.ts
+import '@testing-library/jest-dom/vitest'
+// Any other global setup goes here
+```
+
+3. **The right tsconfig** — Tells TypeScript this setup file exists (so you get types for jest-dom matchers).
+
+The jest-dom docs say "add this to `tsconfig.json`" — but that's written for a single-tsconfig project. This project has three tsconfig files with a **coordinator pattern**:
+
+| File | Role | Contains |
+|------|------|----------|
+| `tsconfig.json` | Coordinator only | Just `"references"` pointers. `"files": []` means it holds zero files itself. |
+| `tsconfig.app.json` | App + tests | `src/`, `vitest-setup.ts`, jest-dom types. **This is what the docs mean by "tsconfig.json".** |
+| `tsconfig.node.json` | Vite config only | `vite.config.ts`, `noEmit: true` |
+
+So the types and include go in `tsconfig.app.json`, not the root:
+
+```json
+// tsconfig.app.json — covers src/ where test files live
+{
+  "compilerOptions": {
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
+  },
+  "include": ["src", "./vitest-setup.ts"]
+}
+```
+
+The root coordinator stays empty:
+
+```json
+// tsconfig.json — do NOT add types or include here
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+```
+
+**Why can't you add `include` to the coordinator?**
+
+When `tsconfig.json` has `"files": []` + `"references"`, TypeScript treats it as a pure coordinator. The moment you add `"include"`, it becomes a real project too — and TypeScript then enforces composite project rules: all referenced sub-projects must be able to *emit* files. But `tsconfig.node.json` has `"noEmit": true`, which conflicts. Error: *"Referenced project may not disable emit."*
+
+The fix is to leave the coordinator alone and put things where the files actually live.
+
+**The execution order:**
+
+```
+bun test
+  ↓
+vitest reads vite.config.ts
+  ↓
+Finds setupFiles: ['./vitest-setup.ts']
+  ↓
+Loads and executes vitest-setup.ts
+  ↓
+vitest-setup.ts imports '@testing-library/jest-dom/vitest'
+  ↓
+jest-dom extends the global 'expect' object with .toBeInTheDocument(), .toHaveClass(), etc.
+  ↓
+Now all test files can use those matchers
+  ↓
+Run tests
+```
+
+**Common mistakes:**
+
+1. **Importing jest-dom in vite.config.ts** — runs in the bundler's context, not the test runtime. Matchers don't get registered. Tests fail with "toBeInTheDocument is not a function."
+2. **Putting `include`/`types` in the coordinator tsconfig.json** — breaks the composite project wiring. Error: "Referenced project may not disable emit."
+3. **Following docs literally without checking your tsconfig structure** — docs are written for single-tsconfig projects. When you have multiple, find the one that covers your source files and treat that as "your tsconfig.json."
+
+**Why multiple tsconfigs at all?**
+
+`vite.config.ts` runs in Node.js. `src/` runs in the browser. They need different compiler settings (different `lib`, different globals). Splitting them prevents browser code from accidentally using Node APIs and vice versa. The coordinator just wires them together for IDE tooling.
+
 **On Test Utilities: The Mock Factory Pattern:**
 
 **The problem it solves:**
