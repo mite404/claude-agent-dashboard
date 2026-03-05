@@ -35,7 +35,7 @@ export default function Dashboard() {
             className={cn(
               "h-15 w-15 object-contain",
               error || failed > 0
-                ? "animate-pulse hue-rotate-[280deg] saturate-[3]"
+                ? "animate-pulse hue-rotate-280 saturate-[3]"
                 : running > 0
                   ? "animate-pulse saturate-[2] brightness-[1.2]"
                   : paused > 0

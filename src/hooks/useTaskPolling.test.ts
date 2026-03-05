@@ -1,11 +1,11 @@
 import { buildTree } from "./useTaskPolling";
 import type { Task, TaskStatus } from "@/types/task";
 
-function createMockTask(overrides: Partial<Task>) {
+function createMockTask(overrides: Partial<Task>): Task {
   return {
     id: "1",
     name: "Test Task",
-    status: "pending" as TaskStatus,
+    status: "pending",
     agentType: "Explore",
     parentId: null,
     createdAt: new Date().toISOString(),
