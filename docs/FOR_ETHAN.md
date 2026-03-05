@@ -612,6 +612,26 @@ The `@/` prefix for imports (e.g., `@/components/Button`) is a convention that m
 
 They must agree. `vite-tsconfig-paths` makes them agree automatically.
 
+### On Testing: DOM, React, and the Tools That Test Them
+
+Three concepts that seem obvious once you understand them, but can be fuzzy at first:
+
+1. **jsdom is the stage, testing-library is the audience.**
+   - jsdom creates a fake DOM environment so your test can actually query nodes (`document.querySelector`, etc.). Without it, there's no browser-like environment to test against.
+   - `@testing-library/react` runs your React components *into* that jsdom stage and provides queries (`getByRole`, `getByLabelText`) that mimic how a user finds elements. The queries themselves are generic (they work with any framework), but React's test library wraps them with React-specific tooling (render functions, component lifecycle handling).
+   - Think of it this way: jsdom is the empty theater, testing-library is the script the actors follow, `render()` puts the actors on stage, and queries find them from the audience's perspective.
+
+2. **vitest vs Jest: Pick the tool that speaks your bundler's language.**
+   - Jest is a general-purpose test runner that works everywhere. It's battle-tested, well-documented, but doesn't know about your Vite config.
+   - vitest is Jest-compatible but built *for* Vite. It understands your module resolution, path aliases, and dev setup automatically. No extra config. The terminal output is also cleaner — easier to read at a glance.
+   - For a Vite project, vitest is the obvious choice. For a non-Vite project, Jest is fine.
+
+3. **Why @testing-library/dom exists separately from @testing-library/react:**
+   - DOM testing is framework-agnostic. The query logic ("find an element by role") works with React, Vue, Svelte, plain HTML, etc.
+   - React testing adds React-specific concerns: how to render a component, how to interact with hooks, how to handle component state changes.
+   - Separating them lets other frameworks (Vue, Svelte) build their own testing libraries on top of @testing-library/dom without reinventing the query logic.
+   - **The lesson:** Good libraries separate concerns. Don't couple framework-specific code to generic code. It makes both parts harder to maintain.
+
 ### On json-server as a prototyping tool
 
 json-server is one of those tools that looks like a toy but saves hours of work. It's a REST API from a flat JSON file — reads, writes, filters, pagination, all included. For any project where you need a backend for prototyping but don't want to write one, reach for json-server first.
