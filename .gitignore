@@ -10,8 +10,8 @@ dist
 coverage
 *.lcov
 
-# logs
-logs
+# logs (keep the directory, ignore contents)
+logs/*.log
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 

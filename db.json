@@ -1,73 +1,97 @@
 {
   "tasks": [
     {
-      "id": "test-001",
-      "name": "Test task",
+      "id": "orchestrator-1772949293",
+      "name": "Multi-Agent Orchestration Test",
       "status": "completed",
-      "agentType": "Explore",
+      "agentType": "orchestrator",
       "parentId": null,
-      "createdAt": "2026-03-04T08:04:28.000Z",
-      "startedAt": "2026-03-04T08:04:28.000Z",
-      "completedAt": "2026-03-04T08:08:14.000Z",
+      "createdAt": "2026-03-08T05:54:53.000Z",
+      "startedAt": "2026-03-08T05:54:53.000Z",
+      "completedAt": "2026-03-08T05:56:13.000Z",
       "progressPercentage": 100,
       "logs": [
         {
-          "timestamp": "2026-03-04T08:04:28.000Z",
+          "timestamp": "2026-03-08T05:54:53.000Z",
           "level": "info",
-          "message": "Task started: Test task"
+          "message": "Orchestrator started: launching 3 child agents"
         },
         {
-          "timestamp": "2026-03-04T08:08:14.000Z",
+          "timestamp": "2026-03-08T05:56:13.000Z",
           "level": "info",
-          "message": "Task completed: Found 12 files"
+          "message": "All 3 child agents completed successfully"
         }
       ]
     },
     {
-      "id": "toolu_013tqLfZvu6MDg8nkEZJ78Dy",
-      "name": "List all files in the src/ directory",
-      "status": "paused",
+      "id": "toolu_01EShjJi9mY2cxw986z2d82E",
+      "name": "Explore hook scripts in dashboard",
+      "status": "completed",
       "agentType": "Explore",
       "parentId": null,
-      "createdAt": "2026-03-04T08:09:38.000Z",
-      "startedAt": "2026-03-04T08:09:38.000Z",
-      "completedAt": "2026-03-04T08:09:45.000Z",
+      "createdAt": "2026-03-08T05:55:03.000Z",
+      "startedAt": "2026-03-08T05:55:03.000Z",
+      "completedAt": "2026-03-08T05:55:14.000Z",
       "progressPercentage": 100,
       "logs": [
         {
-          "timestamp": "2026-03-04T08:09:38.000Z",
+          "timestamp": "2026-03-08T05:55:03.000Z",
           "level": "info",
-          "message": "Task started: List all files in the src/ directory"
+          "message": "Task started: Explore hook scripts in dashboard"
         },
         {
-          "timestamp": "2026-03-04T08:09:45.000Z",
+          "timestamp": "2026-03-08T05:55:14.000Z",
           "level": "info",
-          "message": "Task completed: Perfect! Here's the complete directory tree for the `src/` directory:\n\n```\nsrc/\n├── .DS_Store\n├── index.css\n├── main.tsx\n├── vite-env.d.ts\n├── components/\n│   ├── Dashboard.tsx\n│   ├── TaskCard.tsx\n│   ├── TaskTable.tsx\n│   ├── TaskTree.tsx\n│   ├── ControlButtons.tsx\n│   ├── LogViewer.tsx\n│   └── ui"
+          "message": "Task completed: ## Summary of Scripts in `/scripts/`\n\n### 1. **pre-tool-agent.sh**\nThis hook fires when Claude Code initiates a tool call, creating a new \"running\" task record in the json-server database. It extracts the task ID, name, and agent type from the hook context (via stdin), parses an optional `[parentId:"
         }
       ]
     },
     {
-      "id": "toolu_01GCtkoPwfuacVGRz6m5Ydor",
-      "name": "A11y + color fixes for dashboard",
+      "id": "toolu_01MnYJmj9GGJu2duq9qsx7Pf",
+      "name": "Explore React components in dashboard",
       "status": "completed",
-      "agentType": "general-purpose",
+      "agentType": "Explore",
       "parentId": null,
-      "createdAt": "2026-03-04T17:33:47.000Z",
-      "startedAt": "2026-03-04T17:33:47.000Z",
-      "completedAt": null,
-      "progressPercentage": 0,
+      "createdAt": "2026-03-08T05:55:18.000Z",
+      "startedAt": "2026-03-08T05:55:18.000Z",
+      "completedAt": "2026-03-08T05:55:34.000Z",
+      "progressPercentage": 100,
       "logs": [
         {
-          "timestamp": "2026-03-04T17:33:47.000Z",
+          "timestamp": "2026-03-08T05:55:18.000Z",
           "level": "info",
-          "message": "Task started: A11y + color fixes for dashboard"
+          "message": "Task started: Explore React components in dashboard"
         },
         {
-          "timestamp": "2026-03-04T17:33:47.000Z",
+          "timestamp": "2026-03-08T05:55:34.000Z",
           "level": "info",
-          "message": "Background task dispatched"
+          "message": "Task completed: Perfect! Now let me create a comprehensive summary of all the components:\n\n## Component Directory Overview\n\n### Main Components\n\n**Dashboard.tsx** (Primary container)\n- Thin wrapper component that orchestrates the entire UI. Fetches tasks via `useTaskPolling(2500)`, displays header with status stats"
+        }
+      ]
+    },
+    {
+      "id": "toolu_01FRSPd2y6fWpCTt9D4nRou9",
+      "name": "Explore hooks and types in dashboard",
+      "status": "completed",
+      "agentType": "Explore",
+      "parentId": null,
+      "createdAt": "2026-03-08T05:55:38.000Z",
+      "startedAt": "2026-03-08T05:55:38.000Z",
+      "completedAt": "2026-03-08T05:55:56.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-08T05:55:38.000Z",
+          "level": "info",
+          "message": "Task started: Explore hooks and types in dashboard"
+        },
+        {
+          "timestamp": "2026-03-08T05:55:56.000Z",
+          "level": "info",
+          "message": "Task completed: Perfect. Now I have all the information needed. Let me provide a comprehensive summary.\n\n## Summary: Polling, Tree-Building, and Type Structure\n\n### Type Structure\n\nThe type system is elegantly simple and recursive:\n\n**`Task` interface** (`/Users/ea/Programming/web/fractal/claude-agent-dashboard/src"
         }
       ]
     }
-  ]
+  ],
+  "$schema": "./node_modules/json-server/schema.json"
 }

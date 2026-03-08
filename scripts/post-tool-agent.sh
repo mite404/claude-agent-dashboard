@@ -1,6 +1,6 @@
 #!/bin/bash
 # Claude Code PostToolUse hook — fires when an Agent tool call ends.
-# Reads hook context from stdin, updates the task status in db.json.
+# Reads hook context from stdin, updates the task status via the json-server API.
 #
 # Hook stdin fields used:
 #   .tool_use_id                        → identifies which task to update
@@ -12,6 +12,17 @@
 
 DASHBOARD_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DB_FILE="$DASHBOARD_DIR/db.json"
+LOG_FILE="$DASHBOARD_DIR/logs/hooks.log"
+
+log() {
+  echo "[$(date -u +"%H:%M:%S")] [post-hook] $*" >> "$LOG_FILE"
+}
+
+# Ensure db.json is valid so json-server can start cleanly if restarted
+if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
+  echo '{"tasks":[]}' > "$DB_FILE"
+  log "WARN: db.json was missing or invalid — bootstrapped fresh"
+fi
 
 INPUT=$(cat)
 
@@ -23,11 +34,8 @@ SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // "general-pur
 
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
-# Determine final status
-if [ "$IS_BG" = "true" ]; then
-  STATUS="running"
-  PROGRESS=0
-elif [ "$IS_ERROR" = "true" ]; then
+# Determine final status.
+if [ "$IS_ERROR" = "true" ]; then
   STATUS="failed"
   PROGRESS=0
 else
@@ -35,7 +43,7 @@ else
   PROGRESS=100
 fi
 
-# Build the log entry inside jq to safely handle result content (avoids shell quoting issues)
+# Build the log entry
 NEW_LOG=$(echo "$INPUT" | jq \
   --arg now "$NOW" \
   --arg status "$STATUS" \
@@ -72,15 +80,39 @@ NEW_LOG=$(echo "$INPUT" | jq \
     )
   }')
 
-# Bootstrap db.json if it doesn't exist or if .tasks key is missing/null
-if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
-  echo '{"tasks":[]}' > "$DB_FILE"
-fi
+# Fetch the existing task from json-server
+EXISTING=$(curl -s "http://localhost:3001/tasks/$TASK_ID")
 
-TASK_EXISTS=$(jq --arg id "$TASK_ID" 'any(.tasks[]; .id == $id)' "$DB_FILE")
+if echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
+  # Task exists — build updated version and PUT it back (full replace preserves logs array)
+  UPDATED=$(echo "$EXISTING" | jq \
+    --arg status "$STATUS" \
+    --arg now "$NOW" \
+    --argjson progress "$PROGRESS" \
+    --argjson newlog "$NEW_LOG" \
+    '. + {
+      status: $status,
+      completedAt: $now,
+      progressPercentage: $progress,
+      logs: (.logs + [$newlog])
+    }')
 
-if [ "$TASK_EXISTS" = "false" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK_ID" \
+    -H "Content-Type: application/json" \
+    -d "$UPDATED")
+
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+  if [ "$HTTP_CODE" = "200" ]; then
+    log "OK: updated task $TASK_ID → $STATUS"
+  else
+    log "ERROR: PUT /tasks/$TASK_ID failed (HTTP $HTTP_CODE)"
+  fi
+
+else
   # Pre-hook didn't fire (e.g., hook was just installed mid-session). Create a fallback record.
+  log "WARN: task $TASK_ID not found — pre-hook may have missed it. Creating fallback."
+
   FALLBACK=$(jq -n \
     --arg id "$TASK_ID" \
     --arg name "$TASK_NAME" \
@@ -102,34 +134,15 @@ if [ "$TASK_EXISTS" = "false" ]; then
       logs: [$log]
     }')
 
-  jq --argjson task "$FALLBACK" '.tasks += [$task]' \
-    "$DB_FILE" > "$DB_FILE.tmp" && mv "$DB_FILE.tmp" "$DB_FILE"
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:3001/tasks" \
+    -H "Content-Type: application/json" \
+    -d "$FALLBACK")
 
-elif [ "$IS_BG" = "true" ]; then
-  # Background task: just append the log entry; status stays "running"
-  jq \
-    --arg id "$TASK_ID" \
-    --argjson newlog "$NEW_LOG" \
-    '.tasks = [.tasks[] | if .id == $id then . + {logs: (.logs + [$newlog])} else . end]' \
-    "$DB_FILE" > "$DB_FILE.tmp" && mv "$DB_FILE.tmp" "$DB_FILE"
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
-else
-  # Foreground task: update status, completedAt, progress, and append log
-  jq \
-    --arg id "$TASK_ID" \
-    --arg status "$STATUS" \
-    --arg now "$NOW" \
-    --argjson progress "$PROGRESS" \
-    --argjson newlog "$NEW_LOG" \
-    '.tasks = [
-      .tasks[] | if .id == $id then
-        . + {
-          status: $status,
-          completedAt: $now,
-          progressPercentage: $progress,
-          logs: (.logs + [$newlog])
-        }
-      else . end
-    ]' \
-    "$DB_FILE" > "$DB_FILE.tmp" && mv "$DB_FILE.tmp" "$DB_FILE"
+  if [ "$HTTP_CODE" = "201" ]; then
+    log "OK: fallback task created for $TASK_ID → $STATUS"
+  else
+    log "ERROR: POST /tasks (fallback) failed (HTTP $HTTP_CODE) — is json-server running on :3001?"
+  fi
 fi

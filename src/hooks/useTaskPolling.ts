@@ -45,7 +45,8 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
     try {
       const res = await fetch("/api/tasks");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: Task[] = await res.json();
+      const raw = await res.json();
+      const data: Task[] = Array.isArray(raw) ? raw : [];
       setTasks(data);
       setTree(buildTree(data));
       setLastUpdated(new Date());
