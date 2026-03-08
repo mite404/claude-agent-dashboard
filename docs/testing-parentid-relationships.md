@@ -67,9 +67,9 @@ the @testing-library packages.
 
 ### Hint
 
-Use `bun add --save-dev` for development dependencies. Vitest is the test runner (like Jest but faster).
-@testing-library/react gives you tools to render and query React components.
-jsdom simulates a browser DOM in Node.js.
+Use `bun add --save-dev` for development dependencies. Vitest is the test
+runner (like Jest but faster). @testing-library/react gives you tools to render
+and query React components. jsdom simulates a browser DOM in Node.js.
 
 ### Starting Code
 
@@ -98,7 +98,8 @@ bun add --save-dev vitest @testing-library/react @testing-library/dom jsdom
 
 **File:** `vitest.config.ts` (new file)
 
-**Problem:** Vitest needs to know how to transform TypeScript, JSX, and resolve aliases (like `@/components`).
+**Problem:** Vitest needs to know how to transform TypeScript, JSX, and resolve
+aliases (like `@/components`).
 
 **Your Task:**
 
@@ -391,7 +392,8 @@ export default defineConfig({
 
 - `environment: 'jsdom'` — provides a fake DOM (needed for @testing-library/react)
 - `globals: true` — lets you use `describe`, `it`, `expect` without imports
-- `plugins: [react(), tsconfigPaths()]` — handles JSX transform and path aliases like `@/components`
+- `plugins: [react(), tsconfigPaths()]` — handles JSX transform and path aliases
+  like `@/components`
 - Vitest auto-discovers `.test.ts` and `.test.tsx` files
 
 ---
@@ -510,7 +512,8 @@ describe('buildTree', () => {
 **Create `src/components/TaskTree.test.tsx`:**
 
 ```typescript
-import { describe, it, expect, vi } from 'vitest'
+import { vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { render, screen, within } from '@testing-library/react'
 import { TaskTree } from './TaskTree'
 import type { TaskNode } from '@/types/task'
@@ -538,7 +541,7 @@ describe('TaskTree', () => {
     expect(screen.getByText('Solo Task')).toBeInTheDocument()
   })
 
-  it('renders parent and child tasks', () => {
+  it('renders parent and child tasks with indentation', () => {
     const parent = createMockNode({
       id: 'parent-1',
       name: 'Parent Task',
@@ -553,30 +556,10 @@ describe('TaskTree', () => {
 
     render(<TaskTree nodes={[parent]} />)
 
-    expect(screen.getByText('Parent Task')).toBeInTheDocument()
-    expect(screen.getByText('Child Task')).toBeInTheDocument()
-  })
-
-  it('indents children with pl-6 class', () => {
-    const parent = createMockNode({
-      id: 'parent-1',
-      name: 'Parent',
-      children: [
-        createMockNode({
-          id: 'child-1',
-          name: 'Child',
-          parentId: 'parent-1',
-        }),
-      ],
-    })
-
-    const { container } = render(<TaskTree nodes={[parent]} />)
-
-    // Find the child's parent div (the relative container with pl-6)
-    const childText = screen.getByText('Child')
-    const indentContainer = childText.closest('.relative.mt-2.pl-6')
-
-    expect(indentContainer).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Parent Task' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Child Task' })).toBeInTheDocument()
+    const childContainer = screen.getByRole('heading', { name: 'Child Task' }).closest('.pl-6')
+    expect(childContainer).toBeInTheDocument()
   })
 
   it('renders connector line between parent and children', () => {
@@ -597,52 +580,60 @@ describe('TaskTree', () => {
     expect(connector).toHaveClass('w-px') // vertical line
   })
 
-  it('calls onStatusChange when task status is updated', async () => {
+  it('calls onStatusChange when child status is updated', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+    } as Response)
+
     const mockStatusChange = vi.fn()
-    const node = createMockNode({
-      id: 'task-1',
-      name: 'Task',
+    const childNode = createMockNode({
+      id: 'childNode',
+      name: 'Child Task',
+      parentId: 'parentNode',
       status: 'pending',
     })
+    const parentNode = createMockNode({
+      id: 'parentNode',
+      name: 'Parent Task',
+      children: [childNode],
+    })
 
-    render(<TaskTree nodes={[node]} onStatusChange={mockStatusChange} />)
+    const user = userEvent.setup()
+    render(<TaskTree nodes={[parentNode]} onStatusChange={mockStatusChange} />)
 
-    // Note: This test depends on TaskCard having a way to change status.
-    // You may need to adjust based on how TaskCard actually implements this.
-    // For now, this shows the pattern.
-    expect(mockStatusChange).toBeDefined()
+    // Find the child's cancel button and click it
+    const childHeading = screen.getByRole('heading', { name: childNode.name })
+    const childContainer = childHeading.closest('.relative') || document.body
+    const button = within(childContainer).getByRole('button', { name: /cancel/i })
+    await user.click(button)
+
+    expect(mockStatusChange).toHaveBeenCalled()
   })
 
-  it('renders multiple levels of nesting', () => {
-    const grandchild = createMockNode({
-      id: 'grandchild-1',
-      name: 'Grandchild',
-      parentId: 'child-1',
+  it('renders multiple levels of nesting (grandchildren)', () => {
+    const grandchildNode = createMockNode({
+      id: 'grandchildNode',
+      name: 'Grandchild Task',
+      parentId: 'childNode'
+    })
+    const childNode = createMockNode({
+      id: 'childNode',
+      name: 'Child Task',
+      parentId: 'parentNode',
+      children: [grandchildNode]
+    })
+    const parentNode = createMockNode({
+      id: 'parentNode',
+      name: 'Parent Task',
+      children: [childNode],
     })
 
-    const child = createMockNode({
-      id: 'child-1',
-      name: 'Child',
-      parentId: 'parent-1',
-      children: [grandchild],
-    })
+    render(<TaskTree nodes={[parentNode]} />)
 
-    const parent = createMockNode({
-      id: 'parent-1',
-      name: 'Parent',
-      children: [child],
-    })
-
-    render(<TaskTree nodes={[parent]} />)
-
-    expect(screen.getByText('Parent')).toBeInTheDocument()
-    expect(screen.getByText('Child')).toBeInTheDocument()
-    expect(screen.getByText('Grandchild')).toBeInTheDocument()
-  })
-
-  it('returns null when nodes array is empty', () => {
-    const { container } = render(<TaskTree nodes={[]} />)
-    expect(container.firstChild).toBeNull()
+    expect(screen.getByRole('heading', { name: parentNode.name })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: childNode.name })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: grandchildNode.name })).toBeInTheDocument()
   })
 })
 ```
@@ -715,7 +706,8 @@ After implementing all four challenges:
 5. **One assertion per concept:** Don't cram unrelated assertions into one test
 6. **Test behavior, not implementation:** Test "parent shows with children," not "map.get()
    returns correct node"
-7. **Vitest for speed:** Vitest is significantly faster than Jest for modern projects using ES modules
+7. **Vitest for speed:** Vitest is significantly faster than Jest for modern
+   projects using ES modules
 
 **The pattern:**
 
