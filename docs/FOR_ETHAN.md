@@ -842,7 +842,8 @@ When you `bun test`, there are four distinct tools at play, each doing one job:
 
 `jsdom` + `vitest` alone = you can run code, but you can't test DOM behavior.
 
-`jsdom` + `vitest` + `@testing-library/react` alone = you can render React and query elements, but assertions are clunky:
+`jsdom` + `vitest` + `@testing-library/react` alone = you can render React and
+query elements, but assertions are clunky:
 
 ```ts
 // Without jest-dom — technically works, but terrible feedback:
@@ -858,17 +859,20 @@ expect(screen.getByText('Test Node')).toBeInTheDocument()
 
 **Setup checklist:**
 
-1. ✅ `jsdom` and `vitest` — configured in `vite.config.ts` (`environment: "jsdom"`, `globals: true`)
+1. ✅ `jsdom` and `vitest` — configured in `vite.config.ts`
+   (`environment: "jsdom"`, `globals: true`)
 2. ✅ `@testing-library/react` and `@testing-library/dom` — already in package.json
 3. ✅ `@testing-library/jest-dom` — install + setup file
 
 **The Setup Files: How a Modern TypeScript Vitest Suite Boots Up**
 
-A testing suite has **one job at startup:** extend `expect()` with DOM matchers before running tests. Here's the choreography:
+A testing suite has **one job at startup:** extend `expect()` with DOM matchers
+before running tests. Here's the choreography:
 
 **The three-file handshake:**
 
 1. **vite.config.ts** — Tells vitest where to find the setup:
+
 ```ts
 export default defineConfig({
   test: {
@@ -879,16 +883,21 @@ export default defineConfig({
 });
 ```
 
-2. **vitest-setup.ts** — The setup file that runs BEFORE all tests. It's where imports that affect global state live:
+2. **vitest-setup.ts** — The setup file that runs BEFORE all tests. It's where
+   imports affecting global state live:
+
 ```ts
 // vitest-setup.ts
 import '@testing-library/jest-dom/vitest'
 // Any other global setup goes here
 ```
 
-3. **The right tsconfig** — Tells TypeScript this setup file exists (so you get types for jest-dom matchers).
+3. **The right tsconfig** — Tells TypeScript this setup file exists
+   (so you get types for jest-dom matchers).
 
-The jest-dom docs say "add this to `tsconfig.json`" — but that's written for a single-tsconfig project. This project has three tsconfig files with a **coordinator pattern**:
+The jest-dom docs say "add this to `tsconfig.json`" — but that's written for a
+single-tsconfig project. This project has three tsconfig files with a
+**coordinator pattern**:
 
 | File | Role | Contains |
 |------|------|----------|
@@ -923,7 +932,12 @@ The root coordinator stays empty:
 
 **Why can't you add `include` to the coordinator?**
 
-When `tsconfig.json` has `"files": []` + `"references"`, TypeScript treats it as a pure coordinator. The moment you add `"include"`, it becomes a real project too — and TypeScript then enforces composite project rules: all referenced sub-projects must be able to *emit* files. But `tsconfig.node.json` has `"noEmit": true`, which conflicts. Error: *"Referenced project may not disable emit."*
+When `tsconfig.json` has `"files": []` + `"references"`, TypeScript treats it as
+a pure coordinator. The moment you add `"include"`, it becomes a real project too
+— and TypeScript then enforces composite project rules: all referenced
+sub-projects must be able to *emit* files. But `tsconfig.node.json` has
+`"noEmit": true`, which conflicts. Error: *"Referenced project may not disable
+emit."*
 
 The fix is to leave the coordinator alone and put things where the files actually live.
 
@@ -949,13 +963,21 @@ Run tests
 
 **Common mistakes:**
 
-1. **Importing jest-dom in vite.config.ts** — runs in the bundler's context, not the test runtime. Matchers don't get registered. Tests fail with "toBeInTheDocument is not a function."
-2. **Putting `include`/`types` in the coordinator tsconfig.json** — breaks the composite project wiring. Error: "Referenced project may not disable emit."
-3. **Following docs literally without checking your tsconfig structure** — docs are written for single-tsconfig projects. When you have multiple, find the one that covers your source files and treat that as "your tsconfig.json."
+1. **Importing jest-dom in vite.config.ts** — runs in the bundler's context, not
+   the test runtime. Matchers don't get registered. Tests fail with
+   "toBeInTheDocument is not a function."
+2. **Putting `include`/`types` in the coordinator tsconfig.json** — breaks the
+   composite project wiring. Error: "Referenced project may not disable emit."
+3. **Following docs literally without checking your tsconfig structure** — docs
+   are written for single-tsconfig projects. When you have multiple, find the one
+   that covers your source files and treat that as "your tsconfig.json."
 
 **Why multiple tsconfigs at all?**
 
-`vite.config.ts` runs in Node.js. `src/` runs in the browser. They need different compiler settings (different `lib`, different globals). Splitting them prevents browser code from accidentally using Node APIs and vice versa. The coordinator just wires them together for IDE tooling.
+`vite.config.ts` runs in Node.js. `src/` runs in the browser. They need
+different compiler settings (different `lib`, different globals). Splitting them
+prevents browser code from accidentally using Node APIs and vice versa. The
+coordinator just wires them together for IDE tooling.
 
 **On Test Utilities: The Mock Factory Pattern:**
 
@@ -1132,6 +1154,52 @@ data:
 
 If you're about to call `.length`, the thing you're calling it on must be inside square brackets in
 the JSON.
+
+### On Testing Queries: `getByText` vs `getByRole` — Why Accessibility Matters in Tests
+
+**The pattern:** Testing Library provides multiple ways to find elements. Two common ones:
+
+```typescript
+// ❌ Implementation detail — finds ANY element with this text
+screen.getByText('Cancel')
+
+// ✓ Accessibility-first — finds a BUTTON with this accessible name
+screen.getByRole('button', { name: /cancel/i })
+```
+
+**Why this matters:** `getByText` tests *what* appears on screen. `getByRole` tests
+*how* the screen is built — and that's how users and assistive tech interact.
+
+**The concrete example from TaskTree:**
+
+- `getByText('Parent Task')` passes whether the task name is in an `<h3>` (correct)
+  or a `<div>` (broken for accessibility).
+- `getByRole('heading', { name: 'Parent Task' })` **fails** if you use `<div>`
+  instead of `<h3>`.
+
+Your test just caught an accessibility regression before it shipped.
+
+**Three query patterns to know:**
+
+1. **Buttons:** `getByRole('button', { name: /cancel/i })`
+   - Ensures you have `<button>` or `role="button"` with an accessible name
+   - Would fail if you built a button as a `<div onClick>`
+
+2. **Headings:** `getByRole('heading', { name: 'Title' })`
+   - Ensures you have semantic heading HTML (`<h1>` through `<h6>`)
+   - Screen readers announce these and users can navigate by headings
+
+3. **Text without semantic role:** `getByText('Some status message')`
+   - OK for generic text that doesn't need a role
+   - Use sparingly; prefer semantic queries
+
+**The testing-as-accessibility-checker mindset:** When you write tests with
+`getByRole`, you're checking that the UI is *built correctly*, not just that it
+works. A test passing `getByRole('button')` confirms your button is an actual
+button, not a div pretending to be one.
+
+This is why the tutorial shifted you from `getByText` to `getByRole`. It's not
+just better testing practice — it's accessibility by design.
 
 ### On json-server as a prototyping tool
 

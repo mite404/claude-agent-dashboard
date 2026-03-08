@@ -1,5 +1,5 @@
 import { buildTree } from "./useTaskPolling";
-import type { Task, TaskStatus } from "@/types/task";
+import type { Task } from "@/types/task";
 
 function createMockTask(overrides: Partial<Task>): Task {
   return {
