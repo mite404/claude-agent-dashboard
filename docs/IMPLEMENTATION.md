@@ -10,7 +10,7 @@ and control buttons (cancel/pause/retry).
 
 ---
 
-## Current Status (as of 2026-03-04)
+## Current Status (as of 2026-03-08)
 
 ### ✅ Completed
 
@@ -35,13 +35,14 @@ and control buttons (cancel/pause/retry).
 - **Vite watcher** — `db.json` excluded from HMR (`server.watch.ignored`) so json-server writes
   don't trigger page reloads
 - **Docs** — `docs/API.md`, `docs/HOOK.md`, `docs/FOR_ETHAN.md`
-- **Phase 5 — Claude Code Hook Integration** ✅
-  - `scripts/pre-tool-agent.sh` — PreToolUse hook; creates `running` task on agent start
-  - `scripts/post-tool-agent.sh` — PostToolUse hook; marks `completed` / `failed` on finish
+- **Phase 5 — Claude Code Hook Integration** ✅ (rewritten 2026-03-08)
+  - `scripts/pre-tool-agent.sh` — PreToolUse hook; creates `running` task via REST API
+  - `scripts/post-tool-agent.sh` — PostToolUse hook; GET→mutate→PUT to update status + logs
   - `~/.claude/settings.json` — global hook wiring for both hooks on the `Agent` tool
-  - Bootstrap guard: recreates `db.json` if missing or if `.tasks` key is absent/null
-  - Atomic writes via `jq ... > file.tmp && mv file.tmp file`
-  - Verified live: tasks appear in dashboard within 2.5s of Agent tool use
+  - Bootstrap guard retained as pre-flight check (ensures `db.json` valid for server restarts)
+  - **Hooks now use `curl` against json-server REST API** — no more direct `jq` file writes
+  - Hook observability: `logs/hooks.log` + `tail -F` as 4th `concurrently` process in `dev`
+  - Defensive parse in `useTaskPolling`: `Array.isArray(raw) ? raw : []` guards `buildTree`
 - **UI Polish (2026-03-04)**
   - Copy-log button with `IconCopy` → `IconCheck` 1.5s feedback in log panel header
   - Log count chip: `N LOGS` monospace text (replaces terminal icon in Name cell)
@@ -66,8 +67,18 @@ Both scripts:
 
 - Read JSON from stdin (`INPUT=$(cat)`)
 - Use `tool_use_id` as the stable task ID linking pre and post calls
-- Write atomically via `jq ... > db.json.tmp && mv db.json.tmp db.json`
-- Bootstrap `db.json` if it doesn't exist or if `.tasks` is missing/null
+- Talk to json-server via `curl` (REST API) — never write to `db.json` directly
+- Bootstrap `db.json` as a pre-flight check (so server can restart cleanly if killed)
+- Log every API call result to `logs/hooks.log` with timestamp + `[pre-hook]`/`[post-hook]` label
+
+**Why curl instead of jq file writes?** json-server loads `db.json` into memory at startup and
+serves its in-memory store. Direct writes to `db.json` bypass that memory entirely — the API
+keeps returning stale data from boot. The fix is to route all writes through the REST API so
+json-server's in-memory state stays authoritative.
+
+**Why GET → mutate → PUT for the post-hook?** json-server's `PATCH` is a shallow merge — it
+would overwrite the `logs` array instead of appending. We fetch the full task, build the updated
+version in `jq`, then `PUT` it back as a complete replacement.
 
 ### 5.2 Global hook wiring (`~/.claude/settings.json`)
 
@@ -75,10 +86,14 @@ Both scripts:
 {
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.sh" }] }
+      { "matcher": "Agent", "hooks": [
+        { "type": "command", "command": "…/scripts/pre-tool-agent.sh" }
+      ]}
     ],
     "PostToolUse": [
-      { "matcher": "Agent", "hooks": [{ "type": "command", "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh" }] }
+      { "matcher": "Agent", "hooks": [
+        { "type": "command", "command": "…/scripts/post-tool-agent.sh" }
+      ]}
     ]
   }
 }
@@ -160,7 +175,62 @@ as a Design Constraint."
 
 ---
 
-## Phase 7: Testing & Validation
+## Phase 7 (✅ Completed 2026-03-07): Checkpoint View + Column Reorder
+
+Goal: replace raw log expansion with a structured sub-task checklist, and restructure
+columns for project-management clarity rather than debugging convenience.
+
+### 7.1 Column Changes
+
+| Before | After |
+|--------|-------|
+| Checkbox · ID · Task · Status · Agent · Progress · Duration · Actions | Checkbox · Task · Agent · Status · Subtasks · Progress · Duration · Actions |
+
+- **ID column removed** from display (field still exists in data for backend use)
+- **Subtasks column added** — shows `done/total` count (e.g. `2/5`) derived from
+  `task.children`. Shows `—` for leaf tasks. Togglable via the View menu.
+- **Column order** resequenced so agent context (Agent, Status, Subtasks) comes
+  immediately after the task name
+- **"N LOGS" pill** removed from the Task name cell — the Subtasks column communicates
+  expandability without a separate indicator
+
+### 7.2 CheckpointRow Component
+
+When a task row is clicked to expand, the detail panel now shows:
+
+- **Parent task has children** → `CheckpointRow` — a structured checklist of sub-tasks
+- **Leaf task with logs** → `LogDetailRow` — existing log viewer (unchanged)
+- **Leaf task with neither** → nothing (expand toggle hidden via `hasDetail` guard)
+
+`CheckpointRow` layout per sub-task:
+
+```
+[status icon]  [task name]  [StatusBadge]  [elapsed time]
+    ✓          Fetch docs    done           14s
+    ●          Parse table   in progress    2m 3s
+    ○          Generate...   pending        —
+```
+
+Status icons: `✓` completed · `●` running · `○` pending · `◐` paused · `✗` failed · `–` cancelled
+
+Colors match existing semantic palette: green-400 / blue-400 / stone-600 / amber-400 / red-400.
+
+### 7.3 Data Model (No Schema Changes)
+
+`TaskNode.children[]` was already built client-side from `parentId` in `useTaskPolling.ts`.
+The checkpoint view simply renders that existing array — no new API fields, no db.json changes.
+
+### 7.4 Files Changed
+
+| File | Change |
+|------|--------|
+| `src/components/TaskTable.tsx` | Added `CheckpointRow`, updated column order/types, removed ID cell and LOGS pill, updated `hasDetail` guard |
+| `docs/FOR_ETHAN.md` | Learning log entry added |
+| `status-rail-mockup.html` | Deleted (was a concept prototype, now obsolete) |
+
+---
+
+## Phase 8: Testing & Validation
 
 - [x] Restart dev server after vite-tsconfig-paths fix and confirm no import errors
 - [x] Confirm Cancel/Pause/Retry buttons PATCH correctly without page flash
@@ -169,6 +239,73 @@ as a Design Constraint."
 - [ ] Confirm `parentId` relationships render correctly in TaskTree (child task support not yet
   exercised with live hook data)
 - [x] Run RAMS accessibility audit and verify all critical/serious issues are fixed
+
+---
+
+## Phase 9 (✅ Completed 2026-03-08): Hook Pipeline Rewrite + Observability
+
+### Root cause: hooks were writing to the wrong layer
+
+The original hooks wrote to `db.json` directly using `jq`. json-server loads `db.json` into
+memory at startup and serves its in-memory copy — file writes after boot are invisible to the
+API. The dashboard polled `GET /api/tasks` and always got the startup state.
+
+Confirmed with: `curl -s http://localhost:3001/tasks | jq 'length'` → `0` (despite 4 tasks in
+`db.json`).
+
+### Fix: REST API instead of file writes
+
+| Hook | Old approach | New approach |
+|------|-------------|-------------|
+| `pre-tool-agent.sh` | `jq ... > db.json.tmp && mv` | `curl -X POST /tasks` |
+| `post-tool-agent.sh` | `jq ... > db.json.tmp && mv` | `curl GET` + mutate + `curl -X PUT` |
+
+POST for pre-hook (create). GET→mutate→PUT for post-hook because json-server `PATCH` is shallow
+merge — it would overwrite `logs[]` instead of appending. Full GET + PUT preserves the array.
+
+### Bootstrap retained as pre-flight check
+
+The `if [ ! -f "$DB_FILE" ]...` guard is kept in both scripts. It no longer writes tasks —
+it ensures `db.json` is valid JSON with a `tasks` key so json-server can restart cleanly if
+killed while the hooks are still firing.
+
+### Defensive parse in useTaskPolling
+
+```typescript
+// Before — crashes if API returns null or {}
+const data: Task[] = await res.json();
+
+// After — empty table is worse than a crash, but better than a blank screen
+const raw = await res.json();
+const data: Task[] = Array.isArray(raw) ? raw : [];
+```
+
+`buildTree` uses `for...of` internally — it throws `TypeError: not iterable` on non-arrays.
+The guard ensures worst case is an empty table, not a full app crash.
+
+### Hook observability: logs/hooks.log
+
+Each hook now logs every API call outcome to `logs/hooks.log`:
+
+```
+[03:59:01] [pre-hook] OK: created task toolu_01X ("Explore codebase", Explore)
+[04:00:12] [post-hook] OK: updated task toolu_01X → completed
+[04:01:00] [pre-hook] ERROR: POST /tasks failed (HTTP 000) — is json-server running on :3001?
+```
+
+`tail -F logs/hooks.log` runs as a 4th process in `concurrently` (labelled `[hooks]`), so hook
+output streams live in the same terminal as Vite and json-server logs.
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `scripts/pre-tool-agent.sh` | Rewrote to use `curl POST`; added `log()` function |
+| `scripts/post-tool-agent.sh` | Rewrote to use `curl GET/PUT`; added `log()` function |
+| `src/hooks/useTaskPolling.ts` | `Array.isArray` guard before `buildTree` |
+| `package.json` | Added `--names` + `tail -F logs/hooks.log` to `dev` script |
+| `logs/.gitkeep` | New — tracks `logs/` directory without committing log contents |
+| `.gitignore` | Changed `logs` → `logs/*.log` (keep dir, ignore contents) |
 
 ---
 

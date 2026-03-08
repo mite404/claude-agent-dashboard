@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatElapsed, formatTimestamp } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/badge";
 import type { TaskNode, TaskStatus, LogEntry } from "@/types/task";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -133,13 +134,14 @@ interface TaskTableProps {
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-type SortCol = "task" | "status" | "agent" | "progress" | "duration";
-type HideableCol = "task" | "status" | "agent" | "progress" | "duration";
+type SortCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
+type HideableCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
 
 const HIDEABLE_COLS: { col: HideableCol; label: string }[] = [
   { col: "task", label: "Task" },
-  { col: "status", label: "Status" },
   { col: "agent", label: "Agent" },
+  { col: "status", label: "Status" },
+  { col: "subtasks", label: "Subtasks" },
   { col: "progress", label: "Progress" },
   { col: "duration", label: "Duration" },
 ];
@@ -175,6 +177,8 @@ function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
       cmp = a.name.localeCompare(b.name);
     } else if (sort.col === "agent") {
       cmp = a.agentType.localeCompare(b.agentType);
+    } else if (sort.col === "subtasks") {
+      cmp = a.children.length - b.children.length;
     } else if (sort.col === "progress") {
       cmp = a.progressPercentage - b.progressPercentage;
     } else if (sort.col === "duration") {
@@ -275,7 +279,7 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
   return (
     <TableRow className="hover:bg-transparent border-b-0">
       <TableCell colSpan={colSpan} className="p-0">
-        <div className="mx-[30px] mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-64">
+        <div className="mx-7.5 mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-64">
           {/* Header bar */}
           <div className="sticky top-0 flex items-center gap-2 border-b border-stone-800 bg-stone-900/80 px-3 py-1.5">
             <IconTerminal2 size={15} aria-hidden="true" className="text-stone-500" />
@@ -325,6 +329,62 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
   );
 }
 
+// ─── CheckpointRow ────────────────────────────────────────────────────────────
+
+const CHECKPOINT_ICON: Record<TaskStatus, string> = {
+  completed: "✓",
+  running:   "●",
+  pending:   "○",
+  paused:    "◐",
+  failed:    "✗",
+  cancelled: "–",
+};
+
+
+const CHECKPOINT_COLOR: Record<TaskStatus, string> = {
+  completed: "text-green-400",
+  running:   "text-blue-400",
+  failed:    "text-red-400",
+  paused:    "text-amber-400",
+  pending:   "text-stone-600",
+  cancelled: "text-stone-700",
+};
+
+function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
+  return (
+    <TableRow className="hover:bg-transparent border-b-0">
+      <TableCell colSpan={colSpan} className="p-0">
+        <div className="mx-7.5 mb-2 rounded-(--radius) border border-stone-800 bg-stone-950 text-xs overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-stone-800/60 bg-stone-900/60 px-3 py-2">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+              Subtasks
+            </span>
+            <span className="font-mono text-[10px] text-stone-600">
+              {task.children.filter(c => c.status === "completed").length}/{task.children.length} done
+            </span>
+          </div>
+          {/* Checkpoint list */}
+          <div className="divide-y divide-stone-800/40">
+            {task.children.map((child) => (
+              <div key={child.id} className="flex items-center gap-3 px-3 py-2 hover:bg-stone-900/40 transition-colors">
+                <span className={cn("w-3 shrink-0 text-center font-mono font-bold", CHECKPOINT_COLOR[child.status])}>
+                  {CHECKPOINT_ICON[child.status]}
+                </span>
+                <span className="flex-1 truncate text-stone-200">{child.name}</span>
+                <StatusBadge status={child.status} className="shrink-0" />
+                <span className="shrink-0 font-mono text-[10px] text-stone-600">
+                  {formatElapsed(child.startedAt, child.completedAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 // ─── TaskRow ──────────────────────────────────────────────────────────────────
 
 interface TaskRowProps {
@@ -339,6 +399,7 @@ interface TaskRowProps {
   onToggleExpand: () => void;
   onToggleLogs: () => void;
   onToggleSelect: () => void;
+  onFilterByAgent: (agentType: string) => void;
   onAction: (action: "cancel" | "pause" | "resume" | "retry") => void;
 }
 
@@ -354,6 +415,7 @@ function TaskRow({
   onToggleExpand,
   onToggleLogs,
   onToggleSelect,
+  onFilterByAgent,
   onAction,
 }: TaskRowProps) {
   const isTerminal = task.status === "completed" || task.status === "cancelled";
@@ -361,34 +423,19 @@ function TaskRow({
   const isFailed = task.status === "failed";
   const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
-  const hasLogs = task.logs.length > 0;
+  const hasDetail = task.children.length > 0 || task.logs.length > 0;
   return (
     <TableRow
       data-state={selected ? "selected" : undefined}
-      onClick={hasLogs ? onToggleLogs : undefined}
-      onKeyDown={hasLogs ? (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleLogs(); } } : undefined}
-      tabIndex={hasLogs ? 0 : undefined}
-      aria-expanded={hasLogs ? logsOpen : undefined}
-      className={hasLogs ? "cursor-pointer" : undefined}
+      onClick={hasDetail ? onToggleLogs : undefined}
+      onKeyDown={hasDetail ? (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleLogs(); } } : undefined}
+      tabIndex={hasDetail ? 0 : undefined}
+      aria-expanded={hasDetail ? logsOpen : undefined}
+      className={hasDetail ? "cursor-pointer" : undefined}
     >
       {/* Select */}
       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
         <Checkbox checked={selected} onChange={onToggleSelect} />
-      </TableCell>
-
-      {/* Task ID — subtasks show parent prefix */}
-      <TableCell className="w-28">
-        {task.parentId ? (
-          <span className="flex items-center gap-1 font-mono text-[10px] leading-none">
-            <span className="text-stone-500">{task.parentId.slice(0, 6)}</span>
-            <span className="text-stone-700">›</span>
-            <span className="text-stone-400">{task.id.slice(0, 6)}</span>
-          </span>
-        ) : (
-          <span className="font-mono text-[10px] text-stone-400 leading-none">
-            {task.id.slice(0, 8)}
-          </span>
-        )}
       </TableCell>
 
       {/* Name */}
@@ -421,19 +468,18 @@ function TaskRow({
 
           {/* Task name */}
           <span className="truncate font-medium text-stone-100">{task.name}</span>
-
-          {/* Log count indicator — row click handles the toggle */}
-          {task.logs.length > 0 && (
-            <span
-              className={cn(
-                "shrink-0 font-mono text-[10px] rounded px-1.5 py-0.5 transition-colors",
-                logsOpen ? "bg-stone-700 text-stone-300" : "text-stone-500",
-              )}
-            >
-              {task.logs.length} LOGS
-            </span>
-          )}
         </div>
+      </TableCell>}
+
+      {/* Agent Type */}
+      {!hiddenCols.has("agent") && <TableCell className="w-32" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={() => onFilterByAgent(task.agentType)}
+          className="rounded-sm bg-stone-800 px-1.5 py-0.5 text-[11px] text-stone-400 font-medium hover:bg-stone-700 hover:text-stone-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+          title={`Filter by ${task.agentType}`}
+        >
+          {task.agentType}
+        </button>
       </TableCell>}
 
       {/* Status */}
@@ -446,11 +492,15 @@ function TaskRow({
         </div>
       </TableCell>}
 
-      {/* Agent Type */}
-      {!hiddenCols.has("agent") && <TableCell className="w-32">
-        <span className="rounded-(--radius-sm) bg-stone-800 px-1.5 py-0.5 text-[11px] text-stone-400 font-medium">
-          {task.agentType}
-        </span>
+      {/* Subtasks */}
+      {!hiddenCols.has("subtasks") && <TableCell className="w-20">
+        {task.children.length > 0 ? (
+          <span className="font-mono text-[11px] tabular-nums text-stone-400">
+            {task.children.filter(c => c.status === "completed").length}/{task.children.length}
+          </span>
+        ) : (
+          <span className="text-stone-700 text-[11px]">—</span>
+        )}
       </TableCell>}
 
       {/* Progress */}
@@ -954,21 +1004,25 @@ export function TaskTable({
       )}
 
       {/* Table */}
-      <div className="rounded-(--radius-md) border border-stone-800 overflow-hidden">
+      <div className="rounded-md border border-stone-800 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent bg-stone-900/60">
               <TableHead className="w-10">
                 <Checkbox checked={headerChecked} onChange={toggleAll} />
               </TableHead>
-              <TableHead className="w-24">ID</TableHead>
               {!hiddenCols.has("task") && <TableHead>
                 <SortHeader col="task" label="Task" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
+              {!hiddenCols.has("agent") && <TableHead className="w-32">
+                <SortHeader col="agent" label="Agent" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
               {!hiddenCols.has("status") && <TableHead className="w-28">
                 <SortHeader col="status" label="Status" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
-              {!hiddenCols.has("agent") && <TableHead className="w-32">Agent</TableHead>}
+              {!hiddenCols.has("subtasks") && <TableHead className="w-20">
+                <SortHeader col="subtasks" label="Subtasks" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
               {!hiddenCols.has("progress") && <TableHead className="w-36">
                 <SortHeader col="progress" label="Progress" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
@@ -1003,10 +1057,15 @@ export function TaskTable({
                     onToggleExpand={() => toggleExpand(task.id)}
                     onToggleLogs={() => toggleLogs(task.id)}
                     onToggleSelect={() => toggleRow(task.id)}
+                    onFilterByAgent={toggleAgentFilter}
                     onAction={(action) => handleAction(task.id, action)}
                   />
-                  {expandedLogs.has(task.id) && task.logs.length > 0 && (
-                    <LogDetailRow logs={task.logs} colSpan={totalCols} />
+                  {expandedLogs.has(task.id) && (
+                    task.children.length > 0
+                      ? <CheckpointRow task={task} colSpan={totalCols} />
+                      : task.logs.length > 0
+                        ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
+                        : null
                   )}
                 </React.Fragment>
               ))

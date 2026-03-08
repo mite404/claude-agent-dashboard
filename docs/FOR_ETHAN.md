@@ -1289,3 +1289,325 @@ continuity supervisor of the web.
 **The lesson:** Don't save accessibility for the end. Make it a design constraint from the start.
 Choose semantic colors. Use Radix UI primitives (they handle a11y internally). Plan for keyboard
 navigation. These decisions cost nothing early but everything later.
+
+---
+
+## Feature: Checkpoint View + Column Reorder (2026-03-07)
+
+### The Problem
+
+The old log expansion showed raw `LogEntry[]` lines — timestamps, log levels, message strings.
+Fine for debugging, but useless for project management. When an orchestrator spawns five agents
+and you want to know "is the research phase done?", a wall of `INFO` lines doesn't answer that.
+The *subtasks* do.
+
+### The Pattern: Smart Detail Fallback
+
+The row expansion now follows a decision tree:
+
+```
+Click row
+  ↓
+Does this task have children (sub-tasks)?
+  YES → show CheckpointRow (subtask checklist)
+  NO  → does it have logs?
+          YES → show LogDetailRow (original log view)
+          NO  → nothing (expand toggle hidden)
+```
+
+Think of it like a film's shot list vs. raw production notes. The shot list (checkpoints) is the
+director's view — structured, scannable, pass/fail. The raw notes (logs) are the script
+supervisor's view — useful when something goes wrong and you need the details. The right view
+depends on whether the "scene" has structure.
+
+### The Data Model (No Schema Changes)
+
+`TaskNode` already had `children: TaskNode[]` — built client-side from `parentId` in
+`useTaskPolling.ts`. The checkpoint view just renders those children as a list. No new API fields,
+no new db.json changes. The tree structure was always there; we just started displaying it
+differently.
+
+```
+TaskNode {
+  id, name, status, agentType ...
+  children: TaskNode[]   ← these ARE the checkpoints
+}
+```
+
+Each child gets a status icon (`✓ ● ○ ◐ ✗`), its name, a `StatusBadge`, and its elapsed time.
+
+### Column Reorder + Subtasks Column
+
+The old column order had `ID` as the second column — useful for debugging, not for project
+management. It's now hidden from display (`id` still exists in the data). A new `Subtasks` column
+replaced it, showing `done/total` count (e.g. `2/5`). This acts as an at-a-glance signal that a
+row is expandable — no separate indicator needed. The `LOGS` pill in the Task name cell was
+removed for the same reason.
+
+New column order: **Task · Agent · Status · Subtasks · Progress · Duration**
+
+### Senior Engineer Note: One Source, Multiple Views
+
+Don't change your data model every time you want a new view. The checkpoint list and the log view
+both consume data that was already there. The "intelligence" is entirely in the render layer —
+which component gets shown based on what the task contains. Same footage, different cuts for
+different audiences.
+
+---
+
+## Phase 9: Hook Pipeline Rewrite — "The Ghost Writer Bug" (2026-03-08)
+
+### 🎬 Blooper 16: Writing to a file nobody is reading
+
+This one looked like everything was working — the dashboard UI loaded, tasks appeared in
+`db.json` when agents ran, the hooks fired without errors. But the table never updated. Why?
+
+**The setup.** json-server works like this: at startup, it reads `db.json` into memory and then
+*serves its in-memory copy*. All reads and writes go through that in-memory store. When the
+dashboard calls `GET /api/tasks`, it hits json-server's RAM, not the file on disk.
+
+**The bug.** The original hook scripts used `jq` to write directly to `db.json` on disk:
+
+```bash
+jq --argjson task "$NEW_TASK" '.tasks += [$task]' "$DB_FILE" > "$DB_FILE.tmp" \
+  && mv "$DB_FILE.tmp" "$DB_FILE"
+```
+
+This is a **completely valid shell pattern** — it's even how json-server's own beta docs describe
+persistence. But there's a timing trap: json-server never re-reads `db.json` after startup.
+The file on disk kept changing, but json-server's memory didn't know. The REST API kept returning
+whatever was loaded at boot.
+
+Film analogy: imagine a script supervisor writing last-minute changes into the printed script
+sitting on the craft services table — but the director is working from a separate photocopy made
+at 6am. All the changes are real and on paper, but the director never sees them.
+
+**The diagnosis.** One curl command revealed it instantly:
+
+```bash
+curl -s http://localhost:3001/tasks | jq 'length'
+# → 0
+```
+
+The API returned an empty array even though `db.json` had 4 tasks. json-server's memory was stale.
+
+**The fix.** Rewrote both hooks to talk to the REST API directly using `curl`:
+
+```bash
+# Pre-hook: create task via API instead of writing to file
+curl -s -X POST http://localhost:3001/tasks \
+  -H "Content-Type: application/json" \
+  -d "$NEW_TASK" > /dev/null
+
+# Post-hook: GET existing task, merge update, PUT it back
+EXISTING=$(curl -s "http://localhost:3001/tasks/$TASK_ID")
+UPDATED=$(echo "$EXISTING" | jq '. + { status: $status, logs: (.logs + [$newlog]) }' ...)
+curl -s -X PUT "http://localhost:3001/tasks/$TASK_ID" \
+  -H "Content-Type: application/json" \
+  -d "$UPDATED" > /dev/null
+```
+
+Note the POST for pre-hook (creates), and GET→mutate→PUT for post-hook. json-server's `PATCH`
+does a *shallow merge* — it would overwrite the `logs` array instead of appending to it, so we
+need to read the full record, build the updated version, and PUT it back as a full replace.
+
+**The db.json bootstrap stays.** Even though we no longer write tasks to disk directly, the
+bootstrap check (`if [ ! -f "$DB_FILE" ]...`) is kept in both scripts. It's now a *pre-flight
+check* — it ensures `db.json` is valid JSON with a `tasks` key so that if json-server ever
+restarts, it comes back up cleanly rather than crashing on a missing or corrupt file.
+
+**Lesson:** When your data store has two layers (in-memory + file), always ask: *which layer is
+actually being read?* The answer is often not what you expect. Verify with a direct API call
+before assuming file writes are visible.
+
+---
+
+### 🎬 Blooper 17: Silent failures are just hidden bugs
+
+After fixing the write path, a new question: what happens when `curl` fails? Maybe json-server
+isn't running yet. Maybe a port is blocked. The original fix redirected all curl output to
+`/dev/null` — tidy, but invisible.
+
+**The problem with silent failures** is that they look identical to successes from the outside.
+A failed hook and a working hook both produce zero terminal output. You only notice something
+is wrong when you check the dashboard and tasks aren't there — but by then, you've lost the
+context of *when* it failed and *why*.
+
+**The fix: a shared log file + terminal stream.**
+
+Each hook now has a `log()` function that appends timestamped lines to `logs/hooks.log`:
+
+```bash
+log() {
+  echo "[$(date -u +"%H:%M:%S")] [pre-hook] $*" >> "$LOG_FILE"
+}
+```
+
+`curl` is called with `-w "\n%{http_code}"` to capture the HTTP status code. Success and failure
+both get logged explicitly:
+
+```bash
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST ...)
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+if [ "$HTTP_CODE" = "201" ]; then
+  log "OK: created task $TASK_ID (\"$TASK_NAME\", $SUBAGENT_TYPE)"
+else
+  log "ERROR: POST /tasks failed (HTTP $HTTP_CODE) — is json-server running on :3001?"
+fi
+```
+
+Then `bun run dev` was updated to tail that file as a fourth process in `concurrently`:
+
+```json
+"dev": "concurrently --names \"vite,json,hooks,spawn\"
+  \"vite --port 5173\"
+  \"json-server --watch db.json --port 3001\"
+  \"tail -F logs/hooks.log\"
+  \"bun scripts/spawn-terminal.ts\""
+```
+
+`tail -F` (capital F) follows the file even across log rotations, and waits for the file to
+be created if it doesn't exist yet — useful on a fresh checkout before any hook has fired.
+
+Now the terminal shows four labeled streams side by side:
+
+```
+[vite]   VITE v6.x ready → http://localhost:5173
+[json]   Loading db.json...
+[hooks]  [03:59:01] [pre-hook] OK: created task toolu_01X ("Explore codebase", Explore)
+[hooks]  [04:00:12] [post-hook] OK: updated task toolu_01X → completed
+```
+
+**Lesson:** Observability is not a luxury for production systems — it's a debugging requirement
+for local tools too. A hook that fails silently is worse than one that crashes loudly, because
+the silent failure lets you believe the system is working when it isn't. Log the outcome of
+every external call. Make failures as visible as successes.
+
+---
+
+### 🎬 Blooper 18: The frontend trusted the API too much
+
+One more defensive layer. When all tasks are deleted from the UI, the API returns `[]`. But
+what if it returns something weirder — `null`, `{}`, an HTML error page that parses as a
+non-array? The original polling hook did:
+
+```typescript
+const data: Task[] = await res.json();
+setTree(buildTree(data));
+```
+
+`buildTree` uses `for (const task of tasks)` internally. If `tasks` is `null` or an object,
+that throws `TypeError: null is not iterable` — a crash that wipes the entire table view.
+
+The fix is a one-liner guard before the data hits `buildTree`:
+
+```typescript
+const raw = await res.json();
+const data: Task[] = Array.isArray(raw) ? raw : [];
+```
+
+Now, whatever the API returns, the worst case is an empty table — not a crash. The `error`
+state in the hook already handles `!res.ok`, so HTTP errors show a banner. This guard handles
+the weirder case: a `200 OK` response with unexpected body shape.
+
+**Film analogy:** This is like having your editor handle a missing reel gracefully — cut to
+black and continue, rather than the projector catching fire. The audience sees nothing where
+the scene should be, which is bad, but not as bad as burning down the theater.
+
+**Lesson:** Don't trust external data, even from your own API. Always validate shape before
+passing data to code that assumes structure. `Array.isArray()` is the cheapest guard you'll
+ever write.
+
+---
+
+## Phase 10: parentId — The Sticky Note Workaround (2026-03-08)
+
+### The Problem: Hooks Are Blind to Call Hierarchy
+
+When Claude Code fires a `PreToolUse` hook, it passes this JSON payload via stdin:
+
+```json
+{
+  "tool_use_id": "toolu_abc123",
+  "tool_input": {
+    "description": "Explore the codebase",
+    "subagent_type": "general-purpose",
+    "run_in_background": false
+  }
+}
+```
+
+That's the full picture the hook gets. No `parent_tool_use_id`. No call stack. No indication
+that this agent was launched *by* another agent. Every tool call looks like a top-level event.
+
+So the original hook hardcoded the only honest answer:
+
+```bash
+parentId: null,  # no way to infer it
+```
+
+This worked fine for flat task lists. But it meant the dashboard could never show a
+parent-child hierarchy — all tasks were siblings at the root level, regardless of how Claude
+actually orchestrated them.
+
+### The Constraint: What Can We Actually Control?
+
+To establish a parent-child relationship, the hook needs to know the parent task's ID *before*
+the child task is created. The hook context gives us exactly one string we control: the
+`description` field. That's it.
+
+Everything else in the hook payload — `tool_use_id`, `subagent_type`, `run_in_background` —
+is set by Claude Code itself. But the description? That's whatever string the orchestrating
+Claude writes when calling the Agent tool.
+
+### The Workaround: Encoding Metadata in the Description
+
+The solution is to treat the description like a **film slate** — the clapperboard a camera
+operator holds up before a take. The hook (camera) can only read what's written on the slate.
+So we started writing the parentId on the slate:
+
+```
+"Explore the hook scripts [parentId:orchestrator-1772949293]"
+```
+
+The hook then does two things:
+
+1. **Extracts** the tag → `PARENT_ID=orchestrator-1772949293`
+2. **Strips** the tag → `TASK_NAME="Explore the hook scripts"` (clean display name)
+
+```bash
+PARENT_TAG=$(echo "$RAW_NAME" | grep -oE '\[parentId:[^]]+\]' || true)
+if [ -n "$PARENT_TAG" ]; then
+  PARENT_ID=$(echo "$PARENT_TAG" | sed 's/\[parentId://;s/\]//')
+  TASK_NAME=$(echo "$RAW_NAME" | sed 's/ \[parentId:[^]]*\]//' ...)
+else
+  PARENT_ID=""
+  TASK_NAME="$RAW_NAME"
+fi
+```
+
+And in the task payload, jq conditionally sets the field:
+
+```bash
+parentId: (if $parentId == "" then null else $parentId end)
+```
+
+The dashboard's `buildTree()` function already handles `parentId` correctly — it was always
+wired to build a tree from a flat list using parent references. The only missing piece was the
+hook actually populating the field.
+
+### The Tradeoff
+
+This is a pragmatic workaround, not a clean solution. The description field is meant to be
+human-readable. Encoding machine metadata in it is a bit like writing your SSN in the memo
+field of a check — it works, but it's not what the field was designed for.
+
+The proper fix would be Anthropic adding a `parent_tool_use_id` field to the hook payload
+natively. Until then, the `[parentId:XXX]` convention is the only option that doesn't require
+modifying Claude Code itself.
+
+**Senior Engineer Note:** When you hit an API surface that doesn't expose what you need, look
+for the fields you *do* control before giving up. Sometimes the workaround is "write metadata
+into the one string field you own." It's not elegant, but it ships — and the workaround is
+clearly documented so the next person knows why it exists and when to replace it.
