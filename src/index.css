@@ -126,3 +126,19 @@ body {
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: var(--color-border); border-radius: 99px; }
+
+/* ── Light mode focus ring: orange accent ─────────── */
+:root.light input:focus-visible {
+  --tw-ring-color: var(--color-accent);
+}
+
+/* ── Suppress transitions during theme switch ──────── *
+   Applied for exactly one paint cycle when toggling
+   dark/light, then removed via double requestAnimationFrame.
+   Prevents the "white flash" caused by transition-colors
+   animating through intermediate values as the stone
+   palette inverts.                                      */
+:root.no-transition,
+:root.no-transition * {
+  transition: none !important;
+}
