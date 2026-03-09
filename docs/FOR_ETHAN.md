@@ -1660,23 +1660,46 @@ node as a flat array. The button only renders when this is true, so the toolbar 
 
 ### Session Filter
 
-A "Session" toggle button filters the task table to only show tasks created since the dashboard
-was opened. Implementation is a `useRef` capturing `new Date()` at component mount:
+> **Updated 2026-03-09** — this was redesigned. See below.
+
+The original session filter was a timestamp gate: `useRef(new Date())` captured when the
+dashboard opened, and the filter dropped tasks created before that moment. Simple, but blind
+— it had no concept of what a "session" actually was.
+
+After hook scripts gained access to `session_id` from Claude Code, tasks gained a `sessionId`
+field. This unlocked a proper session-aware design.
+
+**Current implementation** — a multi-select popover (matching Status and Agent filter style):
 
 ```typescript
-const sessionStart = useRef(new Date());
+// State is now a Set of sessionId strings, not a boolean
+const [sessionFilter, setSessionFilter] = useState<Set<string>>(new Set());
+
+// Derive one option per unique sessionId, labeled by the earliest root task's name
+const sessionOptions = useMemo(() => {
+  const groups = new Map<string, TaskNode[]>();
+  for (const task of collectAllTasks(tree)) {
+    if (!task.sessionId) continue;
+    (groups.get(task.sessionId) ?? (groups.set(task.sessionId, []), groups.get(task.sessionId)!))
+      .push(task);
+  }
+  return [...groups.entries()].map(([sid, tasks]) => {
+    const label = tasks
+      .filter(t => !t.parentId)
+      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))[0]?.name ?? sid.slice(0, 8);
+    return { id: sid, label };
+  });
+}, [tree]);
 ```
 
-When active, the `flatTasks` filter adds:
+The label for each session is the name of its **earliest root-level task** — the first Agent
+call that started that session's work. Think of it as naming a film reel by its first shot.
 
-```typescript
-if (sessionFilter && new Date(task.createdAt) < sessionStart.current) return false;
-```
+**Why root task, not session ID?** UUIDs are meaningless to humans. The task name — "Review the
+auth system", "Fix bug in TaskTable" — is the semantic label you actually remember.
 
-This is the correct tool for "I just started a new Claude session and don't want to see
-yesterday's completed tasks." It also clears when you hit the Reset button alongside the other
-filters. `sessionStart` is a `useRef` (not `useState`) because it's stable data — we never want
-it to change, and reading it doesn't need to trigger a re-render.
+**Why multi-select?** Sometimes you want to compare two sessions side-by-side. A boolean toggle
+forces you to choose one. A popover doesn't.
 
 ### New Task Row Fade-In
 
@@ -2230,3 +2253,46 @@ time before a loop — eliminate the ambiguity.
 A senior engineer's instinct when reading code is to ask: "what does this implicitly
 assume, and what happens when that assumption is wrong?" That question caught all seven
 of these issues.
+
+## Phase 11 Polish (2026-03-09): Scroll Behavior + Session Filter Upgrade
+
+### Smart Scroll vs. Always-Scroll — Choosing the Right Default
+
+Two scrollable containers were added in Phase 10: `EventTrailRow` (tool events inside an
+expanded task) and `GlobalEventStrip` (the session event panel at the bottom).
+
+The first implementation of `GlobalEventStrip` used "smart scroll" — only auto-follow if
+you're within 60px of the bottom:
+
+```typescript
+const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
+if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+```
+
+The pattern made sense in theory: if the user has scrolled up to read older events, don't
+yank them back down. But in practice, the session strip is opened because you want to see
+what's happening *now*. Opening it and immediately seeing old events is confusing.
+
+**Final approach**: both `EventTrailRow` and `GlobalEventStrip` use unconditional scroll:
+
+```typescript
+el.scrollTop = el.scrollHeight;
+```
+
+**Senior Engineer Note:** The near-bottom smart-scroll pattern is the right default for
+persistent logs (like a build output terminal) where users scroll up to investigate.
+For ephemeral "live status" panels opened on demand, always-scroll is better — the user
+just asked to see it, so show them the current state.
+
+The dependency to use in `useEffect` is `events.length`, not the full `events` array.
+Using `events` would re-run the scroll effect every time any event's `status` or
+`completedAt` changes — causing janky scroll snaps on event updates. `events.length` only
+fires when the count changes, which is when you actually want to scroll.
+
+```typescript
+// Correct — only fires when count changes
+useEffect(() => { el.scrollTop = el.scrollHeight; }, [events.length, open]);
+
+// Wrong — fires on every event mutation (status updates, timestamps)
+useEffect(() => { el.scrollTop = el.scrollHeight; }, [events, open]);
+```
