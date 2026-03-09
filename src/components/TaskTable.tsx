@@ -26,6 +26,7 @@ import {
   IconClockPlay,
   IconSun,
   IconMoon,
+  IconBan,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -49,13 +50,14 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatElapsed, formatTimestamp } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/badge";
-import type { TaskNode, TaskStatus, LogEntry } from "@/types/task";
+import type { TaskNode, TaskStatus, LogEntry, HookEvent, SessionEvent, SessionEventType } from "@/types/task";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const ALL_STATUSES: TaskStatus[] = [
   "running",
   "paused",
+  "blocked",
   "pending",
   "failed",
   "completed",
@@ -66,10 +68,11 @@ const ALL_STATUSES: TaskStatus[] = [
 const STATUS_ORDER: Record<TaskStatus, number> = {
   running: 0,
   paused: 1,
-  failed: 2,
-  pending: 3,
-  completed: 4,
-  cancelled: 5,
+  blocked: 2,
+  failed: 3,
+  pending: 4,
+  completed: 5,
+  cancelled: 6,
 };
 
 const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
@@ -79,6 +82,7 @@ const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
   paused: <IconPlayerPause size={14} aria-hidden="true" className="text-amber-400" />,
   pending: <IconCircle size={14} aria-hidden="true" className="text-stone-500" />,
   cancelled: <IconCircleOff size={14} aria-hidden="true" className="text-stone-500" />,
+  blocked: <IconBan size={14} aria-hidden="true" className="text-orange-400" />,
 };
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -88,12 +92,14 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
   paused: "Paused",
   pending: "Pending",
   cancelled: "Cancelled",
+  blocked: "Blocked",
 };
 
 const STATUS_TEXT: Record<TaskStatus, string> = {
   running: "text-lime-400",   // lime — actively doing work
   failed: "text-red-500",     // red — needs attention
   paused: "text-amber-400",   // amber — suspended
+  blocked: "text-orange-400", // orange — waiting on a dependency
   pending: "text-stone-500",
   completed: "text-stone-500",
   cancelled: "text-stone-500",
@@ -104,6 +110,7 @@ const PROGRESS_BAR: Record<TaskStatus, string> = {
   completed: "bg-stone-400",
   failed: "bg-stone-500",
   paused: "bg-stone-500",
+  blocked: "bg-orange-900/50",
   pending: "bg-stone-700",
   cancelled: "bg-stone-800",
 };
@@ -132,10 +139,13 @@ interface FlatTask {
 
 interface TaskTableProps {
   tree: TaskNode[];
+  sessionEvents: SessionEvent[];
   loading: boolean;
   lastUpdated: Date | null;
   onRefresh: () => void;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
+  lightMode: boolean;
+  onThemeToggle: () => void;
 }
 
 type SortCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
@@ -173,6 +183,7 @@ async function deleteTask(id: string) {
 
 function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
   if (!sort.col) return nodes;
+  const now = Date.now();
   const sorted = [...nodes].sort((a, b) => {
     let cmp = 0;
     if (sort.col === "status") {
@@ -187,10 +198,10 @@ function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
       cmp = a.progressPercentage - b.progressPercentage;
     } else if (sort.col === "duration") {
       const aDur = a.startedAt
-        ? new Date(a.completedAt || new Date()).getTime() - new Date(a.startedAt).getTime()
+        ? new Date(a.completedAt ?? now).getTime() - new Date(a.startedAt).getTime()
         : 0;
       const bDur = b.startedAt
-        ? new Date(b.completedAt || new Date()).getTime() - new Date(b.startedAt).getTime()
+        ? new Date(b.completedAt ?? now).getTime() - new Date(b.startedAt).getTime()
         : 0;
       cmp = aDur - bDur;
     }
@@ -322,7 +333,7 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
             <tbody>
               {logs.map((entry, i) => (
                 <tr
-                  key={i}
+                  key={`${entry.timestamp}-${i}`}
                   className={cn(
                     "group hover:bg-stone-900/60 transition-colors",
                     entry.level === "error" && "bg-red-950/20",
@@ -360,16 +371,52 @@ const CHECKPOINT_ICON: Record<TaskStatus, string> = {
   paused:    "◐",
   failed:    "✗",
   cancelled: "–",
+  blocked:   "⊘",
 };
-
 
 const CHECKPOINT_COLOR: Record<TaskStatus, string> = {
   completed: "text-green-400",
   running:   "text-blue-400",
   failed:    "text-red-400",
   paused:    "text-amber-400",
+  blocked:   "text-orange-400",
   pending:   "text-stone-600",
   cancelled: "text-stone-700",
+};
+
+// ─── Event Trail constants ────────────────────────────────────────────────────
+
+const TOOL_EMOJI: Record<string, string> = {
+  Bash:      "💻",
+  Read:      "📖",
+  Write:     "✍️",
+  Edit:      "✏️",
+  Grep:      "🔍",
+  Glob:      "📂",
+  WebFetch:  "🌐",
+  WebSearch: "🔎",
+  Agent:     "🤖",
+  Task:      "🤖",
+};
+
+const EVENT_STATUS_COLOR: Record<HookEvent["status"], string> = {
+  running:   "text-blue-400",
+  completed: "text-stone-500",
+  failed:    "text-red-400",
+};
+
+// ─── Session Strip constants ──────────────────────────────────────────────────
+
+const SESSION_EVENT_EMOJI: Record<SessionEventType, string> = {
+  UserPromptSubmit:   "💬",
+  SessionStart:       "🚀",
+  Stop:               "🛑",
+  SubagentStart:      "🟢",
+  SubagentStop:       "👥",
+  Notification:       "🔔",
+  PermissionRequest:  "🔐",
+  PreCompact:         "📦",
+  PostToolUseFailure: "❌",
 };
 
 function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
@@ -407,6 +454,138 @@ function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
   );
 }
 
+// ─── EventTrailRow ────────────────────────────────────────────────────────────
+
+function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
+  const events = task.events ?? [];
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom whenever new events arrive
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [events.length]);
+
+  return (
+    <TableRow className="hover:bg-transparent border-b-0">
+      <TableCell colSpan={colSpan} className="p-0">
+        <div className="mx-7.5 mb-2 rounded-(--radius) border border-stone-800 bg-stone-950 text-xs overflow-hidden">
+          <div className="flex items-center justify-between border-b border-stone-800/60 bg-stone-900/60 px-3 py-2">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+              Event Trail
+            </span>
+            <span className="font-mono text-[10px] text-stone-600">
+              {events.filter((e) => e.status === "completed").length}/{events.length} done
+            </span>
+          </div>
+          <div ref={scrollRef} className="divide-y divide-stone-800/40 max-h-[240px] overflow-y-auto">
+            {events.length === 0 ? (
+              <div className="px-3 py-2 text-[11px] text-stone-600 italic">No tool events yet…</div>
+            ) : (
+              events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-900/40 transition-colors"
+                >
+                  <span className="shrink-0 w-5 text-center select-none" aria-hidden="true">
+                    {TOOL_EMOJI[event.toolName] ?? "⚡"}
+                  </span>
+                  <span className="w-16 shrink-0 font-mono text-[10px] text-stone-500">
+                    {event.toolName}
+                  </span>
+                  <span className="flex-1 truncate font-mono text-[10px] text-stone-400">
+                    {event.summary}
+                  </span>
+                  <span className={cn("shrink-0 font-mono text-[10px]", EVENT_STATUS_COLOR[event.status])}>
+                    {event.status}
+                  </span>
+                  <span className="shrink-0 w-14 text-right font-mono text-[10px] text-stone-600">
+                    {formatElapsed(event.timestamp, event.completedAt)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ─── GlobalEventStrip ─────────────────────────────────────────────────────────
+
+function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
+  const [open, setOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom whenever new events arrive or the panel opens
+  useEffect(() => {
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }, [events.length, open]);
+
+  return (
+    <div className="rounded-md border border-stone-800 overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left bg-stone-900/60 hover:bg-stone-900 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+        aria-expanded={open}
+        aria-label={open ? "Collapse session events" : "Expand session events"}
+      >
+        <IconChevronRight
+          size={13}
+          aria-hidden="true"
+          className={cn("text-stone-500 transition-transform duration-150 shrink-0", open && "rotate-90")}
+        />
+        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+          Session Events
+        </span>
+        <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-800 px-1 text-[10px] font-semibold tabular-nums text-stone-400">
+          {events.length}
+        </span>
+      </button>
+
+      {open && (
+        <div ref={scrollRef} className="max-h-64 overflow-auto divide-y divide-stone-800/40">
+          {events.length === 0 ? (
+            <div className="px-3 py-3 text-xs text-stone-600 italic">
+              No session events yet — submit a user prompt to start.
+            </div>
+          ) : (
+            events.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-900/40 transition-colors"
+              >
+                <span className="shrink-0 w-5 text-center select-none" aria-hidden="true">
+                  {SESSION_EVENT_EMOJI[event.type] ?? "📋"}
+                </span>
+                <span className="w-36 shrink-0 text-[11px] text-stone-500">
+                  {event.type}
+                </span>
+                <span className="flex-1 truncate font-mono text-[10px] text-stone-300">
+                  {event.summary}
+                </span>
+                {event.model && (
+                  <span className="shrink-0 font-mono text-[10px] text-stone-600">
+                    {event.model}
+                  </span>
+                )}
+                <span className="shrink-0 font-mono text-[10px] text-stone-600">
+                  {formatTimestamp(event.timestamp)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── TaskRow ──────────────────────────────────────────────────────────────────
 
 interface TaskRowProps {
@@ -419,6 +598,7 @@ interface TaskRowProps {
   isBusy: boolean;
   isNew: boolean;
   hiddenCols: Set<HideableCol>;
+  taskMap: Map<string, TaskNode>;
   onToggleExpand: () => void;
   onToggleLogs: () => void;
   onToggleSelect: () => void;
@@ -436,6 +616,7 @@ function TaskRow({
   isBusy,
   isNew,
   hiddenCols,
+  taskMap,
   onToggleExpand,
   onToggleLogs,
   onToggleSelect,
@@ -447,7 +628,12 @@ function TaskRow({
   const isFailed = task.status === "failed";
   const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
-  const hasDetail = task.children.length > 0 || task.logs.length > 0;
+  const hasDetail = (task.events?.length ?? 0) > 0 || task.children.length > 0 || task.logs.length > 0;
+
+  // For blocked tasks: look up the names of the tasks causing the block
+  const blockingNames = task.blockedBy
+    ?.map((id) => taskMap.get(id)?.name ?? id)
+    .slice(0, 2) // show at most 2 names inline
   return (
     <TableRow
       data-state={selected ? "selected" : undefined}
@@ -511,11 +697,18 @@ function TaskRow({
 
       {/* Status */}
       {!hiddenCols.has("status") && <TableCell className="w-28">
-        <div className="flex items-center gap-1.5">
-          {STATUS_ICON[task.status]}
-          <span className={cn("text-sm", STATUS_TEXT[task.status])}>
-            {STATUS_LABEL[task.status]}
-          </span>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            {STATUS_ICON[task.status]}
+            <span className={cn("text-sm", STATUS_TEXT[task.status])}>
+              {STATUS_LABEL[task.status]}
+            </span>
+          </div>
+          {task.status === "blocked" && blockingNames && blockingNames.length > 0 && (
+            <span className="text-[10px] text-stone-500 truncate max-w-24" title={blockingNames.join(", ")}>
+              waiting for: {blockingNames.join(", ")}
+            </span>
+          )}
         </div>
       </TableCell>}
 
@@ -674,10 +867,13 @@ function SortHeader({
 
 export function TaskTable({
   tree,
+  sessionEvents,
   loading,
   lastUpdated,
   onRefresh,
   onStatusChange,
+  lightMode,
+  onThemeToggle,
 }: TaskTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set());
@@ -688,10 +884,8 @@ export function TaskTable({
   const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
   const [hiddenCols, setHiddenCols] = useState<Set<HideableCol>>(new Set());
   const [busy, setBusy] = useState<Record<string, string>>({});
-  const [sessionFilter, setSessionFilter] = useState(false);
-  const [lightMode, setLightMode] = useState(false);
+  const [sessionFilter, setSessionFilter] = useState<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
-  const sessionStart = useRef(new Date());
   const knownIds = useRef<Set<string>>(new Set());
 
   // Auto-expand parent tasks as tree updates (new parents appear)
@@ -720,22 +914,6 @@ export function TaskTable({
     }
   }, [tree]);
 
-  // Cleanup: remove light class if component unmounts while in light mode
-  useEffect(() => () => document.documentElement.classList.remove("light"), []);
-
-  const handleThemeToggle = () => {
-    const next = !lightMode;
-    const root = document.documentElement;
-    // Suppress all transition-colors for one paint cycle to prevent the
-    // white flash caused by stone palette values animating through midpoints
-    root.classList.add("no-transition");
-    root.classList.toggle("light", next);
-    setLightMode(next);
-    // Double RAF: first fires before the new-theme paint, second fires after —
-    // transitions only re-enable once the new palette is already on screen
-    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-transition")));
-  };
-
   // Unique agent types for the filter popover
   const agentOptions = useMemo(() => {
     const types = new Set<string>();
@@ -749,6 +927,33 @@ export function TaskTable({
     return [...types].sort();
   }, [tree]);
 
+  // Flat map of all tasks for blocked reason lookup
+  const taskMap = useMemo(() => {
+    const map = new Map<string, TaskNode>();
+    for (const t of collectAllTasks(tree)) map.set(t.id, t);
+    return map;
+  }, [tree]);
+
+  // Sessions: one entry per unique sessionId, labeled by earliest root task's name
+  const sessionOptions = useMemo(() => {
+    const allTasks = collectAllTasks(tree);
+    const groups = new Map<string, TaskNode[]>();
+    for (const task of allTasks) {
+      if (!task.sessionId) continue;
+      if (!groups.has(task.sessionId)) groups.set(task.sessionId, []);
+      groups.get(task.sessionId)!.push(task);
+    }
+    return [...groups.entries()]
+      .map(([sid, tasks]) => {
+        const rootTasks = tasks
+          .filter((t) => !t.parentId)
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        const label = rootTasks[0]?.name ?? sid.slice(0, 8);
+        return { id: sid, label };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [tree]);
+
   // Sort → flatten → filter
   const flatTasks = useMemo(() => {
     const sorted = sortNodes(tree, sort);
@@ -760,7 +965,7 @@ export function TaskTable({
         if (!task.name.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q))
           return false;
       }
-      if (sessionFilter && new Date(task.createdAt) < sessionStart.current) return false;
+      if (sessionFilter.size > 0 && task.sessionId && !sessionFilter.has(task.sessionId)) return false;
       return true;
     });
   }, [tree, expandedRows, statusFilter, agentFilter, search, sort, sessionFilter]);
@@ -828,6 +1033,8 @@ export function TaskTable({
       await Promise.all([...selectedRows].map((id) => deleteTask(id)));
       setSelectedRows(new Set());
       onRefresh();
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
     } finally {
       setBusy((prev) => {
         const n = { ...prev };
@@ -937,7 +1144,7 @@ export function TaskTable({
 
   const totalCols = 8 - hiddenCols.size;
 
-  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "" || sessionFilter;
+  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "" || sessionFilter.size > 0;
   const hasCompletedTasks = collectAllTasks(tree).some(
     (t) => t.status === "completed" || t.status === "cancelled",
   );
@@ -977,16 +1184,48 @@ export function TaskTable({
           onToggle={toggleAgentFilter}
           onClear={() => setAgentFilter(new Set())}
         />
-        <Button
-          variant={sessionFilter ? "secondary" : "ghost"}
-          size="sm"
-          className="gap-1.5"
-          onClick={() => setSessionFilter((v) => !v)}
-          title="Only show tasks from this session"
-        >
-          <IconClockPlay size={13} />
-          Session
-        </Button>
+        {sessionOptions.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-8">
+                <IconClockPlay size={13} />
+                Session
+                {sessionFilter.size > 0 && (
+                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-600 px-1 text-[10px] font-semibold tabular-nums text-stone-100">
+                    {sessionFilter.size}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2 space-y-0.5">
+              {sessionFilter.size > 0 && (
+                <button
+                  onClick={() => setSessionFilter(new Set())}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-400 hover:text-stone-300 hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+                >
+                  <IconX size={11} />
+                  Clear filter
+                </button>
+              )}
+              {sessionOptions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() =>
+                    setSessionFilter((prev) => {
+                      const next = new Set(prev);
+                      next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+                      return next;
+                    })
+                  }
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+                >
+                  <Checkbox checked={sessionFilter.has(s.id)} className="pointer-events-none" />
+                  <span className="truncate text-stone-300" title={s.label}>{s.label}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
 
         {hasFilters && (
           <Button
@@ -996,7 +1235,7 @@ export function TaskTable({
               setStatusFilter(new Set());
               setAgentFilter(new Set());
               setSearch("");
-              setSessionFilter(false);
+              setSessionFilter(new Set());
             }}
           >
             Reset
@@ -1067,7 +1306,7 @@ export function TaskTable({
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleThemeToggle}
+            onClick={onThemeToggle}
             aria-label={lightMode ? "Switch to dark mode" : "Switch to light mode"}
           >
             {lightMode ? <IconMoon size={14} /> : <IconSun size={14} />}
@@ -1156,6 +1395,7 @@ export function TaskTable({
                     selected={selectedRows.has(task.id)}
                     isBusy={task.id in busy}
                     hiddenCols={hiddenCols}
+                    taskMap={taskMap}
                     onToggleExpand={() => toggleExpand(task.id)}
                     onToggleLogs={() => toggleLogs(task.id)}
                     onToggleSelect={() => toggleRow(task.id)}
@@ -1163,11 +1403,13 @@ export function TaskTable({
                     onAction={(action) => handleAction(task.id, action)}
                   />
                   {expandedLogs.has(task.id) && (
-                    task.children.length > 0
-                      ? <CheckpointRow task={task} colSpan={totalCols} />
-                      : task.logs.length > 0
-                        ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
-                        : null
+                    (task.events?.length ?? 0) > 0
+                      ? <EventTrailRow task={task} colSpan={totalCols} />
+                      : task.children.length > 0
+                        ? <CheckpointRow task={task} colSpan={totalCols} />
+                        : task.logs.length > 0
+                          ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
+                          : null
                   )}
                 </React.Fragment>
               ))
@@ -1185,6 +1427,9 @@ export function TaskTable({
         </span>
         <span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Connecting…"}</span>
       </div>
+
+      {/* Global session event strip */}
+      <GlobalEventStrip events={sessionEvents} />
     </div>
   );
 }

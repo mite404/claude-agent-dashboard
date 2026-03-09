@@ -1,5 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
-import type { Task, TaskNode } from "../types/task";
+import type { Task, TaskNode, SessionEvent } from "../types/task";
+
+// Mutates tasks in-place: marks tasks as "blocked" if any dependency is incomplete.
+// Must run BEFORE buildTree so the tree inherits the updated status.
+export function computeBlockedState(tasks: Task[]): void {
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
+  for (const task of tasks) {
+    if (!task.dependencies?.length) continue;
+    const blocking = task.dependencies.filter((depId) => {
+      const dep = taskMap.get(depId);
+      return dep && dep.status !== "completed" && dep.status !== "cancelled";
+    });
+    if (blocking.length > 0) {
+      task.status = "blocked";
+      (task as TaskNode).blockedBy = blocking;
+    }
+  }
+}
 
 export function buildTree(tasks: Array<Task>): Array<TaskNode> {
   const map = new Map<string, TaskNode>();
@@ -28,6 +45,7 @@ export function buildTree(tasks: Array<Task>): Array<TaskNode> {
 interface UseTaskPollingResult {
   tasks: Task[];
   tree: TaskNode[];
+  sessionEvents: SessionEvent[];
   loading: boolean;
   lastUpdated: Date | null;
   error: string | null;
@@ -37,18 +55,32 @@ interface UseTaskPollingResult {
 export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tree, setTree] = useState<TaskNode[]>([]);
+  const [sessionEvents, setSessionEvents] = useState<SessionEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetch_ = useCallback(async () => {
     try {
-      const res = await fetch("/api/tasks");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const raw = await res.json();
-      const data: Task[] = Array.isArray(raw) ? raw : [];
+      const [tasksRes, eventsRes] = await Promise.all([
+        fetch("/api/tasks"),
+        fetch("/api/sessionEvents"),
+      ]);
+      if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
+
+      const rawTasks = await tasksRes.json();
+      const data: Task[] = Array.isArray(rawTasks) ? rawTasks.map((t: Task) => ({ ...t })) : [];
+
+      // Compute blocked state before building tree so tree inherits updated statuses
+      computeBlockedState(data);
       setTasks(data);
       setTree(buildTree(data));
+
+      if (eventsRes.ok) {
+        const rawEvents = await eventsRes.json();
+        setSessionEvents(Array.isArray(rawEvents) ? rawEvents : []);
+      }
+
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -64,5 +96,5 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
     return () => clearInterval(timer);
   }, [fetch_, intervalMs]);
 
-  return { tasks, tree, loading, lastUpdated, error, refresh: fetch_ };
+  return { tasks, tree, sessionEvents, loading, lastUpdated, error, refresh: fetch_ };
 }

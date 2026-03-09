@@ -1,11 +1,28 @@
-import { useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useTaskPolling } from "@/hooks/useTaskPolling";
 import { TaskTable } from "@/components/TaskTable";
 import type { TaskStatus } from "@/types/task";
 
 export default function Dashboard() {
-  const { tasks, tree, loading, lastUpdated, error, refresh } = useTaskPolling(2500);
+  const { tasks, tree, sessionEvents, loading, lastUpdated, error, refresh } = useTaskPolling(2500);
+  const [lightMode, setLightMode] = useState(false);
+
+  // Cleanup: remove light class if component unmounts while in light mode
+  useEffect(() => () => document.documentElement.classList.remove("light"), []);
+
+  const handleThemeToggle = () => {
+    const next = !lightMode;
+    const root = document.documentElement;
+    // Suppress all transition-colors for one paint cycle to prevent the
+    // white flash caused by stone palette values animating through midpoints
+    root.classList.add("no-transition");
+    root.classList.toggle("light", next);
+    setLightMode(next);
+    // Double RAF: first fires before the new-theme paint, second fires after —
+    // transitions only re-enable once the new palette is already on screen
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-transition")));
+  };
 
   const handleStatusChange = useCallback(
     (_taskId: string, _newStatus: TaskStatus) => {
@@ -72,10 +89,13 @@ export default function Dashboard() {
       {/* Main table — handles its own empty state */}
       <TaskTable
         tree={tree}
+        sessionEvents={sessionEvents}
         loading={loading}
         lastUpdated={lastUpdated}
         onRefresh={refresh}
         onStatusChange={handleStatusChange}
+        lightMode={lightMode}
+        onThemeToggle={handleThemeToggle}
       />
     </div>
   );
