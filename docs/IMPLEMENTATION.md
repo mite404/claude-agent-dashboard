@@ -10,7 +10,7 @@ and control buttons (cancel/pause/retry).
 
 ---
 
-## Current Status (as of 2026-03-08)
+## Current Status (as of 2026-03-09)
 
 ### ✅ Completed
 
@@ -314,8 +314,9 @@ output streams live in the same terminal as Vite and json-server logs.
 - [x] Add a "Clear completed" button — deletes completed/cancelled tasks via parallel
   `Promise.all(ids.map(deleteTask))`. Button styled `bg-rose-500 hover:bg-rose-400` (rose, not
   red) for good contrast on both dark and light backgrounds.
-- [x] Add a session filter — `sessionStart = useRef(new Date())` at mount time; filters tasks
-  where `createdAt < sessionStart.current`. Button toggles `sessionFilter` state.
+- [x] **Session filter** — redesigned as a multi-select popover (matching Status/Agent filter
+  style). Each option is labeled by the name of the earliest root-level task for that `sessionId`.
+  Filter drives `Set<string>` of selected IDs; tasks without `sessionId` pass through unaffected.
 - [x] Duration column — already existed from the table redesign (skipped)
 - [x] Auto-scroll logs to bottom — smart scroll: only auto-follows when the viewport is within
   60px of the bottom. Manually scrolling up to read earlier entries is never interrupted.
@@ -380,6 +381,148 @@ output streams live in the same terminal as Vite and json-server logs.
 
   **Benefit**: When testing a new `/my-new-skill`, you can filter to see all tasks it spawned,
   track success rate, and compare against established Anthropic skills doing similar work.
+
+---
+
+## Phase 10 (✅ Completed 2026-03-09): Event Trail + Session Strip + Dependency Tracking
+
+Three-tier observability: every agent run now exposes session events, task events, and
+blocked state — at three zoom levels.
+
+### 10.1 New Types (`src/types/task.ts`)
+
+```typescript
+// Added to TaskStatus union:
+"blocked"
+
+// New fields on Task:
+sessionId?:    string       // Claude Code session_id (used to attribute tool events)
+events?:       HookEvent[]  // ordered list of tool calls made during this task
+dependencies?: string[]     // IDs of tasks this must wait for
+
+// New field on TaskNode:
+blockedBy?: string[]        // computed client-side — IDs of incomplete dependencies
+
+// New types:
+HookEvent       // { id, toolName, phase, status, summary, timestamp, completedAt? }
+SessionEvent    // { id, type, timestamp, sessionId, summary, model?, tokenCount? }
+SessionEventType // 9-value union (UserPromptSubmit | SessionStart | Stop | ...)
+```
+
+### 10.2 New Hook Scripts
+
+| Script | Trigger | What it does |
+|--------|---------|--------------|
+| `scripts/pre-tool-all.sh` | `PreToolUse` (empty matcher) | Finds running task by `sessionId`, appends `HookEvent` (phase: "pre") |
+| `scripts/post-tool-all.sh` | `PostToolUse` + `PostToolUseFailure` | Updates matching event to completed/failed |
+| `scripts/session-event.sh` | 9 session-level event types | POSTs to `/api/sessionEvents` |
+
+All three skip `Agent`/`Task` tool calls (handled by the existing Agent-matched hooks).
+`SESSION_ID` is sanitized with `tr -cd 'a-zA-Z0-9_-'` before URL interpolation.
+
+### 10.3 Blocked State Computation (`src/hooks/useTaskPolling.ts`)
+
+```typescript
+// computeBlockedState runs BEFORE buildTree so tree inherits updated statuses
+computeBlockedState(data);   // mutates status → "blocked" on tasks with incomplete deps
+setTasks(data);
+setTree(buildTree(data));
+```
+
+`computeBlockedState` is O(n): builds a `Map`, then iterates tasks once. Must run before
+`buildTree` because tree nodes spread from flat tasks — mutations after the spread are lost.
+
+### 10.4 UI Components (`src/components/TaskTable.tsx`)
+
+**`EventTrailRow`** — replaces expanded row when `task.events?.length > 0`:
+
+```
+💻  Bash    ls src/components/       completed   0.3s
+📖  Read    src/types/task.ts        completed   0.1s
+✍️  Write   src/components/New…      running      —
+```
+
+Capped at `max-h-[240px] overflow-y-auto`. Auto-scrolls to bottom on every new event
+(`el.scrollTop = el.scrollHeight` — unconditional, not near-bottom-gated).
+
+Expanded row priority: **events → CheckpointRow (children) → LogDetailRow (logs)**
+
+**`GlobalEventStrip`** — collapsible panel below the table footer:
+
+```
+▶  SESSION EVENTS  (12)
+💬  UserPromptSubmit   "Review the auth system"   14:32:00
+🚀  SessionStart       claude-sonnet-4-6           14:32:01
+🔐  PermissionRequest  Bash requested              14:32:40
+```
+
+Auto-scrolls to bottom on new events or panel open. Always-scroll (no smart-follow).
+
+### 10.5 Dependency Tag Syntax
+
+Orchestrator agents encode dependencies in the task description:
+
+```
+[parentId:PARENT_ID] [dependsOn:ID1,ID2] Actual task name here
+```
+
+`pre-tool-agent.sh` strips both tags before storing `name`, stores `parentId` and
+`dependencies` as separate fields. Client-side `computeBlockedState` reads `dependencies`
+to derive `blockedBy` and override `status` to `"blocked"`.
+
+### 10.6 Files Changed
+
+| File | Change |
+|------|--------|
+| `src/types/task.ts` | Added `HookEvent`, `SessionEvent`, `SessionEventType`; `blocked` status; new Task fields |
+| `src/hooks/useTaskPolling.ts` | `computeBlockedState()`, `sessionEvents` state + fetch |
+| `src/components/TaskTable.tsx` | `EventTrailRow`, `GlobalEventStrip`, blocked status UI, session filter popover |
+| `src/components/Dashboard.tsx` | `sessionEvents` prop passed to `TaskTable`; `lightMode` state moved here |
+| `src/components/ui/badge.tsx` | `blocked` variant (orange) |
+| `scripts/pre-tool-agent.sh` | `sessionId` extraction; `[dependsOn:...]` tag parsing |
+| `scripts/post-tool-agent.sh` | `sessionId` carry-through to PUT |
+| `scripts/pre-tool-all.sh` | **New** |
+| `scripts/post-tool-all.sh` | **New** |
+| `scripts/session-event.sh` | **New** |
+| `db.json` | Added `"sessionEvents": []` top-level collection |
+| `~/.claude/settings.json` | 11 hook event types registered |
+
+---
+
+## Phase 11 (✅ Completed 2026-03-09): Security Hardening + UX Polish
+
+### 11.1 Security & Quality Fixes
+
+| Issue | Fix |
+|-------|-----|
+| `$SESSION_ID` bare in curl URL | `tr -cd 'a-zA-Z0-9_-'` sanitization in all hook scripts |
+| Raw fetch array mutated before `setState` | `rawTasks.map(t => ({ ...t }))` — clone first |
+| `handleBulkDelete` swallowed errors silently | Added `catch (err) { console.error(...) }` |
+| Log row `key={i}` on append-only list | Changed to `` key={`${entry.timestamp}-${i}`} `` |
+| `new Date()` in sort comparator (non-deterministic) | `const now = Date.now()` before sort |
+| `lightMode` state + DOM mutation in `TaskTable` | Lifted to `Dashboard.tsx` |
+| `db.json` missing `sessionEvents` key | Added directly; both bootstrap scripts aligned |
+
+### 11.2 Session Filter Upgrade
+
+The boolean toggle (`sessionStart = useRef(new Date())` timestamp gate) was replaced with
+a proper multi-select popover. Session options are derived from unique `sessionId` values,
+labeled by the name of the earliest root-level task per session.
+
+```typescript
+// State: boolean → Set<string>
+const [sessionFilter, setSessionFilter] = useState<Set<string>>(new Set());
+
+// sessionOptions: one entry per unique sessionId
+const sessionOptions = useMemo(() => {
+  // groups tasks by sessionId, labels each by earliest root task's name
+  ...
+}, [tree]);
+
+// Filter predicate
+if (sessionFilter.size > 0 && task.sessionId && !sessionFilter.has(task.sessionId))
+  return false;
+```
 
 ---
 
