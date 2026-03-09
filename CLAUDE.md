@@ -1,114 +1,108 @@
 ---
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
+description: Vite 6 + React 19 + TypeScript + Tailwind v4 project. Bun is the package manager
+  and script runner. NOT a Bun.serve() project.
 globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
-Default to using Bun instead of Node.js.
+Default to using Bun as the runtime and package manager (not Node.js, npm, pnpm, or yarn).
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
+- Use `bun run <script>` instead of `npm run <script>` (scripts live in `package.json`)
+- Use `bun install` instead of `npm install` / `yarn install` / `pnpm install`
 - Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+- Bun automatically loads `.env` — do not use dotenv.
 
-## APIs
+> **Important:** This is a **Vite + json-server** project. Bun is the runner, not the
+> server. Do NOT use `Bun.serve()`, `bun build`, `bun test`, or `bun:sqlite`. Use
+> the Vite + Vitest + json-server stack described below.
 
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+## Commands
+
+```bash
+bun run dev       # Start all services (Vite :5173, json-server :3001, log tail, terminal)
+bun run build     # TypeScript check + Vite production bundle → dist/
+bun run test      # Vitest (jsdom, unit + component tests)
+bun run test:ui   # Vitest interactive browser UI
+bun run server    # json-server only (port 3001) — for isolated API testing
+bun run lint      # ESLint
+bun run lint:md   # rumdl markdown linter (100-char line length)
+```
+
+## Architecture
+
+Signal chain (post-production analogy):
+
+```
+Claude Code Agent
+  → Hook scripts (scripts/pre-tool.sh / scripts/post-tool.sh)
+  → PATCH /api/tasks/:id  (json-server REST, port 3001)
+  → db.json               (flat-file state — the footage vault)
+  → Vite dev server polls /api/tasks every 2.5s (port 5173)
+  → React renders TaskTable (the theater screen)
+```
+
+- **Frontend**: Vite 6 + React 19 + TypeScript + Tailwind v4 (CSS-first via `@theme {}`)
+- **API**: json-server watching `db.json` — REST CRUD, no custom logic
+- **Proxy**: Vite rewrites `/api/*` → `http://localhost:3001/*` (configured in `vite.config.ts`)
+- **State**: Flat task list in `db.json`; tree is built client-side from `parentId` at runtime
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/components/TaskTable.tsx` | Main table (toolbar, rows, log detail, actions) |
+| `src/components/Dashboard.tsx` | Thin wrapper; passes tree/loading/refresh to TaskTable |
+| `src/hooks/useTaskPolling.ts` | Polling + client-side tree-building hook |
+| `src/types/task.ts` | TaskStatus, Task, TaskNode, LogEntry types |
+| `src/index.css` | `@theme {}` with OKLCH stone colors + Figtree font |
+| `vite.config.ts` | Vite config (proxy, Tailwind v4 plugin, Vitest config) |
+| `db.json` | Live task state (written by hooks via REST, read by json-server) |
+| `scripts/pre-tool.sh` | Claude Code PreToolUse hook |
+| `scripts/post-tool.sh` | Claude Code PostToolUse hook |
+| `docs/FOR_ETHAN.md` | Full architecture log, bloopers, and director's commentary |
 
 ## Testing
 
-Use `bun test` to run tests.
+Uses **Vitest** with jsdom — NOT `bun test` (which runs the built-in Bun runner, different tool).
 
-```ts#index.test.ts
-import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
+```bash
+bun run test      # Run all tests in watch mode
+bun run test:ui   # Interactive Vitest browser UI
 ```
 
-## Frontend
+Setup: `vitest-setup.ts` imports `@testing-library/jest-dom`. Use `@testing-library/react` for
+component tests. Prefer `getByRole` over `getByText` — accessibility-aligned queries are more
+resilient to UI changes.
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+## Markdown Linting
 
-Server:
+After ANY edits to `docs/*.md`, run:
 
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
+```bash
+bunx rumdl check docs/*.md
 ```
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+Rules enforced: MD013 (max 100-char line length for prose/lists/headings — NOT tables).
+Config is in `.rumdl.toml`. Disabled rules: MD024, MD033, MD036, MD040, MD057.
 
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
+## Gotchas
 
-With the following `frontend.tsx`:
+- **Don't write to `db.json` directly** during a running session — hooks write via REST (PATCH/POST
+  to json-server). Direct file writes may race with json-server's watch.
+- **Tailwind v4 is CSS-first**: Config lives in `src/index.css` via `@theme {}`. There is no
+  `tailwind.config.js`. Don't create one.
+- **Tree is built client-side**: `db.json` stores a flat list. `useTaskPolling` reconstructs the
+  parent-child tree from `parentId` on every poll. Don't assume tree structure exists in the API
+  response.
+- **`bun test` ≠ Vitest**: `bun test` runs Bun's built-in runner. This project uses `vitest` (via
+  `bun run test`). Tests use `@testing-library/react` + jsdom, which requires `vitest`.
+- **`bun run dev` runs 4 processes**: Vite, json-server, `tail -F logs/hooks.log`, and
+  `bun scripts/spawn-terminal.ts`. All four must be running for hooks to appear in the dashboard.
+- **Path aliases**: Use `@/` for `src/` imports (e.g. `@/components/TaskTable`). Handled by
+  `vite-tsconfig-paths` — no manual config needed.
 
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+---
 
 ## 🧠 Educational Persona: The Senior Mentor
 
@@ -127,8 +121,7 @@ Neither are you, but we both strive for accuracy.
 
 ## 🗣️ Explanation Style
 
-- **Avoid Jargon:** Define technical terms immediately with plain
-  language.
+- **Avoid Jargon:** Define technical terms immediately with plain language.
 - **Visual Descriptions:** Describe code flow visually (e.g., "Imagine data
   flowing like a signal chain on a soundboard").
 - **Scaffolding:** Break complex logic into "scenes" or "beats" rather
