@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   IconSearch,
   IconRefresh,
@@ -22,6 +22,10 @@ import {
   IconAdjustmentsHorizontal,
   IconCheck,
   IconCopy,
+  IconTrash,
+  IconClockPlay,
+  IconSun,
+  IconMoon,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -208,6 +212,14 @@ function flattenVisible(nodes: TaskNode[], expanded: Set<string>, depth = 0): Fl
   return result;
 }
 
+function collectAllTasks(nodes: TaskNode[]): TaskNode[] {
+  return nodes.flatMap((n) => [n, ...collectAllTasks(n.children)]);
+}
+
+function collectIds(nodes: TaskNode[]): string[] {
+  return nodes.flatMap((n) => [n.id, ...collectIds(n.children)]);
+}
+
 // ─── FilterPopover ────────────────────────────────────────────────────────────
 
 function FilterPopover({
@@ -265,6 +277,16 @@ function FilterPopover({
 
 function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) {
   const [copied, setCopied] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new logs arrive, but only if already near the bottom
+  // (so manually scrolling up to read older entries isn't interrupted)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
+    if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [logs]);
 
   const copyLogs = () => {
     const text = logs
@@ -279,7 +301,7 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
   return (
     <TableRow className="hover:bg-transparent border-b-0">
       <TableCell colSpan={colSpan} className="p-0">
-        <div className="mx-7.5 mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-64">
+        <div ref={scrollRef} className="mx-7.5 mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-96">
           {/* Header bar */}
           <div className="sticky top-0 flex items-center gap-2 border-b border-stone-800 bg-stone-900/80 px-3 py-1.5">
             <IconTerminal2 size={15} aria-hidden="true" className="text-stone-500" />
@@ -395,6 +417,7 @@ interface TaskRowProps {
   logsOpen: boolean;
   selected: boolean;
   isBusy: boolean;
+  isNew: boolean;
   hiddenCols: Set<HideableCol>;
   onToggleExpand: () => void;
   onToggleLogs: () => void;
@@ -411,6 +434,7 @@ function TaskRow({
   logsOpen,
   selected,
   isBusy,
+  isNew,
   hiddenCols,
   onToggleExpand,
   onToggleLogs,
@@ -431,7 +455,10 @@ function TaskRow({
       onKeyDown={hasDetail ? (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleLogs(); } } : undefined}
       tabIndex={hasDetail ? 0 : undefined}
       aria-expanded={hasDetail ? logsOpen : undefined}
-      className={hasDetail ? "cursor-pointer" : undefined}
+      className={cn(
+        hasDetail ? "cursor-pointer" : undefined,
+        isNew && "animate-[var(--animate-row-fade-in)]",
+      )}
     >
       {/* Select */}
       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
@@ -661,6 +688,11 @@ export function TaskTable({
   const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
   const [hiddenCols, setHiddenCols] = useState<Set<HideableCol>>(new Set());
   const [busy, setBusy] = useState<Record<string, string>>({});
+  const [sessionFilter, setSessionFilter] = useState(false);
+  const [lightMode, setLightMode] = useState(false);
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const sessionStart = useRef(new Date());
+  const knownIds = useRef<Set<string>>(new Set());
 
   // Auto-expand parent tasks as tree updates (new parents appear)
   useEffect(() => {
@@ -676,6 +708,23 @@ export function TaskTable({
       return next;
     });
   }, [tree]);
+
+  // Track newly-arrived task IDs to animate them in
+  useEffect(() => {
+    const all = collectIds(tree);
+    const fresh = all.filter((id) => !knownIds.current.has(id));
+    all.forEach((id) => knownIds.current.add(id));
+    if (fresh.length > 0) {
+      setNewIds(new Set(fresh));
+      setTimeout(() => setNewIds(new Set()), 250);
+    }
+  }, [tree]);
+
+  // Toggle light/dark class on <html>
+  useEffect(() => {
+    document.documentElement.classList.toggle("light", lightMode);
+    return () => document.documentElement.classList.remove("light");
+  }, [lightMode]);
 
   // Unique agent types for the filter popover
   const agentOptions = useMemo(() => {
@@ -701,9 +750,10 @@ export function TaskTable({
         if (!task.name.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q))
           return false;
       }
+      if (sessionFilter && new Date(task.createdAt) < sessionStart.current) return false;
       return true;
     });
-  }, [tree, expandedRows, statusFilter, agentFilter, search, sort]);
+  }, [tree, expandedRows, statusFilter, agentFilter, search, sort, sessionFilter]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -775,6 +825,14 @@ export function TaskTable({
         return n;
       });
     }
+  };
+
+  const handleClearCompleted = async () => {
+    const done = collectAllTasks(tree).filter(
+      (t) => t.status === "completed" || t.status === "cancelled",
+    );
+    await Promise.all(done.map((t) => deleteTask(t.id)));
+    onRefresh();
   };
 
   // ── Selection ──────────────────────────────────────────────────────────────
@@ -869,7 +927,10 @@ export function TaskTable({
 
   const totalCols = 8 - hiddenCols.size;
 
-  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "";
+  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "" || sessionFilter;
+  const hasCompletedTasks = collectAllTasks(tree).some(
+    (t) => t.status === "completed" || t.status === "cancelled",
+  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -906,6 +967,16 @@ export function TaskTable({
           onToggle={toggleAgentFilter}
           onClear={() => setAgentFilter(new Set())}
         />
+        <Button
+          variant={sessionFilter ? "secondary" : "ghost"}
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setSessionFilter((v) => !v)}
+          title="Only show tasks from this session"
+        >
+          <IconClockPlay size={13} />
+          Session
+        </Button>
 
         {hasFilters && (
           <Button
@@ -915,6 +986,7 @@ export function TaskTable({
               setStatusFilter(new Set());
               setAgentFilter(new Set());
               setSearch("");
+              setSessionFilter(false);
             }}
           >
             Reset
@@ -923,6 +995,17 @@ export function TaskTable({
         )}
 
         <div className="flex items-center gap-1 ml-auto">
+          {hasCompletedTasks && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearCompleted}
+              className="gap-1.5 bg-red-950 text-red-300 border border-red-900 hover:bg-red-900 hover:text-red-200"
+            >
+              <IconTrash size={13} />
+              Clear done
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -970,6 +1053,14 @@ export function TaskTable({
           >
             <IconRefresh size={13} className={loading ? "animate-spin" : ""} />
             Refresh
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLightMode((v) => !v)}
+            aria-label={lightMode ? "Switch to dark mode" : "Switch to light mode"}
+          >
+            {lightMode ? <IconMoon size={14} /> : <IconSun size={14} />}
           </Button>
         </div>
       </div>
@@ -1047,6 +1138,7 @@ export function TaskTable({
                 <React.Fragment key={task.id}>
                   <TaskRow
                     task={task}
+                    isNew={newIds.has(task.id)}
                     depth={depth}
                     hasChildren={hasChildren}
                     expanded={expandedRows.has(task.id)}
