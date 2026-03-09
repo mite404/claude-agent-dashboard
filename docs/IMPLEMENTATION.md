@@ -309,14 +309,15 @@ output streams live in the same terminal as Vite and json-server logs.
 
 ---
 
-## Phase 8: Polish & Iteration Ideas
+## Phase 8: Polish & Iteration (✅ Completed 2026-03-08)
 
-- [ ] Add a "Clear completed" button to remove finished tasks from db.json
-- [ ] Add a timestamp filter (only show tasks from current session)
-- [ ] Add task duration column to a sortable table view (alternative to card view)
-- [ ] Auto-scroll logs to bottom when new entries arrive
-- [ ] Animate new tasks appearing (fade in)
-- [ ] Dark/light mode toggle (the `@theme` CSS vars make this easy)
+- [x] Add a "Clear completed" button — deletes completed/cancelled tasks via DELETE REST
+- [x] Add a session filter — hides tasks created before the dashboard was opened
+- [x] Duration column — already existed from the table redesign (skipped)
+- [x] Auto-scroll logs to bottom — smart scroll follows new entries unless user has scrolled up
+- [x] Animate new tasks appearing — 220ms `rowFadeIn` slide-down keyframe
+- [x] Dark/light mode toggle — foundation toggle (body/vars respond; full token migration TBD)
+- [x] Increase log window from `max-h-64` → `max-h-96` (256px → 384px, ~17 visible rows)
 - [ ] **Skill attribution tracking** — Track which skill spawned each agent,
   with source classification
 

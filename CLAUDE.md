@@ -5,6 +5,8 @@ globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
+# Claude Agent Dashboard
+
 Default to using Bun as the runtime and package manager (not Node.js, npm, pnpm, or yarn).
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`

@@ -1611,3 +1611,130 @@ modifying Claude Code itself.
 for the fields you *do* control before giving up. Sometimes the workaround is "write metadata
 into the one string field you own." It's not elegant, but it ships — and the workaround is
 clearly documented so the next person knows why it exists and when to replace it.
+
+## Phase 8: Polish Sprint (2026-03-08)
+
+Five quality-of-life improvements to `TaskTable.tsx` and one CSS foundation.
+
+### Bigger Log Window
+
+`max-h-64` (256px) → `max-h-96` (384px) on `LogDetailRow`'s scroll container. At ~20px per row
+(`text-xs` + `py-0.5`), that's roughly 17 visible rows before scrolling — up from ~11. No
+structural change, just a single Tailwind class swap.
+
+### Auto-Scroll Logs (Smart Terminal Follow)
+
+The log panel now follows new entries the same way a terminal does: latest lines appear at the
+bottom, oldest scroll off the top. Implementation uses a `useRef` on the scroll container div
+and a `useEffect` that watches the `logs` prop:
+
+```typescript
+useEffect(() => {
+  const el = scrollRef.current;
+  if (!el) return;
+  const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
+  if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+}, [logs]);
+```
+
+The 60px threshold is the "smart" part. If you've scrolled up to read an older entry, the panel
+leaves you there. Only when you're near the bottom does it resume following. This mirrors the
+behavior of iTerm, VS Code's integrated terminal, and Slack — "follow unless I've opted out."
+
+### Clear Done Button
+
+A "Clear done" button appears in the toolbar whenever the task tree contains at least one
+`completed` or `cancelled` task. It calls `DELETE /api/tasks/:id` (via the existing `deleteTask`
+helper) for each terminal task in parallel, then refreshes.
+
+The guard `hasCompletedTasks` is computed fresh on each render from the full tree:
+
+```typescript
+const hasCompletedTasks = collectAllTasks(tree).some(
+  (t) => t.status === "completed" || t.status === "cancelled",
+);
+```
+
+`collectAllTasks` is a recursive flattener — it walks the parent/child tree and returns every
+node as a flat array. The button only renders when this is true, so the toolbar stays clean.
+
+### Session Filter
+
+A "Session" toggle button filters the task table to only show tasks created since the dashboard
+was opened. Implementation is a `useRef` capturing `new Date()` at component mount:
+
+```typescript
+const sessionStart = useRef(new Date());
+```
+
+When active, the `flatTasks` filter adds:
+
+```typescript
+if (sessionFilter && new Date(task.createdAt) < sessionStart.current) return false;
+```
+
+This is the correct tool for "I just started a new Claude session and don't want to see
+yesterday's completed tasks." It also clears when you hit the Reset button alongside the other
+filters. `sessionStart` is a `useRef` (not `useState`) because it's stable data — we never want
+it to change, and reading it doesn't need to trigger a re-render.
+
+### New Task Row Fade-In
+
+When a new task row appears (hook fires → json-server POST → polling picks it up), it slides
+down from 6px above its final position over 220ms. This visual cue confirms something happened
+without being distracting.
+
+Implementation tracks which IDs have been seen before:
+
+```typescript
+const knownIds = useRef<Set<string>>(new Set());
+const [newIds, setNewIds] = useState<Set<string>>(new Set());
+
+useEffect(() => {
+  const all = collectIds(tree);
+  const fresh = all.filter((id) => !knownIds.current.has(id));
+  all.forEach((id) => knownIds.current.add(id));
+  if (fresh.length > 0) {
+    setNewIds(new Set(fresh));
+    setTimeout(() => setNewIds(new Set()), 250);
+  }
+}, [tree]);
+```
+
+`knownIds` is a `useRef` because it's write-only tracking state — we never need React to
+re-render when it changes. `newIds` is `useState` because setting it IS what triggers the
+animation class to appear on the row. The `setTimeout(250)` clears the animation class after
+the 220ms keyframe finishes, so the same task won't animate again next poll.
+
+The keyframe in `index.css`:
+
+```css
+@keyframes rowFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+```
+
+### Dark / Light Mode Toggle (Foundation)
+
+A sun/moon button in the toolbar toggles a `.light` class on `<html>`. The CSS variable block
+`:root.light { ... }` in `index.css` overrides the stone-950 dark palette with stone-50 light
+values for `--color-background`, `--color-surface`, etc.
+
+**The honest scope of this feature:** The body background and scrollbar respond correctly.
+Components using hardcoded Tailwind stone classes (`bg-stone-900`, `text-stone-500`, etc.) do
+NOT — they're not wired to the semantic token CSS variables. A full light mode requires
+replacing every hardcoded color class with a semantic token class (`bg-surface`, `text-muted`,
+etc.), which is a larger refactor. The toggle is a foundation — it makes the behavior available
+and the override mechanism is in place. Full coverage is the next step.
+
+### Senior Engineer Note: useRef vs useState
+
+This phase introduced two cases of `useRef` used as "invisible state":
+
+- `sessionStart` — captured once at mount, never changes, never needs to trigger a re-render
+- `knownIds` — mutated every poll cycle, but changes to it should never cause a re-render
+
+The rule: **if reading a value doesn't need to update the UI, it belongs in a `useRef`, not
+`useState`.** Putting `knownIds` in `useState` would cause an extra render on every poll cycle
+just to track which IDs we've already seen — completely wasted work.
