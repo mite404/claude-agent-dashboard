@@ -1889,3 +1889,344 @@ The core insight: **CSS transitions are the enemy of instant theme swaps**. They
 for user-triggered interactions (hover, focus) where smooth animation is desirable. A whole-UI
 palette inversion is the one case where you want zero animation — and the double RAF no-transition
 trick is the standard surgical tool to achieve it.
+
+---
+
+## Phase 10 (2026-03-09): Event Trail + Session Strip + Dependency Tracking
+
+### The Story
+
+We added the three observability layers that complete the dashboard's purpose. The task table was
+always showing you *what* agents were working on. Now it also shows you *how* they did it, *why*
+something is blocked, and *what's happening at the session level* (outside of any task).
+
+Think of it like upgrading from a call sheet (task list) to a full production report:
+call sheet + shot-by-shot log + director's notes.
+
+### New Architecture Layer: Three-Tier Observability
+
+```
+Session (orchestrator)          ← GlobalEventStrip (bottom panel)
+  └─ Task (Agent tool call)     ← task table row
+       └─ Events (tool calls)   ← EventTrailRow (expanded row)
+```
+
+### Feature 1: Event Trail (EventTrailRow)
+
+When you expand a task row, instead of raw log text you now see a live sequence of every tool
+call the agent made to accomplish the task:
+
+```
+💻 Bash    ls src/components/    completed   0.3s
+📖 Read    src/types/task.ts     completed   0.1s
+✏️ Edit    src/components/...    running      —
+```
+
+**How it works**:
+
+- `pre-tool-all.sh` fires on ALL tools (empty matcher). Skips "Agent" calls (handled by the
+  existing hook). Finds the running task for the current `session_id` via
+  `GET /api/tasks?status=running&sessionId=X`, then appends a `HookEvent` to that task's
+  `events[]` array via GET→mutate→PUT.
+- `post-tool-all.sh` fires on PostToolUse and PostToolUseFailure. Finds the matching pre-event
+  by `tool_use_id` and updates its `status` + `completedAt`.
+- The UI priority: `events[]` > `children[]` > `logs[]`. If a task has event trail data, that
+  takes precedence.
+
+**The attribution design**: Tool events are attributed to tasks by `session_id`. Claude Code
+passes `session_id` in every hook's stdin payload. The task stores it. The sub-tool hooks
+query for the running task in that session. For single-agent use, this is unambiguous.
+
+### Feature 2: Global Session Event Strip
+
+A collapsible panel below the task table catches everything that doesn't belong to a task:
+UserPromptSubmit, SessionStart, SubagentStart/Stop, Notification, PermissionRequest,
+PreCompact, Stop.
+
+```
+SESSION EVENTS  (12)
+💬 UserPromptSubmit   "Review the auth system"       14:32:00
+🚀 SessionStart       claude-sonnet-4-6              14:32:01
+🤖 SubagentStart      agent_abc123                   14:32:05
+🔐 PermissionRequest  Bash: rm attempted, blocked    14:32:40
+📦 PreCompact         context compaction triggered   14:33:01
+🛑 Stop               session ended                  14:35:22
+```
+
+**How it works**: `session-event.sh --event-type TYPE` is a single script that handles all
+session-level events. It reads type-specific fields from stdin and POSTs to
+`/api/sessionEvents` (new top-level collection in `db.json`). `useTaskPolling` now fetches
+both `/api/tasks` and `/api/sessionEvents` in parallel on each poll.
+
+### Feature 3: Dependency Tracking + Blocked State
+
+Tasks can declare dependencies using a `[dependsOn:ID1,ID2]` tag in their description —
+same pattern as the existing `[parentId:XXX]` tag.
+
+When the orchestrator agent creates a "Review Code" task, it can write:
+`Review the codebase [parentId:task-abc] [dependsOn:build-task-id,test-task-id]`
+
+The pre-hook strips both tags from the display name and stores `dependencies: ["build-task-id",
+"test-task-id"]` on the task record.
+
+**Client-side blocked computation** in `useTaskPolling`:
+
+1. `computeBlockedState(tasks)` runs on the flat `tasks` array BEFORE `buildTree()`
+2. For each task with `dependencies`, checks if any dep is not `completed/cancelled`
+3. If blocking deps exist: sets `task.status = "blocked"` and `node.blockedBy = [ids]`
+4. Tree inherits the updated status automatically
+
+**Why before buildTree?** buildTree creates TaskNode objects by spreading Task fields
+(`{ ...task, children: [] }`). If you ran blocked computation after, you'd need to traverse
+the tree recursively to find and update each node. Running it on the flat array first is O(n)
+and the tree just inherits the result.
+
+**UI**: Status cell shows `[⊘ Blocked] / waiting for: Build, Run Tests` inline.
+Color: orange-400 (distinct from amber's paused, red's failed).
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/pre-tool-all.sh` | PreToolUse hook for all non-Agent tools → event trail |
+| `scripts/post-tool-all.sh` | PostToolUse/Failure hook for all non-Agent tools |
+| `scripts/session-event.sh` | Session-level hook (12 event types, `--event-type` arg) |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `src/types/task.ts` | Added `HookEvent`, `SessionEvent`, `SessionEventType`; `blocked` to `TaskStatus`; `events?`, `dependencies?`, `sessionId?` to `Task`; `blockedBy?` to `TaskNode` |
+| `src/hooks/useTaskPolling.ts` | `computeBlockedState()`, `sessionEvents` state, parallel fetch |
+| `src/components/TaskTable.tsx` | `EventTrailRow`, `GlobalEventStrip`, `blocked` in all status maps, `taskMap` for blocking name lookup, updated expanded row priority |
+| `src/components/ui/badge.tsx` | Added `blocked` variant (orange) |
+| `~/.claude/settings.json` | Added 10 new hook event types |
+| `db.json` | Added `sessionEvents: []` collection |
+
+### Director's Commentary: On Observability Layers
+
+The mental model that made this design click: there are three questions you need to answer
+about any agent run, and each question lives at a different layer:
+
+1. **"What was this agent trying to do?"** → the task row
+2. **"How did it try to do it?"** → the event trail (tool sequence)
+3. **"What happened around it?"** → the session strip (lifecycle events)
+
+Mixing these into a single view (one flat event stream, like disler's dashboard) gives you
+completeness but loses context. Keeping them in layers gives you a zoom level:
+
+- From 10,000 feet: scan the task table for status
+- From 1,000 feet: expand a task to see its tool sequence
+- At ground level: open the session strip to see lifecycle events
+
+This three-layer design is the same reason video editors have the timeline, the clip view,
+and the metadata inspector — same footage, different resolution of information.
+
+## Code Review: Anti-Patterns Found and Fixed (2026-03-09)
+
+### The Story
+
+After implementing the observability features (Phase 10), a code review agent audited the
+codebase and surfaced 7 issues — two critical, five important. All were fixed in the same
+session. No features changed; this was a quality pass only.
+
+---
+
+### 🎬 Blooper 20: Shell Injection via Unquoted `$SESSION_ID` in curl URL
+
+**Files:** `scripts/pre-tool-all.sh`, `scripts/post-tool-all.sh`
+
+```bash
+# The dangerous pattern:
+RUNNING_TASK=$(curl -s "http://localhost:3001/tasks?status=running&sessionId=$SESSION_ID")
+```
+
+`SESSION_ID` was read directly from untrusted hook stdin and interpolated bare into a shell
+string. Any value with `"`, `` ` ``, `$()`, or whitespace in it could execute arbitrary
+shell commands. Hook payloads come from Claude Code internals, so this isn't an active
+threat — but it's the kind of thing that could become one if the session ID format ever
+changes or if the scripts are reused in a different context.
+
+**The fix:** Sanitize immediately after extraction using `tr` to allowlist:
+
+```bash
+SESSION_ID=$(echo "$SESSION_ID" | tr -cd 'a-zA-Z0-9_-')
+```
+
+**The lesson:** Treat every external input as untrusted, even if it comes from a tool you
+control. This is the same discipline as parameterized SQL queries — you don't trust the
+input; you constrain it before it touches anything that executes.
+
+---
+
+### 🎬 Blooper 21: Mutating State Before Calling `setState`
+
+**File:** `src/hooks/useTaskPolling.ts`
+
+```typescript
+// The dangerous pattern:
+const data: Task[] = Array.isArray(rawTasks) ? rawTasks : [];
+computeBlockedState(data);   // mutates task.status in-place on the raw array
+setTasks(data);              // now sets state to the already-mutated object
+```
+
+`computeBlockedState` was designed to mutate tasks in-place (the comment even says so).
+The problem: `data` is the raw JSON parse result. Mutating it and then passing it to
+`setTasks` means React is holding a reference to the same object that was mutated. On the
+next poll, React tries to compare old state to new state to decide whether to re-render —
+but it's comparing the mutated object to itself. React bails out early, suppressing updates
+that should have triggered a re-render.
+
+This is one of the most common React mistakes: **state mutation**. React assumes state is
+immutable. If you hand it a mutated reference, it can't detect the change.
+
+**The fix:** Clone before mutating:
+
+```typescript
+const data: Task[] = Array.isArray(rawTasks)
+  ? rawTasks.map((t: Task) => ({ ...t }))
+  : [];
+computeBlockedState(data);   // mutates clones, not the raw parse
+```
+
+The spread `{ ...t }` creates a new object for each task, so React gets a fresh reference
+every poll cycle. This is a shallow clone — nested objects would still be shared — but
+since `computeBlockedState` only touches top-level `status`, shallow is enough.
+
+**The lesson:** The rule is simple — never mutate state directly. The subtlety is that
+"state" includes anything you're about to hand to `setState`. The moment you call
+`setTasks(data)`, `data` becomes state. So mutate before that line means you're
+mutating state.
+
+---
+
+### 🎬 Blooper 22: `new Date()` Inside a Sort Comparator
+
+**File:** `src/components/TaskTable.tsx` (the `sortNodes` function)
+
+```typescript
+// The flawed pattern — called O(n log n) times:
+const aDur = a.startedAt
+  ? new Date(a.completedAt || new Date()).getTime() - new Date(a.startedAt).getTime()
+  : 0;
+```
+
+Sort comparators run once per comparison pair — O(n log n) calls for n tasks. Calling
+`new Date()` (with no arguments, meaning "right now") inside the comparator means the
+"current time" reference shifts slightly on every single call. Two running tasks with the
+same elapsed time might sort differently on consecutive comparisons within the same sort
+pass because the "now" keeps moving.
+
+This creates non-deterministic sort order — running tasks could appear to jump positions
+randomly when sorted by duration, even when nothing real changed.
+
+**The fix:** Capture `now` once before the sort begins:
+
+```typescript
+function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
+  if (!sort.col) return nodes;
+  const now = Date.now();             // ← captured once, stable for entire sort
+  const sorted = [...nodes].sort((a, b) => {
+    // ...
+    const aDur = a.startedAt
+      ? new Date(a.completedAt ?? now).getTime() - new Date(a.startedAt).getTime()
+      : 0;
+```
+
+**The lesson:** Anything that changes over time — clocks, random numbers, external state
+— should be captured before an algorithm that runs it multiple times. Think of it like a
+camera take: you set the white balance once before you start rolling, not once per frame.
+
+---
+
+### 🎬 Blooper 23: Global Theme State Owned by a Child Component
+
+**Files:** `src/components/TaskTable.tsx` → moved to `src/components/Dashboard.tsx`
+
+```typescript
+// The misplaced pattern — inside TaskTable, a display component:
+const [lightMode, setLightMode] = useState(false);
+
+useEffect(() => () => document.documentElement.classList.remove("light"), []);
+```
+
+`TaskTable` is a table renderer. It has no business owning global document state. The
+`useEffect` cleanup removes the `"light"` class from `<html>` when `TaskTable` unmounts.
+If `TaskTable` is ever conditionally rendered (error boundary, Suspense, route change),
+the theme resets to dark unexpectedly — even though the user didn't ask for that.
+
+The mental model: whoever "outlives" the state should own it. `TaskTable` can unmount.
+`Dashboard` is always present while the app is running. So `Dashboard` is the right owner.
+
+**The fix:** Lift the state up.
+
+- Moved `lightMode` useState, `handleThemeToggle`, and the cleanup `useEffect` to
+  `Dashboard.tsx`
+- Added `lightMode: boolean` and `onThemeToggle: () => void` props to `TaskTableProps`
+- `TaskTable` now receives these from above instead of managing them itself
+
+**The lesson:** This is the canonical "lifting state up" pattern from the React docs. The
+rule of thumb: if a piece of state affects something outside the component's rendered
+output (like `document.documentElement`), it belongs at or above the level that contains
+all affected components.
+
+---
+
+### 🎬 Blooper 24: `db.json` Missing the `sessionEvents` Collection
+
+**File:** `db.json`
+
+After implementing the Global Session Strip (Phase 10), session events were consistently
+failing with HTTP 404. The hook logs showed:
+
+```
+[session] ERROR: POST /sessionEvents failed (HTTP 404) for UserPromptSubmit
+```
+
+The bug: `db.json` never had a `sessionEvents` key. json-server only exposes REST
+endpoints for collections that exist in the file at startup. There is no auto-creation —
+if the key isn't there when the server starts, the route doesn't exist.
+
+The `post-tool-agent.sh` bootstrap was updated to include `sessionEvents` (Issue 5 from
+the same review), but that fix only applies when `db.json` is recreated from scratch.
+The existing file was never updated.
+
+**The fix:** Add the key directly to the live file:
+
+```json
+{
+  "tasks": [...],
+  "sessionEvents": []
+}
+```
+
+**The lesson:** When a script writes an initial schema ("if the file doesn't exist,
+create it with X"), updating that script doesn't retroactively fix existing files. Always
+check whether your "bootstrap" and your "current state" are in sync. This is the same
+class of problem as a migration script that works on new installs but fails on upgrades.
+
+---
+
+### Director's Commentary: On Code Review as a Practice
+
+The seven issues found in this review fit two categories:
+
+**Boundary violations** — things that crossed a line they shouldn't:
+
+- Shell injection: external data entering a URL without sanitization
+- Theme state: global DOM side-effects owned by a display component
+- Schema drift: a bootstrap script and a live file out of sync
+
+**Temporal assumptions** — things that assumed time was frozen when it wasn't:
+
+- State mutation: treating a mutable object as if it were an immutable snapshot
+- Sort comparator: calling `new Date()` inside a loop where "now" must be constant
+
+Both categories share a root cause: **implicit contracts**. The shell script implicitly
+assumed `SESSION_ID` would be safe. The sort comparator implicitly assumed `new Date()`
+would be stable. Explicit contracts — URL encoding, cloning before mutation, capturing
+time before a loop — eliminate the ambiguity.
+
+A senior engineer's instinct when reading code is to ask: "what does this implicitly
+assume, and what happens when that assumption is wrong?" That question caught all seven
+of these issues.

@@ -13,6 +13,7 @@ const badgeVariants = cva(
         paused:    'bg-amber-950/60 text-amber-300 border border-amber-800/50',
         pending:   'bg-stone-800/60 text-stone-400 border border-stone-700/50',
         cancelled: 'bg-stone-900/60 text-stone-500 border border-stone-800/50',
+        blocked:   'bg-orange-950/60 text-orange-300 border border-orange-800/50',
       },
     },
   },
@@ -25,6 +26,7 @@ const statusDot: Record<TaskStatus, string> = {
   paused:    'bg-amber-400',
   pending:   'bg-stone-500',
   cancelled: 'bg-stone-600',
+  blocked:   'bg-orange-500',
 }
 
 interface StatusBadgeProps extends VariantProps<typeof badgeVariants> {

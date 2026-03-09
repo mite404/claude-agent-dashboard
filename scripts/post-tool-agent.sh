@@ -3,6 +3,7 @@
 # Reads hook context from stdin, updates the task status via the json-server API.
 #
 # Hook stdin fields used:
+#   .session_id                         → sessionId (carried through to PUT)
 #   .tool_use_id                        → identifies which task to update
 #   .tool_input.run_in_background       → if true, task is still running; don't mark complete
 #   .tool_input.description             → fallback name if task doesn't exist yet
@@ -20,12 +21,13 @@ log() {
 
 # Ensure db.json is valid so json-server can start cleanly if restarted
 if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
-  echo '{"tasks":[]}' > "$DB_FILE"
+  echo '{"tasks":[],"sessionEvents":[]}' > "$DB_FILE"
   log "WARN: db.json was missing or invalid — bootstrapped fresh"
 fi
 
 INPUT=$(cat)
 
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // ""')
 TASK_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
 IS_BG=$(echo "$INPUT" | jq -r '.tool_input.run_in_background // false')
 IS_ERROR=$(echo "$INPUT" | jq -r '(.tool_response // .tool_result // {}) | .is_error // false')
@@ -84,17 +86,19 @@ NEW_LOG=$(echo "$INPUT" | jq \
 EXISTING=$(curl -s "http://localhost:3001/tasks/$TASK_ID")
 
 if echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
-  # Task exists — build updated version and PUT it back (full replace preserves logs array)
+  # Task exists — build updated version and PUT it back (full replace preserves logs + events arrays)
   UPDATED=$(echo "$EXISTING" | jq \
     --arg status "$STATUS" \
     --arg now "$NOW" \
+    --arg sessionId "$SESSION_ID" \
     --argjson progress "$PROGRESS" \
     --argjson newlog "$NEW_LOG" \
     '. + {
       status: $status,
       completedAt: $now,
       progressPercentage: $progress,
-      logs: (.logs + [$newlog])
+      logs: (.logs + [$newlog]),
+      sessionId: (if $sessionId != "" then $sessionId else .sessionId end)
     }')
 
   RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK_ID" \

@@ -1,4 +1,1105 @@
 {
-  "tasks": [],
+  "tasks": [
+    {
+      "id": "toolu_01YS7jT5EGzSkryyD9q4K65d",
+      "name": "Explore task data model and expanded row UI",
+      "status": "completed",
+      "agentType": "Explore",
+      "parentId": null,
+      "createdAt": "2026-03-09T05:25:15.000Z",
+      "startedAt": "2026-03-09T05:25:15.000Z",
+      "completedAt": "2026-03-09T05:25:52.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T05:25:15.000Z",
+          "level": "info",
+          "message": "Task started: Explore task data model and expanded row UI"
+        },
+        {
+          "timestamp": "2026-03-09T05:25:52.000Z",
+          "level": "info",
+          "message": "Task completed: Perfect. I now have all the files. Let me provide you with a detailed analysis of the current data structure and expanded row rendering.\n\n---\n\n## 1. Task Data Types (`src/types/task.ts`)\n\n### Full Type Definitions\n\n```typescript\nexport type TaskStatus = 'pending' | 'running' | 'completed' | 'failed'"
+        }
+      ]
+    },
+    {
+      "id": "toolu_01Md9gmkoe4yJwRS5rb7LBf7",
+      "name": "Explore hook scripts and event data",
+      "status": "completed",
+      "agentType": "Explore",
+      "parentId": null,
+      "createdAt": "2026-03-09T05:25:19.000Z",
+      "startedAt": "2026-03-09T05:25:19.000Z",
+      "completedAt": "2026-03-09T05:25:51.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T05:25:19.000Z",
+          "level": "info",
+          "message": "Task started: Explore hook scripts and event data"
+        },
+        {
+          "timestamp": "2026-03-09T05:25:51.000Z",
+          "level": "info",
+          "message": "Task completed: Excellent! I now have all the information needed. Let me provide a comprehensive report.\n\n## Detailed Exploration Report\n\n### 1. **scripts/pre-tool-agent.sh** — Full Breakdown\n\n**What it does:** Creates a new task in json-server with status `\"running\"` when Claude Code begins a tool call.\n\n**JSON fi"
+        }
+      ]
+    },
+    {
+      "id": "toolu_01AtgEmbwi9HzKzS37w8Y3Cq",
+      "name": "Design implementation for event trail, global strip, and dependency tracking",
+      "status": "completed",
+      "agentType": "Plan",
+      "parentId": null,
+      "createdAt": "2026-03-09T05:29:06.000Z",
+      "startedAt": "2026-03-09T05:29:06.000Z",
+      "completedAt": "2026-03-09T05:33:26.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T05:29:06.000Z",
+          "level": "info",
+          "message": "Task started: Design implementation for event trail, global strip, and dependency tracking"
+        },
+        {
+          "timestamp": "2026-03-09T05:33:26.000Z",
+          "level": "info",
+          "message": "Task completed: I have everything I need. Now let me write the comprehensive implementation plan.\n\n---\n\n# Implementation Plan: Event Trail, Global Session Strip, and Dependency Tracking\n\nThis plan uses the film/post-production analogy throughout. Think of the three features as:\n- **Feature 1** (Event Trail): The sh"
+        }
+      ]
+    },
+    {
+      "id": "toolu_014giPVMeDRPbxwVE7nMBUB8",
+      "name": "Review codebase for anti-patterns",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T05:57:18.000Z",
+      "startedAt": "2026-03-09T05:57:18.000Z",
+      "completedAt": "2026-03-09T05:59:09.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T05:57:18.000Z",
+          "level": "info",
+          "message": "Task started: Review codebase for anti-patterns"
+        },
+        {
+          "timestamp": "2026-03-09T05:59:09.000Z",
+          "level": "info",
+          "message": "Task completed: I now have a complete picture of the codebase. Let me compile the findings.\n\n---\n\n## Code Review: /Users/ea/Programming/web/fractal/claude-agent-dashboard\n\nReviewing the full React frontend, hooks, types, and shell scripts. No unstaged git diff, so reviewing the current HEAD state as the scope of in"
+        }
+      ],
+      "events": [
+        {
+          "id": "toolu_01H63JXfprZ259mEFyWtKCoB",
+          "toolName": "Read",
+          "phase": "pre",
+          "status": "running",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T05:57:23.000Z"
+        },
+        {
+          "id": "toolu_01MpQNXAd3VjrQ1smYJLNsee",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/Dashboard.tsx",
+          "timestamp": "2026-03-09T05:57:23.000Z",
+          "completedAt": "2026-03-09T05:57:23.000Z"
+        },
+        {
+          "id": "toolu_01NqWqEoDp6Ln52e4BYVT1PN",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/hooks/useTaskPolling.ts",
+          "timestamp": "2026-03-09T05:57:24.000Z",
+          "completedAt": "2026-03-09T05:57:24.000Z"
+        },
+        {
+          "id": "toolu_01DePQZiBFgrUGpR1Lnby1gp",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/types/task.ts",
+          "timestamp": "2026-03-09T05:57:24.000Z",
+          "completedAt": "2026-03-09T05:57:24.000Z"
+        },
+        {
+          "id": "toolu_01FQdMQxFTbx8Qs2d6mDwSCM",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/.claude/projects/-Users-ea-Programming-web-fractal-claude-agent-dashboard/c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+          "timestamp": "2026-03-09T05:57:32.000Z",
+          "completedAt": "2026-03-09T05:57:32.000Z"
+        },
+        {
+          "id": "toolu_01WVuG9FJNjvbAQiRqszeUyb",
+          "toolName": "Glob",
+          "phase": "post",
+          "status": "completed",
+          "summary": "scripts/*.sh",
+          "timestamp": "2026-03-09T05:57:32.000Z",
+          "completedAt": "2026-03-09T05:57:32.000Z"
+        },
+        {
+          "id": "toolu_01V7b5UUXxxhE7dA7wNeYB2X",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.sh",
+          "timestamp": "2026-03-09T05:57:36.000Z",
+          "completedAt": "2026-03-09T05:57:36.000Z"
+        },
+        {
+          "id": "toolu_0174MRdQt53jq87LS7QHyuwh",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh",
+          "timestamp": "2026-03-09T05:57:37.000Z",
+          "completedAt": "2026-03-09T05:57:37.000Z"
+        },
+        {
+          "id": "toolu_012oqz1bf1BugYqH2iQ4yNjJ",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-all.sh",
+          "timestamp": "2026-03-09T05:57:37.000Z",
+          "completedAt": "2026-03-09T05:57:37.000Z"
+        },
+        {
+          "id": "toolu_01CH3tXkWpHJEkAWv86KUSb8",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-all.sh",
+          "timestamp": "2026-03-09T05:57:38.000Z",
+          "completedAt": "2026-03-09T05:57:38.000Z"
+        },
+        {
+          "id": "toolu_011FW7Bq2KBJzNZpupmuhNBq",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/session-event.sh",
+          "timestamp": "2026-03-09T05:57:38.000Z",
+          "completedAt": "2026-03-09T05:57:38.000Z"
+        },
+        {
+          "id": "toolu_01CBp7evrif9n3b5R31VcMpN",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T05:57:42.000Z",
+          "completedAt": "2026-03-09T05:57:42.000Z"
+        },
+        {
+          "id": "toolu_01Tbw4Aie4w3CPeQEQ1k2LH1",
+          "toolName": "Glob",
+          "phase": "post",
+          "status": "completed",
+          "summary": "src/lib/utils.ts",
+          "timestamp": "2026-03-09T05:57:42.000Z",
+          "completedAt": "2026-03-09T05:57:42.000Z"
+        },
+        {
+          "id": "toolu_01M3h3cj2t7VtLvhzeJhdLMP",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T05:57:47.000Z",
+          "completedAt": "2026-03-09T05:57:47.000Z"
+        },
+        {
+          "id": "toolu_01P9h5P2XraYHnYL1n8ZERcT",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/lib/utils.ts",
+          "timestamp": "2026-03-09T05:57:47.000Z",
+          "completedAt": "2026-03-09T05:57:47.000Z"
+        },
+        {
+          "id": "toolu_01CWi7A4NmA8gN7CfMKeSqxk",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T05:57:52.000Z",
+          "completedAt": "2026-03-09T05:57:52.000Z"
+        },
+        {
+          "id": "toolu_015i2cEDfhi6wgfDjuLyzu88",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T05:57:57.000Z",
+          "completedAt": "2026-03-09T05:57:57.000Z"
+        },
+        {
+          "id": "toolu_01QoRugacddYknndzNRjy78A",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T05:58:02.000Z",
+          "completedAt": "2026-03-09T05:58:02.000Z"
+        }
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_01RYVhkjuUNAqbt8zWabpTiV",
+      "name": "Fix 7 anti-patterns in codebase",
+      "status": "completed",
+      "agentType": "general-purpose",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:01:01.000Z",
+      "startedAt": "2026-03-09T06:01:01.000Z",
+      "completedAt": "2026-03-09T06:04:22.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:01:01.000Z",
+          "level": "info",
+          "message": "Task started: Fix 7 anti-patterns in codebase"
+        },
+        {
+          "timestamp": "2026-03-09T06:04:22.000Z",
+          "level": "info",
+          "message": "Task completed: Build passes. Here is a complete summary of every change made.\n\n---\n\n## Summary\n\nBuild result: **pass** — `tsc -b && vite build` completed in 2.29s with no errors. The pre-existing CSS warning about `var(...)` is unrelated to these changes.\n\n---\n\n### Files Changed\n\n**`/Users/ea/Programming/web/fract"
+        }
+      ],
+      "events": [
+        {
+          "id": "toolu_01SvtQSrKYCjyKq7umyQRTiM",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"pending\",\"activeForm\":\"Fixi",
+          "timestamp": "2026-03-09T06:01:06.000Z",
+          "completedAt": "2026-03-09T06:01:06.000Z"
+        },
+        {
+          "id": "toolu_01MVpknxVjrU4oRgDzXLzdPC",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/hooks/useTaskPolling.ts",
+          "timestamp": "2026-03-09T06:01:10.000Z",
+          "completedAt": "2026-03-09T06:01:10.000Z"
+        },
+        {
+          "id": "toolu_01XBcnAjDPJ7c7qLAdWEvYby",
+          "toolName": "Read",
+          "phase": "pre",
+          "status": "running",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/Dashboard.tsx",
+          "timestamp": "2026-03-09T06:01:12.000Z"
+        },
+        {
+          "id": "toolu_01TB6Q81pHBpTiKFZS5QAVjY",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh",
+          "timestamp": "2026-03-09T06:01:12.000Z",
+          "completedAt": "2026-03-09T06:01:12.000Z"
+        },
+        {
+          "id": "toolu_01NTgUV8hnGqUFXzCGFqyzGD",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/.claude/projects/-Users-ea-Programming-web-fractal-claude-agent-dashboard/c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+          "timestamp": "2026-03-09T06:01:18.000Z",
+          "completedAt": "2026-03-09T06:01:18.000Z"
+        },
+        {
+          "id": "toolu_01P5b5Sh7YpxzDr8CLRAEm9t",
+          "toolName": "Bash",
+          "phase": "post",
+          "status": "completed",
+          "summary": "grep -n \"lightMode\\|handleThemeToggle\\|handleBulkDelete\\|sortNodes\\|logs\\.map\\|new Date()\" /Users/ea/Programming/web/fra",
+          "timestamp": "2026-03-09T06:01:21.000Z",
+          "completedAt": "2026-03-09T06:01:21.000Z"
+        },
+        {
+          "id": "toolu_01T4sEV1NGYKoKDHz8hXRoKb",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:01:24.000Z",
+          "completedAt": "2026-03-09T06:01:24.000Z"
+        },
+        {
+          "id": "toolu_01PNiSb1XZiT6NmSP3m1QUPt",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:01:24.000Z",
+          "completedAt": "2026-03-09T06:01:24.000Z"
+        },
+        {
+          "id": "toolu_01Nkj7L1fJDha2WgBwxkchVb",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:01:28.000Z",
+          "completedAt": "2026-03-09T06:01:28.000Z"
+        },
+        {
+          "id": "toolu_01DzSG9KcqmkkTsCCXLpZJtT",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:01:28.000Z",
+          "completedAt": "2026-03-09T06:01:28.000Z"
+        },
+        {
+          "id": "toolu_014XBtukBcqydGUXEeJbJ3Ru",
+          "toolName": "Bash",
+          "phase": "post",
+          "status": "completed",
+          "summary": "grep -n \"TaskTableProps\\|interface.*Props\\|export function TaskTable\\|export.*TaskTable\" /Users/ea/Programming/web/fract",
+          "timestamp": "2026-03-09T06:01:32.000Z",
+          "completedAt": "2026-03-09T06:01:32.000Z"
+        },
+        {
+          "id": "toolu_012LMfTZs9fbQ8gLS8xsJx4G",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:01:34.000Z",
+          "completedAt": "2026-03-09T06:01:34.000Z"
+        },
+        {
+          "id": "toolu_0127Suf48EqCbK5MedAbDKkG",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"in_progress\",\"activeForm\":\"",
+          "timestamp": "2026-03-09T06:01:46.000Z",
+          "completedAt": "2026-03-09T06:01:46.000Z"
+        },
+        {
+          "id": "toolu_01J6Pgz7hKSxGN4ArKksB83K",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-all.sh",
+          "timestamp": "2026-03-09T06:01:50.000Z",
+          "completedAt": "2026-03-09T06:01:50.000Z"
+        },
+        {
+          "id": "toolu_01CADEWHnbqMSweTtw4QfNoP",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-all.sh",
+          "timestamp": "2026-03-09T06:01:53.000Z",
+          "completedAt": "2026-03-09T06:01:54.000Z"
+        },
+        {
+          "id": "toolu_01SfpRQ5bJUEbg4T4HjGTPUo",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:01:58.000Z",
+          "completedAt": "2026-03-09T06:01:58.000Z"
+        },
+        {
+          "id": "toolu_01HMzLkr2o4Ju9adrxJBbPEz",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/hooks/useTaskPolling.ts",
+          "timestamp": "2026-03-09T06:02:02.000Z",
+          "completedAt": "2026-03-09T06:02:02.000Z"
+        },
+        {
+          "id": "toolu_018aFntBKZUwCoXTGquLx8sY",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:02:06.000Z",
+          "completedAt": "2026-03-09T06:02:06.000Z"
+        },
+        {
+          "id": "toolu_013sgy2Qtqwup2xBAfwHGKuT",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:10.000Z",
+          "completedAt": "2026-03-09T06:02:10.000Z"
+        },
+        {
+          "id": "toolu_01PdCxDYA5eufmD4GxVbPqBL",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:02:14.000Z",
+          "completedAt": "2026-03-09T06:02:14.000Z"
+        },
+        {
+          "id": "toolu_01PrGkr4Ni1fPN9SNn2imWVF",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:17.000Z",
+          "completedAt": "2026-03-09T06:02:17.000Z"
+        },
+        {
+          "id": "toolu_019CNbpEovBRd1DutUUCkybf",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:02:21.000Z",
+          "completedAt": "2026-03-09T06:02:21.000Z"
+        },
+        {
+          "id": "toolu_01H3B5T8uwQ3QrjX1yZJaaSF",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh",
+          "timestamp": "2026-03-09T06:02:25.000Z",
+          "completedAt": "2026-03-09T06:02:25.000Z"
+        },
+        {
+          "id": "toolu_01LkDEP7jgy3PKRx9aC34fEe",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:02:29.000Z",
+          "completedAt": "2026-03-09T06:02:29.000Z"
+        },
+        {
+          "id": "toolu_01B1FvcfD9UfzypsFppLPvBz",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:37.000Z",
+          "completedAt": "2026-03-09T06:02:38.000Z"
+        },
+        {
+          "id": "toolu_0115nBjY2uCCQ8BcYL29yais",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:02:43.000Z",
+          "completedAt": "2026-03-09T06:02:43.000Z"
+        },
+        {
+          "id": "toolu_01Vv1AecwiRcovthceMpEaKX",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:46.000Z",
+          "completedAt": "2026-03-09T06:02:46.000Z"
+        },
+        {
+          "id": "toolu_01FkFnVWTzBF8xxbJbJpZRtF",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:51.000Z",
+          "completedAt": "2026-03-09T06:02:51.000Z"
+        },
+        {
+          "id": "toolu_01SBYS761pPCiknQBtmcDuud",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:54.000Z",
+          "completedAt": "2026-03-09T06:02:54.000Z"
+        },
+        {
+          "id": "toolu_01YFzZfQC2zbAnbMTGPv8hQM",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:02:58.000Z",
+          "completedAt": "2026-03-09T06:02:58.000Z"
+        },
+        {
+          "id": "toolu_01H1dEiiqX5L7GcAqViKo5bJ",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:03:06.000Z",
+          "completedAt": "2026-03-09T06:03:06.000Z"
+        },
+        {
+          "id": "toolu_0175i4xjEXbZTV9uqVoYryUZ",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:03:09.000Z",
+          "completedAt": "2026-03-09T06:03:09.000Z"
+        },
+        {
+          "id": "toolu_01BsFPz3uGKBhpAco3bp1wbs",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:03:12.000Z",
+          "completedAt": "2026-03-09T06:03:12.000Z"
+        },
+        {
+          "id": "toolu_0173TyS4v6VcpLvNBshpuppG",
+          "toolName": "Bash",
+          "phase": "post",
+          "status": "completed",
+          "summary": "grep -n \"useEffect\\|useState\" /Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx | he",
+          "timestamp": "2026-03-09T06:03:15.000Z",
+          "completedAt": "2026-03-09T06:03:15.000Z"
+        },
+        {
+          "id": "toolu_01QKYAxGwdrfuYXsj2scJEta",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/Dashboard.tsx",
+          "timestamp": "2026-03-09T06:03:26.000Z",
+          "completedAt": "2026-03-09T06:03:26.000Z"
+        },
+        {
+          "id": "toolu_01TVsC2qGNDTwgvnGZXD46Fc",
+          "toolName": "Edit",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/Dashboard.tsx",
+          "timestamp": "2026-03-09T06:03:29.000Z",
+          "completedAt": "2026-03-09T06:03:29.000Z"
+        },
+        {
+          "id": "toolu_01Vi9wC8LuqnRthojmSXyGUY",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:03:35.000Z",
+          "completedAt": "2026-03-09T06:03:36.000Z"
+        },
+        {
+          "id": "toolu_01T1cSWMh2cBH3wWDNDvqxJ4",
+          "toolName": "Bash",
+          "phase": "post",
+          "status": "completed",
+          "summary": "source ~/.zprofile && bun run build 2>&1",
+          "timestamp": "2026-03-09T06:03:38.000Z",
+          "completedAt": "2026-03-09T06:03:48.000Z"
+        },
+        {
+          "id": "toolu_01BtYfD1F9xkrwbkfewZ2PaS",
+          "toolName": "TodoWrite",
+          "phase": "post",
+          "status": "completed",
+          "summary": "{\"todos\":[{\"content\":\"Fix shell injection in pre-tool-all.sh and post-tool-all.sh\",\"status\":\"completed\",\"activeForm\":\"Fi",
+          "timestamp": "2026-03-09T06:03:58.000Z",
+          "completedAt": "2026-03-09T06:03:58.000Z"
+        }
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_015GE5rykjFeyYBHUP4QUsGc",
+      "name": "Identify security vulnerabilities in PR changes",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:12:12.000Z",
+      "startedAt": "2026-03-09T06:12:12.000Z",
+      "completedAt": "2026-03-09T06:13:40.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:12:12.000Z",
+          "level": "info",
+          "message": "Task started: Identify security vulnerabilities in PR changes"
+        },
+        {
+          "timestamp": "2026-03-09T06:13:40.000Z",
+          "level": "info",
+          "message": "Task completed: Now I have a comprehensive picture of all the files. Let me write up the findings.\n\n---\n\n## Security Review: Claude Agent Dashboard Hook Scripts + Frontend\n\nReviewing: `scripts/pre-tool-all.sh` (NEW), `scripts/post-tool-all.sh` (NEW), `scripts/session-event.sh` (NEW), `scripts/pre-tool-agent.sh` (MO"
+        }
+      ],
+      "events": [
+        {
+          "id": "toolu_01BnbbEedpyjmGHj6MrGDB3m",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-all.sh",
+          "timestamp": "2026-03-09T06:12:15.000Z",
+          "completedAt": "2026-03-09T06:12:15.000Z"
+        },
+        {
+          "id": "toolu_01Jm3KCsZWz1HqspZZnKmrqj",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-all.sh",
+          "timestamp": "2026-03-09T06:12:15.000Z",
+          "completedAt": "2026-03-09T06:12:15.000Z"
+        },
+        {
+          "id": "toolu_01AKk4kxYpTMgwuDKpXQacSA",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/session-event.sh",
+          "timestamp": "2026-03-09T06:12:15.000Z",
+          "completedAt": "2026-03-09T06:12:15.000Z"
+        },
+        {
+          "id": "toolu_01W8DMbh4E4LNr4CkLWH2H6M",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.sh",
+          "timestamp": "2026-03-09T06:12:16.000Z",
+          "completedAt": "2026-03-09T06:12:16.000Z"
+        },
+        {
+          "id": "toolu_016txzxx1Q9BgKGTTMTid35Z",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh",
+          "timestamp": "2026-03-09T06:12:16.000Z",
+          "completedAt": "2026-03-09T06:12:17.000Z"
+        },
+        {
+          "id": "toolu_012ikNcSacAb6WZ3niojPg1k",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/types/task.ts",
+          "timestamp": "2026-03-09T06:12:17.000Z",
+          "completedAt": "2026-03-09T06:12:17.000Z"
+        },
+        {
+          "id": "toolu_01K9gFkrYxPuNJVwra7VRuAZ",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/hooks/useTaskPolling.ts",
+          "timestamp": "2026-03-09T06:12:17.000Z",
+          "completedAt": "2026-03-09T06:12:17.000Z"
+        },
+        {
+          "id": "toolu_018F4fv23318Vw8d5LAVfvUd",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/TaskTable.tsx",
+          "timestamp": "2026-03-09T06:12:18.000Z",
+          "completedAt": "2026-03-09T06:12:18.000Z"
+        },
+        {
+          "id": "toolu_0147QiRM25qCuunCS5Cxgzyz",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/Dashboard.tsx",
+          "timestamp": "2026-03-09T06:12:18.000Z",
+          "completedAt": "2026-03-09T06:12:18.000Z"
+        },
+        {
+          "id": "toolu_01UaweTyr2bjNaAj29bvUqsJ",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/src/components/ui/badge.tsx",
+          "timestamp": "2026-03-09T06:12:18.000Z",
+          "completedAt": "2026-03-09T06:12:18.000Z"
+        },
+        {
+          "id": "toolu_016oe9QVbAnGyMGuqP4fUCFC",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "summary": "/Users/ea/.claude/projects/-Users-ea-Programming-web-fractal-claude-agent-dashboard/c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+          "timestamp": "2026-03-09T06:12:24.000Z",
+          "completedAt": "2026-03-09T06:12:24.000Z"
+        },
+        {
+          "id": "toolu_014AyTa52MxyYG7Vyo32UEWN",
+          "toolName": "Grep",
+          "phase": "post",
+          "status": "completed",
+          "summary": "dangerouslySetInnerHTML|eval\\(|innerHTML|document\\.write|sessionId=|TASK_ID|SESSION_ID /Users/ea/Programming/web/fractal",
+          "timestamp": "2026-03-09T06:12:28.000Z",
+          "completedAt": "2026-03-09T06:12:28.000Z"
+        },
+        {
+          "id": "toolu_01Qx61EdNBjYXeZLxgtSkNwv",
+          "toolName": "Grep",
+          "phase": "post",
+          "status": "completed",
+          "summary": "sessionId=\\$SESSION_ID|sessionId=\\$|curl.*\\$SESSION_ID|\\$TASK_ID|\\$SESSION_ID /Users/ea/Programming/web/fractal/claude-a",
+          "timestamp": "2026-03-09T06:12:29.000Z",
+          "completedAt": "2026-03-09T06:12:29.000Z"
+        },
+        {
+          "id": "toolu_01Ny7NCkXrVzddLZutgtVmvy",
+          "toolName": "Grep",
+          "phase": "post",
+          "status": "completed",
+          "summary": "TASK_ID=|EVENT_ID=|TOOL_NAME=|SUMMARY=|AGENT_ID=|MODEL=|TOKEN_COUNT=|PROMPT=|ERROR=|MESSAGE=|NOTIF_TYPE= /Users/ea/Progr",
+          "timestamp": "2026-03-09T06:12:33.000Z",
+          "completedAt": "2026-03-09T06:12:33.000Z"
+        },
+        {
+          "id": "toolu_01FNgu7JksQM4P36HJDyRSra",
+          "toolName": "Grep",
+          "phase": "post",
+          "status": "completed",
+          "summary": "curl.*\\$TASK_ID|curl.*\\$EVENT_ID|curl.*\\$TOOL_NAME|curl.*\\$SUMMARY /Users/ea/Programming/web/fractal/claude-agent-dashbo",
+          "timestamp": "2026-03-09T06:12:34.000Z",
+          "completedAt": "2026-03-09T06:12:34.000Z"
+        },
+        {
+          "id": "toolu_012wp2PCm8iqSCJG6kL5qTTN",
+          "toolName": "Grep",
+          "phase": "post",
+          "status": "completed",
+          "summary": "TASK_ID=|TASK_ID\\b /Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-all.sh",
+          "timestamp": "2026-03-09T06:12:37.000Z",
+          "completedAt": "2026-03-09T06:12:38.000Z"
+        },
+        {
+          "id": "toolu_01TiNLfeUdBqz9zrgQfiDxPN",
+          "toolName": "Grep",
+          "phase": "post",
+          "status": "completed",
+          "summary": "TOKEN_COUNT|jq -n --argjson count /Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/session-event.sh",
+          "timestamp": "2026-03-09T06:12:38.000Z",
+          "completedAt": "2026-03-09T06:12:38.000Z"
+        }
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_01QLYonugbTruudGMEUtgHcx",
+      "name": "Filter false positive: TASK_ID in curl URL",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:13:56.000Z",
+      "startedAt": "2026-03-09T06:13:56.000Z",
+      "completedAt": "2026-03-09T06:13:56.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:13:56.000Z",
+          "level": "info",
+          "message": "Task started: Filter false positive: TASK_ID in curl URL"
+        },
+        {
+          "timestamp": "2026-03-09T06:13:56.000Z",
+          "level": "info",
+          "message": "Background task dispatched"
+        }
+      ],
+      "events": [],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_0157SvVr4TzZV9bctPJZwWB3",
+      "name": "Filter false positive: SUMMARY double-quoting",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:14:03.000Z",
+      "startedAt": "2026-03-09T06:14:03.000Z",
+      "completedAt": "2026-03-09T06:14:03.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:14:03.000Z",
+          "level": "info",
+          "message": "Task started: Filter false positive: SUMMARY double-quoting"
+        },
+        {
+          "timestamp": "2026-03-09T06:14:03.000Z",
+          "level": "info",
+          "message": "Background task dispatched"
+        }
+      ],
+      "events": [],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_01FZNGeuoRrNWrdq2ND3a7nF",
+      "name": "Filter false positive: TOKEN_COUNT jq argjson",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:14:10.000Z",
+      "startedAt": "2026-03-09T06:14:10.000Z",
+      "completedAt": "2026-03-09T06:14:10.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:14:10.000Z",
+          "level": "info",
+          "message": "Task started: Filter false positive: TOKEN_COUNT jq argjson"
+        },
+        {
+          "timestamp": "2026-03-09T06:14:10.000Z",
+          "level": "info",
+          "message": "Background task dispatched"
+        }
+      ],
+      "events": [],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_01Sn5CgGbGF91A2UmFtE4fZ6",
+      "name": "Filter false positive: TASK_ID trust chain post-tool-all",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:14:18.000Z",
+      "startedAt": "2026-03-09T06:14:18.000Z",
+      "completedAt": "2026-03-09T06:14:18.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:14:18.000Z",
+          "level": "info",
+          "message": "Task started: Filter false positive: TASK_ID trust chain post-tool-all"
+        },
+        {
+          "timestamp": "2026-03-09T06:14:18.000Z",
+          "level": "info",
+          "message": "Background task dispatched"
+        }
+      ],
+      "events": [],
+      "dependencies": []
+    },
+    {
+      "id": "toolu_01UerDZc84n39KqprhJ5ZuDK",
+      "name": "Filter false positive: SESSION_ID not sanitized in session-event.sh",
+      "status": "completed",
+      "agentType": "feature-dev:code-reviewer",
+      "parentId": null,
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "createdAt": "2026-03-09T06:14:24.000Z",
+      "startedAt": "2026-03-09T06:14:24.000Z",
+      "completedAt": "2026-03-09T06:14:24.000Z",
+      "progressPercentage": 100,
+      "logs": [
+        {
+          "timestamp": "2026-03-09T06:14:24.000Z",
+          "level": "info",
+          "message": "Task started: Filter false positive: SESSION_ID not sanitized in session-event.sh"
+        },
+        {
+          "timestamp": "2026-03-09T06:14:24.000Z",
+          "level": "info",
+          "message": "Background task dispatched"
+        }
+      ],
+      "events": [],
+      "dependencies": []
+    }
+  ],
+  "sessionEvents": [
+    {
+      "id": "20260309061147000-userpromptsubmit",
+      "type": "UserPromptSubmit",
+      "timestamp": "2026-03-09T06:11:47.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "\"/security-review\""
+    },
+    {
+      "id": "20260309061212000-subagentstart",
+      "type": "SubagentStart",
+      "timestamp": "2026-03-09T06:12:12.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent a6350b17c0c67aa98",
+      "agentId": "a6350b17c0c67aa98"
+    },
+    {
+      "id": "20260309061340000-subagentstop",
+      "type": "SubagentStop",
+      "timestamp": "2026-03-09T06:13:40.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent a6350b17c0c67aa98 finished",
+      "agentId": "a6350b17c0c67aa98"
+    },
+    {
+      "id": "20260309061356000-subagentstart",
+      "type": "SubagentStart",
+      "timestamp": "2026-03-09T06:13:56.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent ab8c3d6e7ec9368f5",
+      "agentId": "ab8c3d6e7ec9368f5"
+    },
+    {
+      "id": "20260309061403000-subagentstart",
+      "type": "SubagentStart",
+      "timestamp": "2026-03-09T06:14:03.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent a4b71fd85e78d93e9",
+      "agentId": "a4b71fd85e78d93e9"
+    },
+    {
+      "id": "20260309061410000-subagentstart",
+      "type": "SubagentStart",
+      "timestamp": "2026-03-09T06:14:10.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent a7eb893c5979acdd1",
+      "agentId": "a7eb893c5979acdd1"
+    },
+    {
+      "id": "20260309061411000-subagentstop",
+      "type": "SubagentStop",
+      "timestamp": "2026-03-09T06:14:11.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent ab8c3d6e7ec9368f5 finished",
+      "agentId": "ab8c3d6e7ec9368f5"
+    },
+    {
+      "id": "20260309061418000-subagentstart",
+      "type": "SubagentStart",
+      "timestamp": "2026-03-09T06:14:18.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent af95042e0c889a8a5",
+      "agentId": "af95042e0c889a8a5"
+    },
+    {
+      "id": "20260309061419000-subagentstop",
+      "type": "SubagentStop",
+      "timestamp": "2026-03-09T06:14:19.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent a4b71fd85e78d93e9 finished",
+      "agentId": "a4b71fd85e78d93e9"
+    },
+    {
+      "id": "20260309061423000-subagentstop",
+      "type": "SubagentStop",
+      "timestamp": "2026-03-09T06:14:23.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent a7eb893c5979acdd1 finished",
+      "agentId": "a7eb893c5979acdd1"
+    },
+    {
+      "id": "20260309061424000-subagentstart",
+      "type": "SubagentStart",
+      "timestamp": "2026-03-09T06:14:24.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent af8c53a77dbb650e3",
+      "agentId": "af8c53a77dbb650e3"
+    },
+    {
+      "id": "20260309061434000-subagentstop",
+      "type": "SubagentStop",
+      "timestamp": "2026-03-09T06:14:34.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent af95042e0c889a8a5 finished",
+      "agentId": "af95042e0c889a8a5"
+    },
+    {
+      "id": "20260309061445000-subagentstop",
+      "type": "SubagentStop",
+      "timestamp": "2026-03-09T06:14:45.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "agent af8c53a77dbb650e3 finished",
+      "agentId": "af8c53a77dbb650e3"
+    },
+    {
+      "id": "20260309061501000-stop",
+      "type": "Stop",
+      "timestamp": "2026-03-09T06:15:01.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "session ended"
+    },
+    {
+      "id": "20260309061501000-userpromptsubmit",
+      "type": "UserPromptSubmit",
+      "timestamp": "2026-03-09T06:15:01.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "\"i think clicking on teh 'session' filter should show the current session and any additional sessions\""
+    },
+    {
+      "id": "20260309061655000-permissionrequest",
+      "type": "PermissionRequest",
+      "timestamp": "2026-03-09T06:16:55.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "Bash requested",
+      "toolName": "Bash"
+    },
+    {
+      "id": "20260309061745000-stop",
+      "type": "Stop",
+      "timestamp": "2026-03-09T06:17:45.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "session ended"
+    },
+    {
+      "id": "20260309061745000-userpromptsubmit",
+      "type": "UserPromptSubmit",
+      "timestamp": "2026-03-09T06:17:45.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "\"the session events list should be auto scroll too if it's not already\""
+    },
+    {
+      "id": "20260309061810000-permissionrequest",
+      "type": "PermissionRequest",
+      "timestamp": "2026-03-09T06:18:10.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "Bash requested",
+      "toolName": "Bash"
+    },
+    {
+      "id": "20260309061854000-stop",
+      "type": "Stop",
+      "timestamp": "2026-03-09T06:18:54.000Z",
+      "sessionId": "c3dd5d4e-d6a5-40a1-a902-185afc0b2f7a",
+      "summary": "session ended"
+    }
+  ],
   "$schema": "./node_modules/json-server/schema.json"
 }

@@ -3,8 +3,9 @@
 # Reads hook context from stdin, creates a "running" task via the json-server API.
 #
 # Hook stdin fields used:
+#   .session_id                → sessionId (links task to its Claude session)
 #   .tool_use_id               → task id
-#   .tool_input.description    → task name
+#   .tool_input.description    → task name (may contain [parentId:XXX] and [dependsOn:ID1,ID2] tags)
 #   .tool_input.subagent_type  → agentType
 
 DASHBOARD_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,12 +18,13 @@ log() {
 
 # Ensure db.json is valid so json-server can start cleanly if restarted
 if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
-  echo '{"tasks":[]}' > "$DB_FILE"
+  echo '{"tasks":[],"sessionEvents":[]}' > "$DB_FILE"
   log "WARN: db.json was missing or invalid — bootstrapped fresh"
 fi
 
 INPUT=$(cat)
 
+SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // ""')
 TASK_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
 RAW_NAME=$(echo "$INPUT" | jq -r '.tool_input.description // "Unnamed task"')
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // "general-purpose"')
@@ -37,6 +39,17 @@ else
   TASK_NAME="$RAW_NAME"
 fi
 
+# Extract optional [dependsOn:ID1,ID2] tag — comma-separated task IDs this task waits for
+DEPENDS_TAG=$(echo "$TASK_NAME" | grep -oE '\[dependsOn:[^]]+\]' || true)
+if [ -n "$DEPENDS_TAG" ]; then
+  DEPENDS_RAW=$(echo "$DEPENDS_TAG" | sed 's/\[dependsOn://;s/\]//')
+  # Convert "ID1,ID2" → JSON array ["ID1","ID2"]
+  DEPENDENCIES=$(echo "$DEPENDS_RAW" | jq -Rc 'split(",")')
+  TASK_NAME=$(echo "$TASK_NAME" | sed 's/ \[dependsOn:[^]]*\]//' | sed 's/\[dependsOn:[^]]*\] //' | sed 's/\[dependsOn:[^]]*\]//')
+else
+  DEPENDENCIES="[]"
+fi
+
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
 NEW_TASK=$(jq -n \
@@ -45,19 +58,24 @@ NEW_TASK=$(jq -n \
   --arg agent "$SUBAGENT_TYPE" \
   --arg now "$NOW" \
   --arg parentId "$PARENT_ID" \
+  --arg sessionId "$SESSION_ID" \
+  --argjson dependencies "$DEPENDENCIES" \
   '{
     id: $id,
     name: $name,
     status: "running",
     agentType: $agent,
     parentId: (if $parentId == "" then null else $parentId end),
+    sessionId: (if $sessionId == "" then null else $sessionId end),
     createdAt: $now,
     startedAt: $now,
     completedAt: null,
     progressPercentage: 0,
     logs: [
       { timestamp: $now, level: "info", message: ("Task started: " + $name) }
-    ]
+    ],
+    events: [],
+    dependencies: $dependencies
   }')
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3001/tasks \
@@ -67,11 +85,10 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3001/tasks \
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
 if [ "$HTTP_CODE" = "201" ]; then
-  if [ -n "$PARENT_ID" ]; then
-    log "OK: created task $TASK_ID (\"$TASK_NAME\", $SUBAGENT_TYPE, parentId=$PARENT_ID)"
-  else
-    log "OK: created task $TASK_ID (\"$TASK_NAME\", $SUBAGENT_TYPE)"
-  fi
+  EXTRA=""
+  [ -n "$PARENT_ID" ] && EXTRA="$EXTRA parentId=$PARENT_ID"
+  [ "$DEPENDENCIES" != "[]" ] && EXTRA="$EXTRA dependsOn=$DEPENDS_RAW"
+  log "OK: created task $TASK_ID (\"$TASK_NAME\", $SUBAGENT_TYPE$EXTRA)"
 else
   log "ERROR: POST /tasks failed (HTTP $HTTP_CODE) — is json-server running on :3001?"
 fi
