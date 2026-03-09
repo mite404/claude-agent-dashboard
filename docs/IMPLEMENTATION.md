@@ -311,12 +311,28 @@ output streams live in the same terminal as Vite and json-server logs.
 
 ## Phase 8: Polish & Iteration (✅ Completed 2026-03-08)
 
-- [x] Add a "Clear completed" button — deletes completed/cancelled tasks via DELETE REST
-- [x] Add a session filter — hides tasks created before the dashboard was opened
+- [x] Add a "Clear completed" button — deletes completed/cancelled tasks via parallel
+  `Promise.all(ids.map(deleteTask))`. Button styled `bg-rose-500 hover:bg-rose-400` (rose, not
+  red) for good contrast on both dark and light backgrounds.
+- [x] Add a session filter — `sessionStart = useRef(new Date())` at mount time; filters tasks
+  where `createdAt < sessionStart.current`. Button toggles `sessionFilter` state.
 - [x] Duration column — already existed from the table redesign (skipped)
-- [x] Auto-scroll logs to bottom — smart scroll follows new entries unless user has scrolled up
-- [x] Animate new tasks appearing — 220ms `rowFadeIn` slide-down keyframe
-- [x] Dark/light mode toggle — foundation toggle (body/vars respond; full token migration TBD)
+- [x] Auto-scroll logs to bottom — smart scroll: only auto-follows when the viewport is within
+  60px of the bottom. Manually scrolling up to read earlier entries is never interrupted.
+- [x] Animate new tasks appearing — 220ms `rowFadeIn` slide-down keyframe. `knownIds` ref
+  tracks all seen IDs (no re-renders); `newIds` state drives the animation class for 250ms.
+- [x] Dark/light mode toggle — **full stone scale inversion** via `:root.light` in
+  `src/index.css`. All `--color-stone-X` CSS variables are overridden (stone-950 → white,
+  stone-50 → near-black warm). Because Tailwind v4 generates stone utility classes as
+  `var(--color-stone-X)` references, this flips the entire UI with zero component changes.
+  - shadcn/ui orange accent: `oklch(0.702 0.185 48)` as `--color-accent`; warm cream surfaces
+    (`oklch(0.963 0.008 92)`) matching the shadcn Tasks example page.
+  - Orange focus ring in light mode via `--tw-ring-color: var(--color-accent)` on
+    `:root.light input:focus-visible`.
+  - Theme toggle flash fixed: synchronous DOM class toggle in click handler +
+    `.no-transition` CSS kill switch + double `requestAnimationFrame` to remove it after the
+    new-theme frame is painted (single RAF fires before paint — insufficient).
+  - Table header hover state removed — header row no longer responds to hover in either theme.
 - [x] Increase log window from `max-h-64` → `max-h-96` (256px → 384px, ~17 visible rows)
 - [ ] **Skill attribution tracking** — Track which skill spawned each agent,
   with source classification

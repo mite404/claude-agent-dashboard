@@ -60,8 +60,8 @@ Claude Code Agent
 | `src/index.css` | `@theme {}` with OKLCH stone colors + Figtree font |
 | `vite.config.ts` | Vite config (proxy, Tailwind v4 plugin, Vitest config) |
 | `db.json` | Live task state (written by hooks via REST, read by json-server) |
-| `scripts/pre-tool.sh` | Claude Code PreToolUse hook |
-| `scripts/post-tool.sh` | Claude Code PostToolUse hook |
+| `scripts/pre-tool-agent.sh` | Claude Code PreToolUse hook |
+| `scripts/post-tool-agent.sh` | Claude Code PostToolUse hook |
 | `docs/FOR_ETHAN.md` | Full architecture log, bloopers, and director's commentary |
 
 ## Testing
@@ -103,6 +103,16 @@ Config is in `.rumdl.toml`. Disabled rules: MD024, MD033, MD036, MD040, MD057.
   `bun scripts/spawn-terminal.ts`. All four must be running for hooks to appear in the dashboard.
 - **Path aliases**: Use `@/` for `src/` imports (e.g. `@/components/TaskTable`). Handled by
   `vite-tsconfig-paths` — no manual config needed.
+- **Light mode = full stone scale inversion**: `:root.light` in `src/index.css` overrides every
+  `--color-stone-X` CSS variable. Tailwind v4 generates stone utility classes as `var(--color-stone-X)`
+  references, so overriding the scale flips the entire UI with zero component changes. Do NOT
+  try to add a separate dark/light conditional to components — changing the CSS variables is enough.
+- **Theme toggle flash prevention**: Do NOT toggle theme classes inside a `useEffect` — that runs
+  after paint, causing transitions to animate through intermediate values (the "white flash").
+  Instead: (1) apply `.no-transition` synchronously in the click handler, (2) toggle the `.light`
+  class synchronously, (3) use double `requestAnimationFrame` to remove `.no-transition` after the
+  new-theme frame is painted. Single RAF is insufficient — it fires before the browser paints the
+  new frame. The `.no-transition` rule lives in `src/index.css`.
 
 ---
 

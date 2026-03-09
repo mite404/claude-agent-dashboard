@@ -1738,3 +1738,154 @@ This phase introduced two cases of `useRef` used as "invisible state":
 The rule: **if reading a value doesn't need to update the UI, it belongs in a `useRef`, not
 `useState`.** Putting `knownIds` in `useState` would cause an extra render on every poll cycle
 just to track which IDs we've already seen — completely wasted work.
+
+### Senior Engineer Note: Tailwind v4 Interactive States Are CSS Variables
+
+When implementing the orange focus ring on the search input in light mode, a key pattern emerged.
+The `focus-visible:ring-stone-500` class on `<Input>` generates this CSS:
+
+```css
+.focus-visible\:ring-stone-500:focus-visible {
+  --tw-ring-color: var(--color-stone-500);
+}
+```
+
+Tailwind's ring system is entirely variable-driven. The ring color, size, and offset are
+composed from `--tw-ring-color`, `--tw-ring-offset-width`, etc., and combined into a final
+`box-shadow` value. To change just the color in light mode — without touching the component,
+without duplicating the size/offset, without adding a new Tailwind class — you override only
+the variable in a scoped CSS selector:
+
+```css
+:root.light input:focus-visible {
+  --tw-ring-color: var(--color-accent);
+}
+```
+
+This is precise surgical override. The ring still fires on `focus-visible`, still uses the
+same `ring-1` pixel width, still has the same offset. Only the color changes.
+
+**The broader pattern:** In Tailwind v4, all "interactive state" utilities — rings, shadows,
+gradient stops, outline colors — are CSS variable-driven. Anywhere you need a scoped override
+(per-theme, per-component, per-context), reach for the variable before reaching for a new
+class. The same technique works for:
+
+- `--tw-shadow-color` to recolor a `shadow-lg` in dark/light context
+- `--tw-ring-offset-width` to change the ring gap without a utility class
+- `--tw-gradient-from` / `--tw-gradient-to` to retheme a gradient locally
+
+Think of the Tailwind utility class as setting the *default* value of a CSS variable. Your CSS
+can always override the variable downstream without knowing what the utility class was.
+
+### 🎬 Blooper 19: The Theme Toggle That Painted White Before It Was Done
+
+#### What went wrong
+
+The first version of the light/dark toggle used a React `useEffect` to apply the `.light` class
+to `<html>`:
+
+```typescript
+useEffect(() => {
+  document.documentElement.classList.toggle("light", lightMode);
+}, [lightMode]);
+```
+
+Clicking the sun/moon button caused a visible white flash across the entire screen — some
+elements momentarily went pure white or over-saturated before settling into the new theme.
+
+#### Why it happened — two compounding causes
+
+**Cause 1: `transition-colors` on everything.**
+`TableRow` applies `transition-colors` as a base class. Every row, button, and border in the
+table has a CSS transition on `background-color`, `color`, and `border-color`. When the stone
+palette flips from dark (stone-950 = near-black) to light (stone-950 = pure white), those
+transitions don't jump — they *animate*. Interpolating between oklch(0.09) and oklch(1.0)
+passes through the full brightness range, including pure white at the midpoint. On a table with
+50 rows, that's 50 simultaneous white flashes.
+
+**Cause 2: `useEffect` fires asynchronously.**
+`useEffect` runs after React commits the render to the DOM, but before the browser paints.
+However, the class change and the transition animations are driven by the browser's own
+rendering pipeline, not React's. The mismatch in timing meant there was a window where React's
+state said "light mode" but the DOM hadn't caught up — causing a half-painted intermediate
+state to appear on screen.
+
+#### The fix — three parts working together
+
+**Part 1: A CSS kill switch.**
+
+```css
+:root.no-transition,
+:root.no-transition * {
+  transition: none !important;
+}
+```
+
+One rule that nukes every transition across the entire document when `.no-transition` is on
+`<html>`. The `!important` is intentional — it needs to beat all the `transition-colors`
+utility classes, which are generated without `!important`.
+
+**Part 2: Synchronous DOM manipulation instead of `useEffect`.**
+
+The toggle was moved out of `useEffect` and into a direct click handler:
+
+```typescript
+const handleThemeToggle = () => {
+  const next = !lightMode;
+  const root = document.documentElement;
+  root.classList.add("no-transition");     // kill switch ON
+  root.classList.toggle("light", next);    // palette flips (no transitions, no flash)
+  setLightMode(next);                      // React state syncs (for button icon)
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      root.classList.remove("no-transition") // kill switch OFF
+    )
+  );
+};
+```
+
+By doing the DOM manipulation synchronously in the click handler, the `no-transition` and
+`light` class changes happen in the *same JavaScript execution context* — the browser hasn't
+had a chance to paint anything yet.
+
+**Part 3: The double `requestAnimationFrame` — the common single-RAF trap.**
+
+This is the part most developers get wrong. The instinct is to write:
+
+```javascript
+root.classList.add("no-transition");
+root.classList.toggle("light", next);
+requestAnimationFrame(() => root.classList.remove("no-transition")); // ← WRONG
+```
+
+But a single RAF fires *before the next paint*, not after it. The sequence with single RAF:
+
+```
+① classList operations (sync)
+② RAF callback fires → removes no-transition
+③ Browser paints the new theme  ← transitions ARE active again here → flash returns
+```
+
+The transitions are back on before the new theme is painted. We fixed nothing.
+
+With double RAF:
+
+```
+① classList operations (sync)
+② RAF 1 fires (before paint N) → schedules RAF 2
+③ Browser paints the new theme (no-transition still on → instant snap, no flash) ✓
+④ RAF 2 fires (after paint N) → removes no-transition
+⑤ Future interactions have transitions again (hover, focus work normally)
+```
+
+The first RAF brackets the paint. The second fires after it. `no-transition` covers exactly
+the one frame where the palette swap happens, and nothing else.
+
+#### Why this pattern exists everywhere
+
+Theme toggling is a solved problem in the frontend world. Every major design system that
+supports dark/light mode (shadcn, Radix, Mantine, Chakra) uses a variation of this pattern.
+The core insight: **CSS transitions are the enemy of instant theme swaps**. They were designed
+for user-triggered interactions (hover, focus) where smooth animation is desirable. A whole-UI
+palette inversion is the one case where you want zero animation — and the double RAF no-transition
+trick is the standard surgical tool to achieve it.

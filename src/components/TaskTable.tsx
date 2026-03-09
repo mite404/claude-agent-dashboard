@@ -720,11 +720,21 @@ export function TaskTable({
     }
   }, [tree]);
 
-  // Toggle light/dark class on <html>
-  useEffect(() => {
-    document.documentElement.classList.toggle("light", lightMode);
-    return () => document.documentElement.classList.remove("light");
-  }, [lightMode]);
+  // Cleanup: remove light class if component unmounts while in light mode
+  useEffect(() => () => document.documentElement.classList.remove("light"), []);
+
+  const handleThemeToggle = () => {
+    const next = !lightMode;
+    const root = document.documentElement;
+    // Suppress all transition-colors for one paint cycle to prevent the
+    // white flash caused by stone palette values animating through midpoints
+    root.classList.add("no-transition");
+    root.classList.toggle("light", next);
+    setLightMode(next);
+    // Double RAF: first fires before the new-theme paint, second fires after —
+    // transitions only re-enable once the new palette is already on screen
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove("no-transition")));
+  };
 
   // Unique agent types for the filter popover
   const agentOptions = useMemo(() => {
@@ -1000,7 +1010,7 @@ export function TaskTable({
               variant="ghost"
               size="sm"
               onClick={handleClearCompleted}
-              className="gap-1.5 bg-red-950 text-red-300 border border-red-900 hover:bg-red-900 hover:text-red-200"
+              className="gap-1.5 bg-rose-500 text-white hover:bg-rose-400"
             >
               <IconTrash size={13} />
               Clear done
@@ -1057,7 +1067,7 @@ export function TaskTable({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setLightMode((v) => !v)}
+            onClick={handleThemeToggle}
             aria-label={lightMode ? "Switch to dark mode" : "Switch to light mode"}
           >
             {lightMode ? <IconMoon size={14} /> : <IconSun size={14} />}
@@ -1098,7 +1108,7 @@ export function TaskTable({
       <div className="rounded-md border border-stone-800 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent bg-stone-900/60">
+            <TableRow className="hover:bg-stone-900/60 bg-stone-900/60">
               <TableHead className="w-10">
                 <Checkbox checked={headerChecked} onChange={toggleAll} />
               </TableHead>
