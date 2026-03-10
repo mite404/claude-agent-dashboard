@@ -114,11 +114,17 @@
   box-sizing: border-box;
 }
 
+html {
+  background-color: var(--color-background);
+  height: 100%;
+}
+
 body {
   background-color: var(--color-background);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   margin: 0;
+  height: 100%;
   -webkit-font-smoothing: antialiased;
 }
 

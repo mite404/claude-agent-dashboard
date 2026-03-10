@@ -40,6 +40,13 @@ export type SessionEventType =
   | 'PermissionRequest'
   | 'PreCompact'
   | 'PostToolUseFailure'
+  | 'SessionEnd'
+  | 'TeammateIdle'
+  | 'TaskCompleted'
+  | 'InstructionsLoaded'
+  | 'ConfigChange'
+  | 'WorktreeCreate'
+  | 'WorktreeRemove'
 
 export interface SessionEvent {
   id: string // timestamp-hash or uuid
@@ -56,6 +63,11 @@ export interface SessionEvent {
   message?: string // from Notification
   notificationType?: string // from Notification
   originatingSkill?: string // /skill-name detected in UserPromptSubmit
+  reason?: string // from SessionEnd
+  taskTitle?: string // from TaskCompleted
+  filePath?: string // from InstructionsLoaded / ConfigChange
+  source?: string // from InstructionsLoaded / ConfigChange
+  branch?: string // from WorktreeCreate / WorktreeRemove
   data?: Record<string, unknown> // raw payload fields
 }
 

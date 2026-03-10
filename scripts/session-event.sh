@@ -57,13 +57,23 @@ AGENT_TYPE=$(echo "$INPUT" | jq -r '.agent_type // empty')
 # For SubagentStart: write the subagent's actual agent_id back to the task record so the
 # task table can display the same ID shown in session events (for cross-reference)
 if [[ "$EVENT_TYPE" == "SubagentStart" ]] && [ -n "$AGENT_ID" ]; then
+  # Try temp file first; fall back to json-server query if file is empty (race condition)
   PARENT_TASK_ID=$(<"/tmp/cc-agent-task-$SAFE_SID" 2>/dev/null || true)
+  if [ -z "$PARENT_TASK_ID" ]; then
+    # json-server _sort conflicts with filter params — sort client-side via jq
+    PARENT_TASK_ID=$(curl -s \
+      "http://localhost:3001/tasks?sessionId=$SESSION_ID" \
+      | jq -r 'sort_by(.createdAt) | reverse | .[0].id // empty')
+    log "INFO: SubagentStart — temp file empty, looked up most recent task: $PARENT_TASK_ID"
+  fi
   if [ -n "$PARENT_TASK_ID" ]; then
     PATCH=$(jq -n --arg aid "$AGENT_ID" '{ agentId: $aid }')
-    curl -s -X PATCH "http://localhost:3001/tasks/$PARENT_TASK_ID" \
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "http://localhost:3001/tasks/$PARENT_TASK_ID" \
       -H "Content-Type: application/json" \
-      -d "$PATCH" > /dev/null
-    log "INFO: patched task $PARENT_TASK_ID with agentId=$AGENT_ID"
+      -d "$PATCH")
+    log "INFO: patched task $PARENT_TASK_ID with agentId=$AGENT_ID (HTTP $HTTP_STATUS)"
+  else
+    log "WARN: SubagentStart — could not resolve parent task for agentId patch"
   fi
 fi
 
@@ -127,6 +137,42 @@ case "$EVENT_TYPE" in
     ERROR=$(echo "$INPUT" | jq -r '.error // ""')
     SUMMARY="$TOOL failed: ${ERROR:0:80}"
     EXTRA_FIELDS=$(jq -n --arg tool "$TOOL" --arg err "$ERROR" '{ toolName: $tool, error: $err }')
+    ;;
+  SessionEnd)
+    REASON=$(echo "$INPUT" | jq -r '.reason // "unknown"')
+    SUMMARY="session ended: $REASON"
+    EXTRA_FIELDS=$(jq -n --arg r "$REASON" '{ reason: $r }')
+    ;;
+  TeammateIdle)
+    SUMMARY="teammate ${AGENT_ID:0:16} idle"
+    EXTRA_FIELDS="{}"
+    ;;
+  TaskCompleted)
+    TASK_TITLE=$(echo "$INPUT" | jq -r '.task_title // .task_id // "unknown"')
+    SUMMARY="task completed: ${TASK_TITLE:0:80}"
+    EXTRA_FIELDS=$(jq -n --arg t "$TASK_TITLE" '{ taskTitle: $t }')
+    ;;
+  InstructionsLoaded)
+    FILE=$(echo "$INPUT" | jq -r '.file_path // "unknown"')
+    SOURCE=$(echo "$INPUT" | jq -r '.source // "unknown"')
+    SUMMARY="instructions loaded: $FILE"
+    EXTRA_FIELDS=$(jq -n --arg f "$FILE" --arg s "$SOURCE" '{ filePath: $f, source: $s }')
+    ;;
+  ConfigChange)
+    FILE=$(echo "$INPUT" | jq -r '.file_path // "unknown"')
+    SOURCE=$(echo "$INPUT" | jq -r '.source // "unknown"')
+    SUMMARY="config changed: $FILE ($SOURCE)"
+    EXTRA_FIELDS=$(jq -n --arg f "$FILE" --arg s "$SOURCE" '{ filePath: $f, source: $s }')
+    ;;
+  WorktreeCreate)
+    BRANCH=$(echo "$INPUT" | jq -r '.branch // "unknown"')
+    SUMMARY="worktree created: $BRANCH"
+    EXTRA_FIELDS=$(jq -n --arg b "$BRANCH" '{ branch: $b }')
+    ;;
+  WorktreeRemove)
+    BRANCH=$(echo "$INPUT" | jq -r '.branch // "unknown"')
+    SUMMARY="worktree removed: $BRANCH"
+    EXTRA_FIELDS=$(jq -n --arg b "$BRANCH" '{ branch: $b }')
     ;;
   *)
     SUMMARY="$EVENT_TYPE"
