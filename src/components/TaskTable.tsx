@@ -479,7 +479,7 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
               {events.filter((e) => e.status === "completed").length}/{events.length} done
             </span>
           </div>
-          <div ref={scrollRef} className="divide-y divide-stone-800/40 max-h-[240px] overflow-y-auto">
+          <div ref={scrollRef} className="divide-y divide-stone-800/40 max-h-60 overflow-y-auto">
             {events.length === 0 ? (
               <div className="px-3 py-2 text-[11px] text-stone-600 italic">No tool events yet…</div>
             ) : (
@@ -560,20 +560,28 @@ function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
                 key={event.id}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-900/40 transition-colors"
               >
+                {/* Emoji */}
                 <span className="shrink-0 w-5 text-center select-none" aria-hidden="true">
                   {SESSION_EVENT_EMOJI[event.type] ?? "📋"}
                 </span>
-                <span className="w-36 shrink-0 text-[11px] text-stone-500">
+                {/* Event type */}
+                <span className="w-40 shrink-0 text-[11px] text-stone-500">
                   {event.type}
                 </span>
+                {/* Summary */}
                 <span className="flex-1 truncate font-mono text-[10px] text-stone-300">
                   {event.summary}
                 </span>
-                {event.model && (
-                  <span className="shrink-0 font-mono text-[10px] text-stone-600">
-                    {event.model}
-                  </span>
-                )}
+                {/* Agent ID — fixed column, always present */}
+                <span
+                  className="w-24 shrink-0 truncate font-mono text-[10px] text-stone-500"
+                  title={event.agentId
+                    ? `${event.agentType ?? "agent"}: ${event.agentId}`
+                    : undefined}
+                >
+                  {event.agentId ? event.agentId.slice(0, 8) : "—"}
+                </span>
+                {/* Timestamp (24hr) */}
                 <span className="shrink-0 font-mono text-[10px] text-stone-600">
                   {formatTimestamp(event.timestamp)}
                 </span>
@@ -643,7 +651,7 @@ function TaskRow({
       aria-expanded={hasDetail ? logsOpen : undefined}
       className={cn(
         hasDetail ? "cursor-pointer" : undefined,
-        isNew && "animate-[var(--animate-row-fade-in)]",
+        isNew && "animate-row-fade-in",
       )}
     >
       {/* Select */}

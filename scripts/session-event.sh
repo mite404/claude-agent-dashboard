@@ -5,14 +5,18 @@
 #
 # Usage: session-event.sh --event-type TYPE
 #
-# Hook stdin fields used (varies by event type):
-#   .session_id         → always present
+# Common hook stdin fields (always present):
+#   .session_id         → links event to its Claude session
+#   .agent_id           → present when hook fires inside a subagent
+#   .agent_type         → agent name ("Explore", "general-purpose", etc.)
+#
+# Event-specific stdin fields:
 #   .prompt             → UserPromptSubmit
 #   .model              → SessionStart
-#   .agent_id           → SubagentStart, SubagentStop
 #   .message            → Notification
 #   .notification_type  → Notification
 #   .tool_name          → PermissionRequest, PostToolUseFailure
+#   .error              → PostToolUseFailure
 #   .token_count        → PreCompact
 
 DASHBOARD_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -44,7 +48,14 @@ NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 # Generate a unique-enough ID: timestamp + event type slug
 EVENT_ID="${NOW//[^0-9]/}-$(echo "$EVENT_TYPE" | tr '[:upper:]' '[:lower:]')"
 
-# Build event-type-specific summary and extra fields
+# ── Common agent fields ────────────────────────────────────────────────────────
+# agent_id and agent_type are present in ALL hook payloads when the hook fires
+# inside a subagent context (not just SubagentStart/SubagentStop).
+# Extracting them here makes attribution universal across all event types.
+AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
+AGENT_TYPE=$(echo "$INPUT" | jq -r '.agent_type // empty')
+
+# ── Event-specific summary and extra fields ────────────────────────────────────
 case "$EVENT_TYPE" in
   UserPromptSubmit)
     PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""')
@@ -61,14 +72,12 @@ case "$EVENT_TYPE" in
     EXTRA_FIELDS="{}"
     ;;
   SubagentStart)
-    AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // "unknown"')
-    SUMMARY="agent $AGENT_ID"
-    EXTRA_FIELDS=$(jq -n --arg id "$AGENT_ID" '{ agentId: $id }')
+    SUMMARY="agent ${AGENT_ID:-unknown} started"
+    EXTRA_FIELDS="{}"
     ;;
   SubagentStop)
-    AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // "unknown"')
-    SUMMARY="agent $AGENT_ID finished"
-    EXTRA_FIELDS=$(jq -n --arg id "$AGENT_ID" '{ agentId: $id }')
+    SUMMARY="agent ${AGENT_ID:-unknown} finished"
+    EXTRA_FIELDS="{}"
     ;;
   Notification)
     MESSAGE=$(echo "$INPUT" | jq -r '.message // ""')
@@ -99,7 +108,20 @@ case "$EVENT_TYPE" in
     ;;
 esac
 
-# Build the session event object
+# ── Agent attribution ──────────────────────────────────────────────────────────
+# Merge agentId + agentType into the event whenever they are present.
+# For events fired inside a subagent (any type), this captures which agent
+# generated the event. For main-session events, AGENT_FIELDS is empty {}.
+if [ -n "$AGENT_ID" ]; then
+  AGENT_FIELDS=$(jq -n \
+    --arg id "$AGENT_ID" \
+    --arg type "$AGENT_TYPE" \
+    '{ agentId: $id } + (if $type != "" then { agentType: $type } else {} end)')
+else
+  AGENT_FIELDS="{}"
+fi
+
+# ── Build and POST the session event ──────────────────────────────────────────
 SESSION_EVENT=$(jq -n \
   --arg id "$EVENT_ID" \
   --arg type "$EVENT_TYPE" \
@@ -107,13 +129,14 @@ SESSION_EVENT=$(jq -n \
   --arg sessionId "$SESSION_ID" \
   --arg summary "$SUMMARY" \
   --argjson extra "$EXTRA_FIELDS" \
+  --argjson agent "$AGENT_FIELDS" \
   '{
     id: $id,
     type: $type,
     timestamp: $now,
     sessionId: $sessionId,
     summary: $summary
-  } + $extra')
+  } + $extra + $agent')
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3001/sessionEvents \
   -H "Content-Type: application/json" \
@@ -122,7 +145,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3001/sessionEven
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
 if [ "$HTTP_CODE" = "201" ]; then
-  log "OK: $EVENT_TYPE — $SUMMARY (session $SESSION_ID)"
+  log "OK: $EVENT_TYPE — $SUMMARY (session $SESSION_ID${AGENT_ID:+ agent $AGENT_ID})"
 else
   log "ERROR: POST /sessionEvents failed (HTTP $HTTP_CODE) for $EVENT_TYPE — is json-server running on :3001?"
 fi

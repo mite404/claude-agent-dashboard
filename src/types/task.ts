@@ -45,8 +45,14 @@ export interface SessionEvent {
   timestamp: string // ISO string
   sessionId: string
   summary: string // human-readable one-liner
+  agentId?: string // which subagent fired this event (present for any event inside a subagent)
+  agentType?: string // agent type name (e.g., "Explore", "general-purpose", custom agent)
   model?: string // from SessionStart payload
   tokenCount?: number // from PreCompact payload
+  toolName?: string // from PermissionRequest / PostToolUseFailure
+  error?: string // from PostToolUseFailure
+  message?: string // from Notification
+  notificationType?: string // from Notification
   data?: Record<string, unknown> // raw payload fields
 }
 
