@@ -29,6 +29,10 @@ TASK_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
 RAW_NAME=$(echo "$INPUT" | jq -r '.tool_input.description // "Unnamed task"')
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // "general-purpose"')
 
+# Store parent Agent's tool_use_id in a temp file so SubagentStart hook can link back to this task
+SAFE_SID="${SESSION_ID//[^a-zA-Z0-9_-]/}"
+echo "$TASK_ID" > "/tmp/cc-agent-task-$SAFE_SID"
+
 # Extract optional [parentId:XXX] tag from description, then strip it from display name
 PARENT_TAG=$(echo "$RAW_NAME" | grep -oE '\[parentId:[^]]+\]' || true)
 if [ -n "$PARENT_TAG" ]; then

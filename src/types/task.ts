@@ -73,6 +73,7 @@ export interface Task {
   logs: LogEntry[]
   events?: HookEvent[] // tool events fired during this task's execution
   dependencies?: string[] // IDs of tasks this task must wait for
+  agentId?: string // subagent's agent_id from SubagentStart — matches agentId in session events
   lastAssistantMessage?: string // final summary from SubagentStop payload
   originatingSkill?: string // skill that spawned this task's session
   taskKind?: TaskKind // work, evaluation, or planning

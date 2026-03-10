@@ -151,11 +151,12 @@ interface TaskTableProps {
 }
 
 type SortCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
-type HideableCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
+type HideableCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
 
 const HIDEABLE_COLS: { col: HideableCol; label: string }[] = [
   { col: "task", label: "Task" },
   { col: "agent", label: "Agent" },
+  { col: "id", label: "Task ID" },
   { col: "status", label: "Status" },
   { col: "subtasks", label: "Subtasks" },
   { col: "progress", label: "Progress" },
@@ -751,6 +752,14 @@ function TaskRow({
         >
           {task.agentType}
         </button>
+      </TableCell>}
+
+      {/* Agent ID — patched from SubagentStart hook, matches agentId in GlobalEventStrip */}
+      {!hiddenCols.has("id") && <TableCell className="w-40 font-mono text-[11px] text-stone-500" onClick={(e) => e.stopPropagation()}>
+        {task.agentId
+          ? <span title={`Matches agentId in session events`} className="truncate block">{task.agentId}</span>
+          : <span className="text-stone-700 italic">—</span>
+        }
       </TableCell>}
 
       {/* Status */}
@@ -1414,6 +1423,14 @@ export function TaskTable({
               </TableHead>}
               {!hiddenCols.has("agent") && <TableHead className="w-32">
                 <SortHeader col="agent" label="Agent" sort={sort} onSort={handleSort} onHide={hideCol} />
+              </TableHead>}
+              {!hiddenCols.has("id") && <TableHead className="w-40">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-stone-500" title="Matches agentId in session events">Agent ID</span>
+                  <button onClick={() => hideCol("id")} className="text-stone-600 hover:text-stone-400 transition-colors" title="Hide column" aria-label="Hide column">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M20 4v16M4 20V4"></path></svg>
+                  </button>
+                </div>
               </TableHead>}
               {!hiddenCols.has("status") && <TableHead className="w-28">
                 <SortHeader col="status" label="Status" sort={sort} onSort={handleSort} onHide={hideCol} />
