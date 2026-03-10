@@ -37,8 +37,8 @@ Signal chain (post-production analogy):
 
 ```
 Claude Code Agent
-  → Hook scripts (scripts/pre-tool.sh / scripts/post-tool.sh)
-  → PATCH /api/tasks/:id  (json-server REST, port 3001)
+  → Hook scripts (scripts/pre-tool-agent.sh / scripts/post-tool-agent.sh, + session-event.sh)
+  → POST/PATCH /api/tasks/:id  (json-server REST, port 3001)
   → db.json               (flat-file state — the footage vault)
   → Vite dev server polls /api/tasks every 2.5s (port 5173)
   → React renders TaskTable (the theater screen)
@@ -55,13 +55,14 @@ Claude Code Agent
 |------|---------|
 | `src/components/TaskTable.tsx` | Main table (toolbar, rows, log detail, actions) |
 | `src/components/Dashboard.tsx` | Thin wrapper; passes tree/loading/refresh to TaskTable |
-| `src/hooks/useTaskPolling.ts` | Polling + client-side tree-building hook |
-| `src/types/task.ts` | TaskStatus, Task, TaskNode, LogEntry types |
+| `src/hooks/useTaskPolling.ts` | Polling + client-side tree-building + blocked state computation |
+| `src/types/task.ts` | TaskStatus, Task, TaskNode, HookEvent, SessionEvent types |
 | `src/index.css` | `@theme {}` with OKLCH stone colors + Figtree font |
 | `vite.config.ts` | Vite config (proxy, Tailwind v4 plugin, Vitest config) |
-| `db.json` | Live task state (written by hooks via REST, read by json-server) |
-| `scripts/pre-tool-agent.sh` | Claude Code PreToolUse hook |
-| `scripts/post-tool-agent.sh` | Claude Code PostToolUse hook |
+| `db.json` | Live task + session event state (written by hooks via REST, read by json-server) |
+| `scripts/pre-tool-agent.sh` | Claude Code PreToolUse hook (creates tasks) |
+| `scripts/post-tool-agent.sh` | Claude Code PostToolUse hook (updates task status) |
+| `scripts/session-event.sh` | Session-level event hook (all 18 Claude Code event types) |
 | `docs/FOR_ETHAN.md` | Full architecture log, bloopers, and director's commentary |
 
 ## Testing
@@ -101,6 +102,10 @@ Config is in `.rumdl.toml`. Disabled rules: MD024, MD033, MD036, MD040, MD057.
   `bun run test`). Tests use `@testing-library/react` + jsdom, which requires `vitest`.
 - **`bun run dev` runs 4 processes**: Vite, json-server, `tail -F logs/hooks.log`, and
   `bun scripts/spawn-terminal.ts`. All four must be running for hooks to appear in the dashboard.
+- **Session events are separate from tasks**: `db.json` has both `tasks[]` (created by Agent hooks)
+  and `sessionEvents[]` (created by session-level hooks). Session events capture every Claude Code
+  lifecycle event (UserPromptSubmit, SessionStart, SubagentStart, etc.). Tasks only exist for
+  Agent tool invocations. Both are polled by `useTaskPolling` at 2.5s intervals.
 - **Path aliases**: Use `@/` for `src/` imports (e.g. `@/components/TaskTable`). Handled by
   `vite-tsconfig-paths` — no manual config needed.
 - **Light mode = full stone scale inversion**: `:root.light` in `src/index.css` overrides every

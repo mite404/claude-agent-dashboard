@@ -10,7 +10,7 @@ and control buttons (cancel/pause/retry).
 
 ---
 
-## Current Status (as of 2026-03-09)
+## Current Status (as of 2026-03-10)
 
 ### ✅ Completed
 
@@ -335,52 +335,31 @@ output streams live in the same terminal as Vite and json-server logs.
     new-theme frame is painted (single RAF fires before paint — insufficient).
   - Table header hover state removed — header row no longer responds to hover in either theme.
 - [x] Increase log window from `max-h-64` → `max-h-96` (256px → 384px, ~17 visible rows)
-- [ ] **Skill attribution tracking** — Track which skill spawned each agent,
-  with source classification
+- [x] **Skill attribution tracking — Phase 1 (v1 MVP)** (✅ Completed 2026-03-10)
 
-  **Why**: Distinguish between Anthropic built-in skills, Vercel agents.sh, custom skills, and
-  community contributions. Useful for debugging and understanding agent execution chains,
-  especially when experimenting with new skills.
+  **Implemented**: Simple skill name tracking via `/skill-name` regex in `UserPromptSubmit` hook.
 
-  **Implementation**:
+  ```typescript
+  // src/types/task.ts
+  export interface SessionEvent {
+    originatingSkill?: string // e.g. "/review-pr"
+  }
 
-  1. Update `src/types/task.ts` — extend `TaskNode` interface:
+  export interface Task {
+    originatingSkill?: string // skill that spawned this task's session
+  }
+  ```
 
-     ```typescript
-     interface TaskNode {
-       // ... existing fields
-       originatingSkill?: {
-         name: string                                    // "review-pr", "audit-security"
-         source: "anthropic" | "vercel" | "custom" | "community"
-         author?: string                                 // skill creator
-         experimental?: boolean                          // flag for new/testing skills
-       }
-     }
-     ```
+  **How it works**:
+  1. `session-event.sh` detects `/skill-name` pattern from the prompt
+  2. Stores as `{ originatingSkill: "/skill-name" }` in the session event
+  3. `pre-tool-agent.sh` carries `originatingSkill` through to the task record
+  4. Dashboard stores the skill name for task attribution
 
-  2. Update hook script (`scripts/update-tasks.sh`) — capture skill metadata when creating tasks.
-     The hook should extract:
-     - Skill name/path from the environment or Claude Code context
-     - Source classification (can be hardcoded initially, made configurable later)
-     - Author from YAML frontmatter in the skill file
-
-  3. Update `TaskTable.tsx` — add filter dropdown for skill source (similar to Agent filter):
-
-     ```tsx
-     <FilterPopover
-       label="Skill Source"
-       options={['anthropic', 'vercel', 'custom', 'community']}
-       selected={skillSourceFilter}
-       onToggle={toggleSkillSourceFilter}
-       onClear={() => setSkillSourceFilter(new Set())}
-     />
-     ```
-
-  4. **UI option**: Show skill name + source badge in a new "Skill" column, or as a tooltip on
-     the task row for compact display.
-
-  **Benefit**: When testing a new `/my-new-skill`, you can filter to see all tasks it spawned,
-  track success rate, and compare against established Anthropic skills doing similar work.
+  **v2 Future enhancements** (not yet implemented):
+  - Source classification (anthropic | vercel | custom | community)
+  - Skill source UI filter (checkbox popover matching Status/Agent style)
+  - Author + experimental flag tracking
 
 ---
 
@@ -486,6 +465,68 @@ to derive `blockedBy` and override `status` to `"blocked"`.
 | `scripts/session-event.sh` | **New** |
 | `db.json` | Added `"sessionEvents": []` top-level collection |
 | `~/.claude/settings.json` | 11 hook event types registered |
+
+---
+
+## Phase 11 (✅ Completed 2026-03-09): Security Hardening + UX Polish
+
+---
+
+## Phase 12 (✅ Completed 2026-03-10): Hook Expansion + Testing
+
+**See also**: `docs/HOOK_EXPANSION.md` — detailed reference for all 18 Claude Code event types.
+
+This phase expanded hook coverage from 12 to 18 Claude Code event types, implemented skill
+attribution tracking (v1), fixed agent ID cross-referencing, and added component tests.
+
+### 12.1 Hook Expansion (18/18 events covered)
+
+Extended `session-event.sh` with 7 new case branches:
+
+| Event | Summary | Fields captured |
+|-------|---------|-----------------|
+| `SessionEnd` | Session exit | `.reason` |
+| `TeammateIdle` | Agent went idle | `.agent_id` |
+| `TaskCompleted` | Task finished | `.task_title`, `.task_id` |
+| `InstructionsLoaded` | CLAUDE.md loaded | `.file_path`, `.source` |
+| `ConfigChange` | settings.json changed | `.file_path`, `.source` |
+| `WorktreeCreate` | Worktree created | `.branch` |
+| `WorktreeRemove` | Worktree cleaned | `.branch` |
+
+All 18 events now post to `sessionEvents` collection with proper payload parsing.
+
+### 12.2 Skill Attribution (v1)
+
+`UserPromptSubmit` hook detects `/skill-name` pattern and stores `originatingSkill` string
+in both `SessionEvent` and task records. Enables filtering/tracking of skill-driven task chains.
+
+### 12.3 Agent ID Cross-Reference Fix
+
+**Problem**: Task table showed `toolu_*` (tool use ID) while session events showed short hex
+(agent ID) — two different IDs, confusing.
+
+**Solution**: `SubagentStart` hook now PATCHes the task record with the real `.agent_id`:
+
+1. `pre-tool-agent.sh` writes `TASK_ID` to temp file `/tmp/cc-agent-task-$SAFE_SID`
+2. `session-event.sh` (SubagentStart) reads that file; falls back to json-server query if empty
+3. PATCHes `{ agentId: <hex-agent-id> }` onto the task
+4. Task table Agent ID column now matches session event agent IDs
+
+### 12.4 Component Testing
+
+- `GlobalEventStrip` component tests added
+- Verified SESSION_EVENT_EMOJI map exhaustiveness via TypeScript Record type
+- All 18 event types have emoji + label support
+
+### 12.5 Files Changed
+
+| File | Change |
+|------|--------|
+| `scripts/session-event.sh` | 7 new `case` branches; SubagentStart temp-file + PATCH logic |
+| `src/types/task.ts` | SessionEventType union extended; 5 new optional fields on SessionEvent |
+| `src/components/TaskTable.tsx` | SESSION_EVENT_EMOJI exhaustive Record; 7 new emoji entries |
+| `~/.claude/settings.json` | 7 new hook registrations (all routed to `session-event.sh --event-type <EventName>`) |
+| `src/hooks/useTaskPolling.ts` | (no changes — existing poll loop picks up new sessionEvents automatically) |
 
 ---
 
