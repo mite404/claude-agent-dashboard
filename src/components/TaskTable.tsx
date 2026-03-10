@@ -351,7 +351,7 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
                   <td className={cn("px-2 py-0.5 font-bold w-12", LOG_LEVEL_STYLE[entry.level])}>
                     {LOG_LEVEL_LABEL[entry.level]}
                   </td>
-                  <td className={cn("px-2 py-0.5 pr-4 break-all", LOG_LEVEL_STYLE[entry.level])}>
+                  <td className={cn("px-2 py-0.5 pr-4 break-all whitespace-pre-wrap", LOG_LEVEL_STYLE[entry.level])}>
                     {entry.message}
                   </td>
                 </tr>
@@ -522,7 +522,10 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
                   <span className="w-16 shrink-0 font-mono text-[10px] text-stone-500">
                     {event.toolName}
                   </span>
-                  <span className="flex-1 truncate font-mono text-[10px] text-stone-400">
+                  <span
+                    className="flex-1 truncate font-mono text-[10px] text-stone-400"
+                    title={event.summary}
+                  >
                     {event.summary}
                   </span>
                   <span className={cn("shrink-0 font-mono text-[10px]", EVENT_STATUS_COLOR[event.status])}>
@@ -544,7 +547,7 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
 // ─── GlobalEventStrip ─────────────────────────────────────────────────────────
 
 function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => events.length > 0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom whenever new events arrive or the panel opens
@@ -597,7 +600,10 @@ function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
                   {event.type}
                 </span>
                 {/* Summary */}
-                <span className="flex-1 truncate font-mono text-[10px] text-stone-300">
+                <span
+                  className="flex-1 truncate font-mono text-[10px] text-stone-300"
+                  title={event.summary}
+                >
                   {event.summary}
                 </span>
                 {/* Skill pill — shown for UserPromptSubmit events with a skill */}
@@ -608,12 +614,12 @@ function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
                 )}
                 {/* Agent ID — fixed column, always present */}
                 <span
-                  className="w-24 shrink-0 truncate font-mono text-[10px] text-stone-500"
+                  className="w-36 shrink-0 truncate font-mono text-[10px] text-stone-500"
                   title={event.agentId
                     ? `${event.agentType ?? "agent"}: ${event.agentId}`
                     : undefined}
                 >
-                  {event.agentId ? event.agentId.slice(0, 8) : "—"}
+                  {event.agentId ?? "—"}
                 </span>
                 {/* Timestamp (24hr) */}
                 <span className="shrink-0 font-mono text-[10px] text-stone-600">
