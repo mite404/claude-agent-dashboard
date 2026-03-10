@@ -7,6 +7,8 @@ export type TaskStatus =
   | 'cancelled'
   | 'blocked' // computed client-side when dependencies are incomplete
 
+export type TaskKind = 'work' | 'evaluation' | 'planning'
+
 export type LogLevel = 'info' | 'warn' | 'error' | 'debug'
 
 export interface LogEntry {
@@ -53,6 +55,7 @@ export interface SessionEvent {
   error?: string // from PostToolUseFailure
   message?: string // from Notification
   notificationType?: string // from Notification
+  originatingSkill?: string // /skill-name detected in UserPromptSubmit
   data?: Record<string, unknown> // raw payload fields
 }
 
@@ -70,6 +73,10 @@ export interface Task {
   logs: LogEntry[]
   events?: HookEvent[] // tool events fired during this task's execution
   dependencies?: string[] // IDs of tasks this task must wait for
+  agentId?: string // subagent's agent_id from SubagentStart — matches agentId in session events
+  lastAssistantMessage?: string // final summary from SubagentStop payload
+  originatingSkill?: string // skill that spawned this task's session
+  taskKind?: TaskKind // work, evaluation, or planning
 }
 
 export interface TaskNode extends Task {

@@ -43,24 +43,48 @@ fi
 INPUT=$(cat)
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+SAFE_SID="${SESSION_ID//[^a-zA-Z0-9_-]/}"
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
 # Generate a unique-enough ID: timestamp + event type slug
 EVENT_ID="${NOW//[^0-9]/}-$(echo "$EVENT_TYPE" | tr '[:upper:]' '[:lower:]')"
 
 # ── Common agent fields ────────────────────────────────────────────────────────
-# agent_id and agent_type are present in ALL hook payloads when the hook fires
-# inside a subagent context (not just SubagentStart/SubagentStop).
-# Extracting them here makes attribution universal across all event types.
+# Extract agent_id and agent_type from the hook payload
 AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
 AGENT_TYPE=$(echo "$INPUT" | jq -r '.agent_type // empty')
+
+# For SubagentStart: write the subagent's actual agent_id back to the task record so the
+# task table can display the same ID shown in session events (for cross-reference)
+if [[ "$EVENT_TYPE" == "SubagentStart" ]] && [ -n "$AGENT_ID" ]; then
+  PARENT_TASK_ID=$(<"/tmp/cc-agent-task-$SAFE_SID" 2>/dev/null || true)
+  if [ -n "$PARENT_TASK_ID" ]; then
+    PATCH=$(jq -n --arg aid "$AGENT_ID" '{ agentId: $aid }')
+    curl -s -X PATCH "http://localhost:3001/tasks/$PARENT_TASK_ID" \
+      -H "Content-Type: application/json" \
+      -d "$PATCH" > /dev/null
+    log "INFO: patched task $PARENT_TASK_ID with agentId=$AGENT_ID"
+  fi
+fi
 
 # ── Event-specific summary and extra fields ────────────────────────────────────
 case "$EVENT_TYPE" in
   UserPromptSubmit)
     PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""')
     SUMMARY=$(echo "\"${PROMPT:0:100}\"")
-    EXTRA_FIELDS="{}"
+
+    # Detect /skill-name pattern and track for task attribution (Beat 1)
+    SKILL=""
+    if [[ "$PROMPT" == /* ]]; then
+      SKILL=$(echo "$PROMPT" | grep -oE '^/[^ ]+' | head -1)
+    fi
+
+    if [ -n "$SKILL" ]; then
+      EXTRA_FIELDS=$(jq -n --arg skill "$SKILL" '{ originatingSkill: $skill }')
+      echo "$SKILL" > "/tmp/cc-skill-$SAFE_SID"
+    else
+      EXTRA_FIELDS="{}"
+    fi
     ;;
   SessionStart)
     MODEL=$(echo "$INPUT" | jq -r '.model // "unknown"')
@@ -70,6 +94,8 @@ case "$EVENT_TYPE" in
   Stop)
     SUMMARY="session ended"
     EXTRA_FIELDS="{}"
+    # Clean up the skill temp file
+    rm -f "/tmp/cc-skill-$SAFE_SID"
     ;;
   SubagentStart)
     SUMMARY="agent ${AGENT_ID:-unknown} started"

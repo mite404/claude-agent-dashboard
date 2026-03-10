@@ -27,6 +27,8 @@ import {
   IconSun,
   IconMoon,
   IconBan,
+  IconMicroscope,
+  IconRuler,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -50,7 +52,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatElapsed, formatTimestamp } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/badge";
-import type { TaskNode, TaskStatus, LogEntry, HookEvent, SessionEvent, SessionEventType } from "@/types/task";
+import type { TaskNode, TaskStatus, LogEntry, HookEvent, SessionEvent, SessionEventType, TaskKind } from "@/types/task";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -149,11 +151,12 @@ interface TaskTableProps {
 }
 
 type SortCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
-type HideableCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
+type HideableCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
 
 const HIDEABLE_COLS: { col: HideableCol; label: string }[] = [
   { col: "task", label: "Task" },
   { col: "agent", label: "Agent" },
+  { col: "id", label: "Task ID" },
   { col: "status", label: "Status" },
   { col: "subtasks", label: "Subtasks" },
   { col: "progress", label: "Progress" },
@@ -349,7 +352,7 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
                   <td className={cn("px-2 py-0.5 font-bold w-12", LOG_LEVEL_STYLE[entry.level])}>
                     {LOG_LEVEL_LABEL[entry.level]}
                   </td>
-                  <td className={cn("px-2 py-0.5 pr-4 break-all", LOG_LEVEL_STYLE[entry.level])}>
+                  <td className={cn("px-2 py-0.5 pr-4 break-all whitespace-pre-wrap", LOG_LEVEL_STYLE[entry.level])}>
                     {entry.message}
                   </td>
                 </tr>
@@ -419,6 +422,11 @@ const SESSION_EVENT_EMOJI: Record<SessionEventType, string> = {
   PostToolUseFailure: "❌",
 };
 
+const TASK_KIND_ICON: Partial<Record<TaskKind, React.ReactNode>> = {
+  evaluation: <IconMicroscope size={11} className="text-sky-400" />,
+  planning:   <IconRuler size={11} className="text-violet-400" />,
+};
+
 function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
   return (
     <TableRow className="hover:bg-transparent border-b-0">
@@ -447,6 +455,27 @@ function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ─── AgentSummaryRow ──────────────────────────────────────────────────────────
+
+function AgentSummaryRow({ message, colSpan }: { message: string; colSpan: number }) {
+  return (
+    <TableRow className="hover:bg-transparent border-b-0">
+      <TableCell colSpan={colSpan} className="p-0">
+        <div className="mx-7.5 mb-2 rounded-(--radius) border border-stone-800 bg-stone-950">
+          <div className="border-b border-stone-800/60 bg-stone-900/60 px-3 py-2">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+              Agent Summary
+            </span>
+          </div>
+          <div className="whitespace-pre-wrap p-3 font-mono text-[11px] text-stone-300">
+            {message}
           </div>
         </div>
       </TableCell>
@@ -494,7 +523,10 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
                   <span className="w-16 shrink-0 font-mono text-[10px] text-stone-500">
                     {event.toolName}
                   </span>
-                  <span className="flex-1 truncate font-mono text-[10px] text-stone-400">
+                  <span
+                    className="flex-1 truncate font-mono text-[10px] text-stone-400"
+                    title={event.summary}
+                  >
                     {event.summary}
                   </span>
                   <span className={cn("shrink-0 font-mono text-[10px]", EVENT_STATUS_COLOR[event.status])}>
@@ -516,7 +548,7 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
 // ─── GlobalEventStrip ─────────────────────────────────────────────────────────
 
 function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => events.length > 0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom whenever new events arrive or the panel opens
@@ -569,17 +601,26 @@ function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
                   {event.type}
                 </span>
                 {/* Summary */}
-                <span className="flex-1 truncate font-mono text-[10px] text-stone-300">
+                <span
+                  className="flex-1 truncate font-mono text-[10px] text-stone-300"
+                  title={event.summary}
+                >
                   {event.summary}
                 </span>
+                {/* Skill pill — shown for UserPromptSubmit events with a skill */}
+                {event.type === 'UserPromptSubmit' && event.originatingSkill && (
+                  <span className="shrink-0 rounded bg-violet-950 px-1.5 py-0.5 font-mono text-[10px] text-violet-300 border border-violet-700">
+                    {event.originatingSkill}
+                  </span>
+                )}
                 {/* Agent ID — fixed column, always present */}
                 <span
-                  className="w-24 shrink-0 truncate font-mono text-[10px] text-stone-500"
+                  className="w-36 shrink-0 truncate font-mono text-[10px] text-stone-500"
                   title={event.agentId
                     ? `${event.agentType ?? "agent"}: ${event.agentId}`
                     : undefined}
                 >
-                  {event.agentId ? event.agentId.slice(0, 8) : "—"}
+                  {event.agentId ?? "—"}
                 </span>
                 {/* Timestamp (24hr) */}
                 <span className="shrink-0 font-mono text-[10px] text-stone-600">
@@ -688,7 +729,17 @@ function TaskRow({
           )}
 
           {/* Task name */}
-          <span className="truncate font-medium text-stone-100">{task.name}</span>
+          <span
+            className="truncate font-medium text-stone-100"
+            title={task.originatingSkill ? `initiated by ${task.originatingSkill}` : undefined}
+          >
+            {task.name}
+          </span>
+          {task.taskKind && TASK_KIND_ICON[task.taskKind] && (
+            <span className="shrink-0 ml-2">
+              {TASK_KIND_ICON[task.taskKind]}
+            </span>
+          )}
         </div>
       </TableCell>}
 
@@ -701,6 +752,14 @@ function TaskRow({
         >
           {task.agentType}
         </button>
+      </TableCell>}
+
+      {/* Agent ID — patched from SubagentStart hook, matches agentId in GlobalEventStrip */}
+      {!hiddenCols.has("id") && <TableCell className="w-40 font-mono text-[11px] text-stone-500" onClick={(e) => e.stopPropagation()}>
+        {task.agentId
+          ? <span title={`Matches agentId in session events`} className="truncate block">{task.agentId}</span>
+          : <span className="text-stone-700 italic">—</span>
+        }
       </TableCell>}
 
       {/* Status */}
@@ -1365,6 +1424,14 @@ export function TaskTable({
               {!hiddenCols.has("agent") && <TableHead className="w-32">
                 <SortHeader col="agent" label="Agent" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
+              {!hiddenCols.has("id") && <TableHead className="w-40">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-stone-500" title="Matches agentId in session events">Agent ID</span>
+                  <button onClick={() => hideCol("id")} className="text-stone-600 hover:text-stone-400 transition-colors" title="Hide column" aria-label="Hide column">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M20 4v16M4 20V4"></path></svg>
+                  </button>
+                </div>
+              </TableHead>}
               {!hiddenCols.has("status") && <TableHead className="w-28">
                 <SortHeader col="status" label="Status" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
@@ -1411,13 +1478,16 @@ export function TaskTable({
                     onAction={(action) => handleAction(task.id, action)}
                   />
                   {expandedLogs.has(task.id) && (
-                    (task.events?.length ?? 0) > 0
-                      ? <EventTrailRow task={task} colSpan={totalCols} />
-                      : task.children.length > 0
-                        ? <CheckpointRow task={task} colSpan={totalCols} />
-                        : task.logs.length > 0
-                          ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
-                          : null
+                    <>
+                      {(task.events?.length ?? 0) > 0
+                        ? <EventTrailRow task={task} colSpan={totalCols} />
+                        : task.children.length > 0
+                          ? <CheckpointRow task={task} colSpan={totalCols} />
+                          : task.logs.length > 0
+                            ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
+                            : null}
+                      {task.lastAssistantMessage && <AgentSummaryRow message={task.lastAssistantMessage} colSpan={totalCols} />}
+                    </>
                   )}
                 </React.Fragment>
               ))

@@ -22,6 +22,7 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""')
 EVENT_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // ""')
 SESSION_ID=$(echo "$SESSION_ID" | tr -cd 'a-zA-Z0-9_-')
+AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
 IS_ERROR=$(echo "$INPUT" | jq -r '(.tool_response // .tool_result // {}) | .is_error // false')
 
 # Skip Agent tool calls — handled by post-tool-agent.sh
@@ -42,23 +43,27 @@ else
   FINAL_STATUS="completed"
 fi
 
-# Find the running task for this session (task may still be running when sub-tool completes)
-TASK_JSON=$(curl -s "http://localhost:3001/tasks?sessionId=$SESSION_ID" | jq '[.[] | select(.status == "running" or .status == "paused")] | .[0] // empty')
+# Find the running task for this tool call
+# Two paths: direct lookup by agent_id (subagent context), fallback to sessionId query
+if [ -n "$AGENT_ID" ]; then
+  # Direct lookup: agent_id == tool_use_id == task.id in pre-tool-agent.sh
+  TASK_JSON=$(curl -s "http://localhost:3001/tasks/$AGENT_ID")
+  LOOKUP_METHOD="agent_id"
+else
+  # Fallback for main-session tool calls (no subagent context)
+  TASK_JSON=$(curl -s "http://localhost:3001/tasks?sessionId=$SESSION_ID" | jq '[.[] | select(.status == "running" or .status == "paused")] | .[0] // empty')
+  LOOKUP_METHOD="sessionId"
+fi
 
 if [ -z "$TASK_JSON" ] || [ "$TASK_JSON" = "null" ]; then
-  log "SKIP: no active task for session $SESSION_ID ($TOOL_NAME)"
+  log "SKIP: no active task found for $TOOL_NAME ($EVENT_ID) [via $LOOKUP_METHOD]"
   exit 0
 fi
 
 TASK_ID=$(echo "$TASK_JSON" | jq -r '.id')
 
-# Find the pre-event in the task's events array and update its status + completedAt
-EXISTING=$(curl -s "http://localhost:3001/tasks/$TASK_ID")
-
-if ! echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
-  log "SKIP: task $TASK_ID not found"
-  exit 0
-fi
+# TASK_JSON already contains the full task — no second fetch needed
+EXISTING="$TASK_JSON"
 
 # Check if this event ID exists in the events array
 HAS_EVENT=$(echo "$EXISTING" | jq --arg id "$EVENT_ID" '[.events // [] | .[] | select(.id == $id)] | length > 0')
@@ -88,7 +93,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
 if [ "$HTTP_CODE" = "200" ]; then
-  log "OK: updated event $EVENT_ID ($TOOL_NAME) → $FINAL_STATUS on task $TASK_ID"
+  log "OK: updated event ($TOOL_NAME) → $FINAL_STATUS on task $TASK_ID [via $LOOKUP_METHOD]"
 else
   log "ERROR: PUT /tasks/$TASK_ID failed (HTTP $HTTP_CODE) for event $EVENT_ID"
 fi

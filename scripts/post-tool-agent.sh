@@ -31,6 +31,10 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // ""')
 TASK_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
 IS_BG=$(echo "$INPUT" | jq -r '.tool_input.run_in_background // false')
 IS_ERROR=$(echo "$INPUT" | jq -r '(.tool_response // .tool_result // {}) | .is_error // false')
+LAST_MSG=$(echo "$INPUT" | jq -r '
+  (.tool_response // .tool_result // {}) |
+  .last_assistant_message // empty
+')
 TASK_NAME=$(echo "$INPUT" | jq -r '.tool_input.description // "Unnamed task"')
 SUBAGENT_TYPE=$(echo "$INPUT" | jq -r '.tool_input.subagent_type // "general-purpose"')
 
@@ -91,6 +95,7 @@ if echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
     --arg status "$STATUS" \
     --arg now "$NOW" \
     --arg sessionId "$SESSION_ID" \
+    --arg last_msg "$LAST_MSG" \
     --argjson progress "$PROGRESS" \
     --argjson newlog "$NEW_LOG" \
     '. + {
@@ -98,7 +103,8 @@ if echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
       completedAt: $now,
       progressPercentage: $progress,
       logs: (.logs + [$newlog]),
-      sessionId: (if $sessionId != "" then $sessionId else .sessionId end)
+      sessionId: (if $sessionId != "" then $sessionId else .sessionId end),
+      lastAssistantMessage: (if $last_msg != "" then $last_msg else .lastAssistantMessage end)
     }')
 
   RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK_ID" \
@@ -123,6 +129,7 @@ else
     --arg status "$STATUS" \
     --arg agent "$SUBAGENT_TYPE" \
     --arg now "$NOW" \
+    --arg last_msg "$LAST_MSG" \
     --argjson progress "$PROGRESS" \
     --argjson log "$NEW_LOG" \
     '{
@@ -135,7 +142,8 @@ else
       startedAt: $now,
       completedAt: (if $status == "running" then null else $now end),
       progressPercentage: $progress,
-      logs: [$log]
+      logs: [$log],
+      lastAssistantMessage: (if $last_msg != "" then $last_msg else null end)
     }')
 
   RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://localhost:3001/tasks" \
