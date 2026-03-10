@@ -49,6 +49,13 @@ else
   PROGRESS=100
 fi
 
+# Background tasks: the tool call returns immediately but the agent is still running.
+# Don't mark it complete — leave status as "running" so the dashboard stays accurate.
+if [ "$IS_BG" = "true" ]; then
+  log "INFO: background task $TASK_ID — skipping status update (agent still running)"
+  exit 0
+fi
+
 # Build the log entry
 NEW_LOG=$(echo "$INPUT" | jq \
   --arg now "$NOW" \
