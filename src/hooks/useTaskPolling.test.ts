@@ -1,4 +1,4 @@
-import { buildTree } from "./useTaskPolling";
+import { buildTree, computeBlockedState } from "./useTaskPolling";
 import type { Task } from "@/types/task";
 
 function createMockTask(overrides: Partial<Task>): Task {
@@ -59,5 +59,54 @@ describe("buildTree", () => {
 
     expect(result).toHaveLength(1); // there is 1 root in the array of TaskNodes (orphaned task elevated to root status)
     expect(result[0].id).toBe("1"); // the orphaned task IS the root
+  });
+});
+
+describe("computeBlockedState", () => {
+  it("does not mutate tasks without dependencies", () => {
+    const task = createMockTask({ id: "1", status: "running" });
+    computeBlockedState([task]);
+    expect(task.status).toBe("running");
+  });
+
+  it("marks a task blocked when its dependency is pending", () => {
+    const dep = createMockTask({ id: "dep-1", status: "pending" });
+    const task = createMockTask({ id: "task-1", status: "pending", dependencies: ["dep-1"] });
+    computeBlockedState([dep, task]);
+    expect(task.status).toBe("blocked");
+  });
+
+  it("marks a task blocked when its dependency is running", () => {
+    const dep = createMockTask({ id: "dep-1", status: "running" });
+    const task = createMockTask({ id: "task-1", status: "pending", dependencies: ["dep-1"] });
+    computeBlockedState([dep, task]);
+    expect(task.status).toBe("blocked");
+  });
+
+  it("does not mark a task blocked when its dependency is completed", () => {
+    const dep = createMockTask({ id: "dep-1", status: "completed" });
+    const task = createMockTask({ id: "task-1", status: "pending", dependencies: ["dep-1"] });
+    computeBlockedState([dep, task]);
+    expect(task.status).toBe("pending");
+  });
+
+  it("does not mark a task blocked when its dependency is cancelled", () => {
+    const dep = createMockTask({ id: "dep-1", status: "cancelled" });
+    const task = createMockTask({ id: "task-1", status: "pending", dependencies: ["dep-1"] });
+    computeBlockedState([dep, task]);
+    expect(task.status).toBe("pending");
+  });
+
+  it("ignores missing dependency IDs (not found in task list)", () => {
+    const task = createMockTask({ id: "task-1", status: "pending", dependencies: ["ghost-id"] });
+    computeBlockedState([task]);
+    expect(task.status).toBe("pending");
+  });
+
+  it("sets blockedBy with IDs of incomplete dependencies", () => {
+    const dep = createMockTask({ id: "dep-1", status: "running" });
+    const task = createMockTask({ id: "task-1", status: "pending", dependencies: ["dep-1"] });
+    computeBlockedState([dep, task]);
+    expect((task as { blockedBy?: string[] }).blockedBy).toEqual(["dep-1"]);
   });
 });

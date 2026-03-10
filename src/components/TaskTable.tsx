@@ -150,7 +150,7 @@ interface TaskTableProps {
   onThemeToggle: () => void;
 }
 
-type SortCol = "task" | "status" | "agent" | "subtasks" | "progress" | "duration";
+type SortCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
 type HideableCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
 
 const HIDEABLE_COLS: { col: HideableCol; label: string }[] = [
@@ -195,6 +195,8 @@ function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
       cmp = a.name.localeCompare(b.name);
     } else if (sort.col === "agent") {
       cmp = a.agentType.localeCompare(b.agentType);
+    } else if (sort.col === "id") {
+      cmp = (a.agentId ?? "").localeCompare(b.agentId ?? "");
     } else if (sort.col === "subtasks") {
       cmp = a.children.length - b.children.length;
     } else if (sort.col === "progress") {
@@ -420,6 +422,13 @@ const SESSION_EVENT_EMOJI: Record<SessionEventType, string> = {
   PermissionRequest:  "🔐",
   PreCompact:         "📦",
   PostToolUseFailure: "❌",
+  SessionEnd:         "🏁",
+  TeammateIdle:       "😴",
+  TaskCompleted:      "✅",
+  InstructionsLoaded: "📋",
+  ConfigChange:       "⚙️",
+  WorktreeCreate:     "🌿",
+  WorktreeRemove:     "🍂",
 };
 
 const TASK_KIND_ICON: Partial<Record<TaskKind, React.ReactNode>> = {
@@ -547,7 +556,7 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
 
 // ─── GlobalEventStrip ─────────────────────────────────────────────────────────
 
-function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
+export function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
   const [open, setOpen] = useState(() => events.length > 0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -581,13 +590,25 @@ function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
       </button>
 
       {open && (
-        <div ref={scrollRef} className="max-h-64 overflow-auto divide-y divide-stone-800/40">
-          {events.length === 0 ? (
-            <div className="px-3 py-3 text-xs text-stone-600 italic">
-              No session events yet — submit a user prompt to start.
+        <>
+          {/* Header row — outside scrollable container, no overlap */}
+          {events.length > 0 && (
+            <div className="flex items-center gap-2 px-3 h-10 bg-stone-900/60 border-b border-stone-800 text-stone-400 text-xs font-medium">
+              <span className="shrink-0 w-5" />
+              <span className="w-40 shrink-0 text-left">Event</span>
+              <span className="flex-1 truncate text-left">Summary</span>
+              <span className="w-36 shrink-0 text-left">Agent ID</span>
+              <span className="shrink-0 text-left font-mono">Time</span>
             </div>
-          ) : (
-            events.map((event) => (
+          )}
+          <div ref={scrollRef} className="max-h-64 overflow-auto divide-y divide-stone-800/40">
+            {events.length === 0 ? (
+              <div className="px-3 py-3 text-xs text-stone-600 italic">
+                No session events yet — submit a user prompt to start.
+              </div>
+            ) : (
+              <>
+                {events.map((event) => (
               <div
                 key={event.id}
                 className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-900/40 transition-colors"
@@ -627,9 +648,11 @@ function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
                   {formatTimestamp(event.timestamp)}
                 </span>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+              </>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
@@ -898,7 +921,7 @@ function SortHeader({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1 text-stone-400 hover:text-stone-200 transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded">
+        <button className="flex items-center gap-1 px-1.5 text-stone-400 hover:text-stone-200 transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded">
           {label}
           <span className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-40 group-hover:opacity-100")}>
             {isActive && sort.dir === "asc" ? (
@@ -1209,7 +1232,7 @@ export function TaskTable({
   const showCol = (col: HideableCol) =>
     setHiddenCols((prev) => { const next = new Set(prev); next.delete(col); return next; });
 
-  const totalCols = 8 - hiddenCols.size;
+  const totalCols = 9 - hiddenCols.size;
 
   const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "" || sessionFilter.size > 0;
   const hasCompletedTasks = collectAllTasks(tree).some(
@@ -1425,12 +1448,7 @@ export function TaskTable({
                 <SortHeader col="agent" label="Agent" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
               {!hiddenCols.has("id") && <TableHead className="w-40">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-[11px] font-bold uppercase tracking-widest text-stone-500" title="Matches agentId in session events">Agent ID</span>
-                  <button onClick={() => hideCol("id")} className="text-stone-600 hover:text-stone-400 transition-colors" title="Hide column" aria-label="Hide column">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M20 4v16M4 20V4"></path></svg>
-                  </button>
-                </div>
+                <SortHeader col="id" label="Agent ID" sort={sort} onSort={handleSort} onHide={hideCol} />
               </TableHead>}
               {!hiddenCols.has("status") && <TableHead className="w-28">
                 <SortHeader col="status" label="Status" sort={sort} onSort={handleSort} onHide={hideCol} />
