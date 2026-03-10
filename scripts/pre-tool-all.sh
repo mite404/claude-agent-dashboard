@@ -23,6 +23,7 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // ""')
 EVENT_ID=$(echo "$INPUT" | jq -r '.tool_use_id // "unknown"')
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // ""')
 SESSION_ID=$(echo "$SESSION_ID" | tr -cd 'a-zA-Z0-9_-')
+AGENT_ID=$(echo "$INPUT" | jq -r '.agent_id // empty')
 
 # Skip Agent tool calls — handled by pre-tool-agent.sh
 if [ "$TOOL_NAME" = "Agent" ] || [ "$TOOL_NAME" = "Task" ]; then
@@ -53,12 +54,20 @@ SUMMARY=$(echo "$INPUT" | jq -r \
 
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
-# Find the running task for this session
-# json-server supports field filtering: GET /tasks?status=running&sessionId=VALUE
-RUNNING_TASK=$(curl -s "http://localhost:3001/tasks?status=running&sessionId=$SESSION_ID" | jq '.[0] // empty')
+# Find the running task for this tool call
+# Two paths: direct lookup by agent_id (subagent context), fallback to sessionId query
+if [ -n "$AGENT_ID" ]; then
+  # Direct lookup: agent_id == tool_use_id == task.id in pre-tool-agent.sh
+  RUNNING_TASK=$(curl -s "http://localhost:3001/tasks/$AGENT_ID")
+  LOOKUP_METHOD="agent_id"
+else
+  # Fallback for main-session tool calls (no subagent context)
+  RUNNING_TASK=$(curl -s "http://localhost:3001/tasks?status=running&sessionId=$SESSION_ID" | jq '.[0] // empty')
+  LOOKUP_METHOD="sessionId"
+fi
 
 if [ -z "$RUNNING_TASK" ] || [ "$RUNNING_TASK" = "null" ]; then
-  log "SKIP: no running task for session $SESSION_ID ($TOOL_NAME)"
+  log "SKIP: no running task found for $TOOL_NAME ($EVENT_ID) [via $LOOKUP_METHOD]"
   exit 0
 fi
 
@@ -98,7 +107,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 
 if [ "$HTTP_CODE" = "200" ]; then
-  log "OK: appended pre-event $EVENT_ID ($TOOL_NAME) to task $TASK_ID"
+  log "OK: appended event to task $TASK_ID ($TOOL_NAME) [via $LOOKUP_METHOD]"
 else
   log "ERROR: PUT /tasks/$TASK_ID failed (HTTP $HTTP_CODE) for event $EVENT_ID"
 fi

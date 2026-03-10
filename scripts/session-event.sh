@@ -43,6 +43,7 @@ fi
 INPUT=$(cat)
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+SAFE_SID="${SESSION_ID//[^a-zA-Z0-9_-]/}"
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
 # Generate a unique-enough ID: timestamp + event type slug
@@ -60,7 +61,19 @@ case "$EVENT_TYPE" in
   UserPromptSubmit)
     PROMPT=$(echo "$INPUT" | jq -r '.prompt // ""')
     SUMMARY=$(echo "\"${PROMPT:0:100}\"")
-    EXTRA_FIELDS="{}"
+
+    # Detect /skill-name pattern and track for task attribution (Beat 1)
+    SKILL=""
+    if [[ "$PROMPT" == /* ]]; then
+      SKILL=$(echo "$PROMPT" | grep -oE '^/[^ ]+' | head -1)
+    fi
+
+    if [ -n "$SKILL" ]; then
+      EXTRA_FIELDS=$(jq -n --arg skill "$SKILL" '{ originatingSkill: $skill }')
+      echo "$SKILL" > "/tmp/cc-skill-$SAFE_SID"
+    else
+      EXTRA_FIELDS="{}"
+    fi
     ;;
   SessionStart)
     MODEL=$(echo "$INPUT" | jq -r '.model // "unknown"')
@@ -70,6 +83,8 @@ case "$EVENT_TYPE" in
   Stop)
     SUMMARY="session ended"
     EXTRA_FIELDS="{}"
+    # Clean up the skill temp file
+    rm -f "/tmp/cc-skill-$SAFE_SID"
     ;;
   SubagentStart)
     SUMMARY="agent ${AGENT_ID:-unknown} started"

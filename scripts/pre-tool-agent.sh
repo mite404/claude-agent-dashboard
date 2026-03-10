@@ -50,6 +50,32 @@ else
   DEPENDENCIES="[]"
 fi
 
+# Read the originating skill (if this session started with /skill-name) — Beat 2
+SAFE_SID="${SESSION_ID//[^a-zA-Z0-9_-]/}"
+SKILL_FILE="/tmp/cc-skill-$SAFE_SID"
+ORIGINATING_SKILL=""
+if [ -f "$SKILL_FILE" ]; then
+  ORIGINATING_SKILL=$(<"$SKILL_FILE")
+  ORIGINATING_SKILL="${ORIGINATING_SKILL//[^a-zA-Z0-9\/_-]/}"
+fi
+
+# Detect evaluation/planning vs. work tasks
+KIND_TAG=$(echo "$TASK_NAME" | grep -oE '\[kind:[^]]+\]' || true)
+if [ -n "$KIND_TAG" ]; then
+  TASK_KIND=$(echo "$KIND_TAG" | sed 's/\[kind://;s/\]//')
+  TASK_NAME=$(echo "$TASK_NAME" | sed 's/ \[kind:[^]]*\]//' | sed 's/\[kind:[^]]*\] //' | sed 's/\[kind:[^]]*\]//')
+else
+  # Infer from subagent type
+  case "$SUBAGENT_TYPE" in
+    *code-reviewer*|*reviewer*)
+      TASK_KIND="evaluation" ;;
+    *architect*|*planner*|*Plan*)
+      TASK_KIND="planning" ;;
+    *)
+      TASK_KIND="work" ;;
+  esac
+fi
+
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
 NEW_TASK=$(jq -n \
@@ -59,6 +85,8 @@ NEW_TASK=$(jq -n \
   --arg now "$NOW" \
   --arg parentId "$PARENT_ID" \
   --arg sessionId "$SESSION_ID" \
+  --arg skill "$ORIGINATING_SKILL" \
+  --arg kind "$TASK_KIND" \
   --argjson dependencies "$DEPENDENCIES" \
   '{
     id: $id,
@@ -75,7 +103,9 @@ NEW_TASK=$(jq -n \
       { timestamp: $now, level: "info", message: ("Task started: " + $name) }
     ],
     events: [],
-    dependencies: $dependencies
+    dependencies: $dependencies,
+    originatingSkill: (if $skill != "" then $skill else null end),
+    taskKind: $kind
   }')
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3001/tasks \
