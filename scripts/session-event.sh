@@ -114,6 +114,21 @@ case "$EVENT_TYPE" in
   SubagentStop)
     SUMMARY="agent ${AGENT_ID:-unknown} finished"
     EXTRA_FIELDS="{}"
+
+    # Mark the background task as completed when the subagent finishes
+    if [ -n "$AGENT_ID" ]; then
+      TASK=$(curl -s "http://localhost:3001/tasks?sessionId=$SESSION_ID" \
+        | jq "map(select(.agentId == \"$AGENT_ID\")) | .[0] // empty")
+
+      if [ -n "$TASK" ] && echo "$TASK" | jq -e '.id' > /dev/null 2>&1; then
+        TASK_ID=$(echo "$TASK" | jq -r '.id')
+        PATCH=$(jq -n --arg status "completed" --arg now "$NOW" '{ status: $status, completedAt: $now, progressPercentage: 100 }')
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "http://localhost:3001/tasks/$TASK_ID" \
+          -H "Content-Type: application/json" \
+          -d "$PATCH")
+        log "INFO: SubagentStop — marked task $TASK_ID as completed (HTTP $HTTP_STATUS)"
+      fi
+    fi
     ;;
   Notification)
     MESSAGE=$(echo "$INPUT" | jq -r '.message // ""')
