@@ -49,6 +49,7 @@ The current dashboard architecture has reached its limits for the orchestrator-w
 ### 2.1 Database Migration: JSON → SQLite
 
 **Why SQLite**:
+
 - ✅ ACID transactions (prevents race conditions)
 - ✅ Atomic updates (patch one field, others are safe)
 - ✅ Lightweight (no external process)
@@ -57,6 +58,7 @@ The current dashboard architecture has reached its limits for the orchestrator-w
 - ✅ Better query support (filtering, sorting at DB layer)
 
 **Implementation**:
+
 - Migrate json-server → custom Bun REST API (using `Bun.sqlite`)
 - Same REST endpoint interface (backward compatible with hooks)
 - Transactional updates: GET → PATCH becomes atomic UPDATE
@@ -187,6 +189,7 @@ CREATE TABLE schema_version (
 ### 2.3 Data Model Changes
 
 **New Task Fields**:
+
 - `status`: expanded from 7 to 8 states (added `unassigned`)
 - `priority`: new field (high/normal/low) set by orchestrator via Kanban
 - `claimed_by`: which agent claimed this task
@@ -194,12 +197,14 @@ CREATE TABLE schema_version (
 - `created_by`: who created the task (orchestrator or agent)
 
 **New Session Entity**:
+
 - `type`: orchestrator vs. agent
 - `parent_session_id`: links spawned agent to orchestrator
 - `status`: running / idle / stopped
 - `agent_type`: agent subtype (e.g., "general-purpose", "Explore")
 
 **Dropped Assumption**:
+
 - No more "parentId for subtasks" — focus on tasks created by orchestrator to be worked on by agents
 - Subtasks handled via `description` or future "task breakdown" feature
 
@@ -210,6 +215,7 @@ CREATE TABLE schema_version (
 ### Phase 1: SQLite + Drizzle Migration (2–3 days)
 
 **Tasks**:
+
 1. Install `drizzle-orm` and `drizzle-kit` (`bun add drizzle-orm drizzle-kit`)
 2. Define schema in `src/db/schema.ts` (TypeScript, not SQL)
 3. Create `src/db/index.ts` with Drizzle client initialization
@@ -222,6 +228,7 @@ CREATE TABLE schema_version (
 **Key Implementation Detail**:
 
 Use Drizzle's `update().where()` for atomic operations:
+
 ```typescript
 // This is atomic — both status AND claimedBy update together or neither does
 await db
@@ -231,12 +238,14 @@ await db
 ```
 
 **Deliverable**:
+
 - Same REST API endpoints (backward compatible with hooks)
 - SQLite backend with Drizzle ORM
 - Zero frontend changes
 - Atomic updates prevent race conditions
 
 **Risk Mitigation**:
+
 - Keep db.json as backup for 1 week post-migration
 - Validate record counts match after migration
 - Run concurrent claim tests before going live
@@ -244,6 +253,7 @@ await db
 ### Phase 2: Dashboard View & Session Hierarchy (3–4 days)
 
 **Tasks**:
+
 1. Add `sessions` table to schema
 2. Create SessionStart/SessionEnd hook logic to write sessions
 3. Build `<Dashboard />` component with metrics:
@@ -262,6 +272,7 @@ await db
 ### Phase 3: Kanban Board (3–4 days)
 
 **Tasks**:
+
 1. Add `priority` field to tasks schema
 2. Build `<KanbanBoard />` component:
    - Columns: Unassigned, Claimed, Running, Blocked, Completed
@@ -280,6 +291,7 @@ await db
 ### Phase 4: Task Assignment & Claiming (2–3 days)
 
 **Tasks**:
+
 1. Add `claimed_by`, `created_by`, `status: unassigned` to schema
 2. Add task claiming endpoints:
    - `POST /api/tasks/:id/claim { agentId }` — atomic claim operation
@@ -296,6 +308,7 @@ await db
 ### Phase 5: Focused Views & Settings (2 days)
 
 **Tasks**:
+
 1. Build `<Settings />` component:
    - View toggles: [✓] Show sessions, [✓] Show kanban, [✓] Show table, [ ] Show logs
    - Refresh rate slider (1s–30s)
@@ -309,6 +322,7 @@ await db
 ### Phase 6: Testing & Polish (2–3 days)
 
 **Tasks**:
+
 1. Unit tests for concurrent task updates (SQLite transactions)
 2. Integration tests for claim → update → complete flow
 3. E2E test with real multi-agent scenario (orchestrator + 3 agents)
@@ -333,6 +347,7 @@ await db
 | Turso (SQLite remote) | Sync-friendly, cloud backup | Requires auth, internet, costs | ❌ Add later |
 
 **Why Drizzle specifically**:
+
 - You already know it from Supabase/Postgres work
 - Same query syntax (`.select().from().where()`) — zero learning curve
 - Compile-time schema validation (catches typos at build time)
@@ -353,7 +368,8 @@ await db
 3. **Agent works** → `status: running` (execution)
 4. **Agent finishes** → `status: completed` (done)
 
-This prevents agents from accidentally starting work on a task before the orchestrator has finished describing it.
+This prevents agents from accidentally starting work on a task before the orchestrator has finished
+describing it.
 
 ---
 
