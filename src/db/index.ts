@@ -1,7 +1,9 @@
 import { drizzle } from 'drizzle-orm/bun-sqlite';
-import { Database } from 'bun:sqlite';
+import Database from 'better-sqlite3';
 
-const sqlite = new Database('local.db');
-const db = drizzle({ client: sqlite, casing: 'snake_case' });
+const sqlite = new Database('./data/dashboard.db');
 
-export { db };
+sqlite.pragma('journal_mode = WAL');
+sqlite.pragma('synchronous = NORMAL');
+
+export const db = drizzle({ client: sqlite, casing: 'snake_case' });
