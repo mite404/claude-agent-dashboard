@@ -216,50 +216,93 @@ text('parent_id')                 // nullable — no modifier needed
 
 ```typescript
 // src/db/schema.ts
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core'
 
-export const tasksTable = sqliteTable('tasks', {
-  id:                   text('id').___________,            // TODO: primary key
-  name:                 text('name').___________,          // TODO: required
-  status:               text('status').___________,        // TODO: required
-  agentType:            text('agent_type').___________,    // TODO: required
-  parentId:             text('parent_id'),                 // nullable — no modifier needed
-  sessionId:            text('session_id'),
-  createdAt:            text('created_at').___________,    // TODO: required
-  startedAt:            text('started_at'),
-  completedAt:          text('completed_at'),
-  progressPercentage:   integer('progress_percentage').___________, // TODO: default 0
-  agentId:              text('agent_id'),
-  lastAssistantMessage: text('last_assistant_message'),
-  originatingSkill:     text('originating_skill'),
-  taskKind:             text('task_kind'),
-  // JSON arrays — stored as text strings, parsed back in server.ts
-  logs:                 text('logs').___________, // TODO: default '[]'
-  events:               text('events').___________,        // TODO: default '[]'
-  dependencies:         text('dependencies').___________,  // TODO: default '[]'
+// Sessions table: tracks orchestrator and agent sessions
+export const sessionsTable = sqliteTable('sessions', {
+  id:              text('id').___________,                  // TODO: primary key
+  type:            text('type').___________,                // TODO: required, CHECK constraint
+  parentSessionId: text('parent_session_id'),               // nullable: only agents have parents
+  model:           text('model'),
+  agentType:       text('agent_type'),
+  status:          text('status').___________,              // TODO: required, CHECK constraint
+  createdAt:       text('created_at'),
+  stoppedAt:       text('stopped_at'),
 })
 
+// Tasks table: work units assigned to agents or orchestrator
+export const tasksTable = sqliteTable('tasks', {
+  id:                 text('id').___________,               // TODO: primary key
+  sessionId:          text('session_id').___________,       // TODO: required, foreign key to sessions
+  parentId:           text('parent_id'),                    // nullable: references tasks(id)
+  name:               text('name').___________,             // TODO: required
+  description:        text('description'),
+  status:             text('status').___________,           // TODO: required, CHECK constraint
+  kind:               text('kind'),                         // TODO: CHECK constraint
+  priority:           text('priority'),                     // TODO: CHECK constraint
+  createdBy:          text('created_by'),                   // 'orchestrator' or agent_id
+  claimedBy:          text('claimed_by'),                   // agent_id that claimed this task
+  progressPercentage: integer('progress_percentage').___________, // TODO: default 0
+  createdAt:          text('created_at'),
+  startedAt:          text('started_at'),
+  claimedAt:          text('claimed_at'),
+  completedAt:        text('completed_at'),
+})
+
+// Task dependencies: tracks which tasks block others
+export const taskDependenciesTable = sqliteTable(
+  'task_dependencies',
+  {
+    taskId:       text('task_id').___________,              // TODO: required, foreign key to tasks
+    dependsOnId:  text('depends_on_id').___________,        // TODO: required, foreign key to tasks
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.taskId, table.dependsOnId] }), // TODO: composite primary key
+  }),
+)
+
+// Logs table: task execution logs
+export const logsTable = sqliteTable('logs', {
+  id:        text('id').___________,                        // TODO: primary key
+  taskId:    text('task_id').___________,                   // TODO: required, foreign key to tasks
+  timestamp: text('timestamp'),
+  level:     text('level').___________,                     // TODO: default 'info'
+  message:   text('message'),
+})
+
+// Session events table: tracks all session lifecycle events
 export const sessionEventsTable = sqliteTable('session_events', {
-  id:        text('id').___________,             // TODO: primary key
-  type:      text('type').___________,           // TODO: required
-  timestamp: text('timestamp').___________,      // TODO: required
-  sessionId: text('session_id').___________,     // TODO: required
+  id:        text('id').___________,                        // TODO: primary key
+  sessionId: text('session_id').___________,                // TODO: required, foreign key to sessions
+  type:      text('type').___________,                      // TODO: required
   summary:   text('summary'),
+  timestamp: text('timestamp'),
   agentId:   text('agent_id'),
   agentType: text('agent_type'),
   model:     text('model'),
-  // All optional event-specific fields stored as a JSON blob
-  data:      text('data'),
+  data:      text('data'),                                  // JSON blob: event-specific fields
+})
+
+// Schema version table: tracks which migrations have been applied
+export const schemaVersionTable = sqliteTable('schema_version', {
+  version:   integer('version').___________,                // TODO: primary key
+  appliedAt: text('applied_at').___________,                // TODO: required, unique
 })
 ```
 
+**Key differences from a simplified tutorial schema:**
+
+- **Session hierarchy**: `parentSessionId` creates a tree (orchestrator → agents)
+- **Separate tables for logs**: Not JSON in tasks; proper relational design
+- **Proper constraints**: `kind`, `priority`, `status` have CHECK constraints
+- **Task claiming**: `createdBy` and `claimedBy` track who created and claimed tasks
+- **Schema versioning**: Tracks which migrations have run
+
 **Questions to answer before looking at the solution:**
 
-- Look at `agentType` in the code vs `agent_type` in the SQL column name. Who handles that
-  mapping between camelCase and snake_case?
-- Why is `createdAt` stored as `text` instead of a proper date type?
-- A future improvement is a separate `logs` table (with a `task_id` foreign key). What
-  would be the advantage of that over storing logs as JSON text in the tasks table?
+- Why does `tasksTable` need a foreign key to `sessionsTable`?
+- What's the purpose of the composite primary key in `taskDependenciesTable`?
+- Why are `logs` in a separate table instead of stored as JSON in `tasksTable`?
 
 ---
 
@@ -665,50 +708,96 @@ export default defineConfig({
 ### ✓ Challenge 2: Database Schema
 
 ```typescript
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core'
 
-export const tasksTable = sqliteTable('tasks', {
-  id:                   text('id').primaryKey(),
-  name:                 text('name').notNull(),
-  status:               text('status').notNull(),
-  agentType:            text('agent_type').notNull(),
-  parentId:             text('parent_id'),
-  sessionId:            text('session_id'),
-  createdAt:            text('created_at').notNull(),
-  startedAt:            text('started_at'),
-  completedAt:          text('completed_at'),
-  progressPercentage:   integer('progress_percentage').default(0),
-  agentId:              text('agent_id'),
-  lastAssistantMessage: text('last_assistant_message'),
-  originatingSkill:     text('originating_skill'),
-  taskKind:             text('task_kind'),
-  logs:                 text('logs').default('[]'),
-  events:               text('events').default('[]'),
-  dependencies:         text('dependencies').default('[]'),
+// Sessions table
+export const sessionsTable = sqliteTable('sessions', {
+  id:              text('id').primaryKey(),
+  type:            text('type').notNull(),
+  parentSessionId: text('parent_session_id').references((): any => sessionsTable.id),
+  model:           text('model'),
+  agentType:       text('agent_type'),
+  status:          text('status').notNull(),
+  createdAt:       text('created_at'),
+  stoppedAt:       text('stopped_at'),
 })
 
+// Tasks table
+export const tasksTable = sqliteTable('tasks', {
+  id:                 text('id').primaryKey(),
+  sessionId:          text('session_id').notNull()
+    .references((): any => sessionsTable.id),
+  parentId:           text('parent_id').references((): any => tasksTable.id),
+  name:               text('name').notNull(),
+  description:        text('description'),
+  status:             text('status').notNull(),
+  kind:               text('kind'),
+  priority:           text('priority'),
+  createdBy:          text('created_by'),
+  claimedBy:          text('claimed_by'),
+  progressPercentage: integer('progress_percentage').default(0),
+  createdAt:          text('created_at'),
+  startedAt:          text('started_at'),
+  claimedAt:          text('claimed_at'),
+  completedAt:        text('completed_at'),
+})
+
+// Task dependencies
+export const taskDependenciesTable = sqliteTable(
+  'task_dependencies',
+  {
+    taskId:       text('task_id').notNull()
+      .references((): any => tasksTable.id),
+    dependsOnId:  text('depends_on_id').notNull()
+      .references((): any => tasksTable.id),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.taskId, table.dependsOnId] }),
+  }),
+)
+
+// Logs table
+export const logsTable = sqliteTable('logs', {
+  id:        text('id').primaryKey(),
+  taskId:    text('task_id').notNull()
+    .references((): any => tasksTable.id),
+  timestamp: text('timestamp'),
+  level:     text('level').default('info'),
+  message:   text('message'),
+})
+
+// Session events table
 export const sessionEventsTable = sqliteTable('session_events', {
   id:        text('id').primaryKey(),
+  sessionId: text('session_id').notNull()
+    .references((): any => sessionsTable.id),
   type:      text('type').notNull(),
-  timestamp: text('timestamp').notNull(),
-  sessionId: text('session_id').notNull(),
   summary:   text('summary'),
+  timestamp: text('timestamp'),
   agentId:   text('agent_id'),
   agentType: text('agent_type'),
   model:     text('model'),
   data:      text('data'),
 })
+
+// Schema version
+export const schemaVersionTable = sqliteTable('schema_version', {
+  version:   integer('version').primaryKey(),
+  appliedAt: text('applied_at').notNull().unique(),
+})
 ```
 
 **Key points:**
 
-- Drizzle maps `agentType` (TypeScript camelCase) → `agent_type` (SQL snake_case)
-  automatically — you never have to think about this
-- `createdAt` is `text` because SQLite has no native date type. ISO strings like
-  `"2026-03-18T14:00:00.000Z"` sort and compare correctly as text, so this is fine
-- `logs`, `events`, `dependencies` are stored as JSON strings in a `text` column
-- A future improvement: a separate `logs` table (with a `task_id` foreign key) would let you
-  query individual logs, count them, filter by level, etc. Embedded JSON doesn't support that
+- **Session hierarchy**: `parentSessionId` references `sessions(id)` to create parent-child relationships
+  between orchestrator and agent sessions
+- **Task hierarchy**: `parentId` references `tasks(id)` for subtask nesting
+- **Foreign keys**: `sessionId` in tasks, `taskId` in logs — these ensure referential integrity
+- **Composite primary key**: `taskDependenciesTable` uses both `taskId` and `dependsOnId` as the PK
+  so you can't have duplicate task-dependency pairs
+- **Logs as a separate table**: Not embedded JSON — this lets you query logs independently, filter by
+  level, count by status, etc.
+- **Proper schema versioning**: Tracks which migrations have been applied (Challenge 5)
 
 ---
 

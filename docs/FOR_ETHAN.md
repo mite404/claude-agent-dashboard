@@ -1218,6 +1218,74 @@ break down with concurrent writes (two processes writing simultaneously would co
 large datasets (reading 10MB of JSON on every poll is slow). For this project, it's perfect. For a
 production system serving multiple users, you'd want SQLite at minimum.
 
+### On Drizzle's Type System: Generic vs. Inferred Types
+
+**The core problem:** When you type a Drizzle table definition, you face a choice between letting
+TypeScript infer the full type (column names, types, constraints) or declaring it as a generic
+`SQLiteTable`. This seems like a style preference, but it has real consequences for what code you
+can write.
+
+**Generic `SQLiteTable` — the trap:**
+
+```typescript
+export const sessionsTable: SQLiteTable = sqliteTable('sessions', {
+  id: text().primaryKey(),
+})
+
+// Later, in a foreign key reference:
+sessionId: text().references(() => sessionsTable.id)  // ← ERROR: 'id' does not exist
+```
+
+The error happens because `SQLiteTable` (without type parameters) is a generic type — it says "this
+is *a* table, but I don't know what columns it has." TypeScript can't prove that `sessionsTable.id`
+exists, so it rejects the code.
+
+**Inferred type — the solution:**
+
+```typescript
+export const sessionsTable = sqliteTable('sessions', {
+  id: text().primaryKey(),
+})
+
+// Later, in a foreign key reference:
+sessionId: text().references(() => sessionsTable.id)  // ✅ Works
+```
+
+When you drop the type annotation, TypeScript infers the full type from `sqliteTable()`. This type
+includes column information, so TypeScript knows `.id` exists. The inferred type is a **subtype** of
+`SQLiteTable` — it has all the general table properties *plus* specific column access.
+
+**When to use each:**
+
+- **Generic `SQLiteTable`**: Write utility functions that work with *any* table, regardless of
+columns. Example:
+
+  ```typescript
+  function logTableName(table: SQLiteTable) {
+    console.log(table.tableName)  // Only properties all tables have
+  }
+  ```
+
+- **Inferred type**: Always for table definitions. You need column access for queries and foreign
+keys.
+
+**On constraints and naming:**
+
+The difference between TypeScript and SQL names (camelCase vs snake_case) is separate from type
+safety. When you define a column, you specify constraints (`.primaryKey()`, `.notNull()`,
+`.unique()`, `.references()`) that apply *regardless* of naming:
+
+- **Unique keys**: A column needs `.unique()` when "no two rows should have the same value."
+- **Foreign keys**: A column needs `.references()` to point to another table. Multiple rows in the
+referencing table can point to the *same* parent — so `.unique()` is wrong on a foreign key.
+- **Primary keys**: `.primaryKey()` is implicitly unique. It's the table's single-row identifier.
+- **Casing**: With `casing: 'snake_case'` enabled on the database client, TypeScript keys (`appliedAt`)
+automatically become SQL column names (`applied_at`). The `.unique()` constraint still applies — it's
+just now enforcing uniqueness on the SQL column, not the TypeScript key.
+
+**The lesson:** Type annotations are convenient but expensive. Let TypeScript infer, especially when
+you're building references between tables. The inferred type is more specific and more useful.
+
 ### On Accessibility as a Design Constraint (Not an Afterthought)
 
 **The pattern:** When this project's UI was finished and "visually polished," a RAMS accessibility
