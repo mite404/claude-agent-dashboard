@@ -407,16 +407,20 @@ export default {
 Bun reads this and starts the server. The `fetch` property is Hono's internal request
 handler — you don't need to understand its internals, just know that this is the wiring.
 
-### The JSON Columns: Your Responsibility
+### The One JSON Field You Actually Have
 
-Remember those `text` columns for `logs`, `events`, and `dependencies`? When hooks POST
-data with those fields as arrays, you need to:
+Look back at your schema. Tasks use proper relational tables (`logsTable`,
+`taskDependenciesTable`) — no JSON columns on `tasksTable`. Tasks routes are clean: just
+insert and return the fields the schema defines.
 
-- **stringify before writing:** `JSON.stringify(body.logs)` before inserting
-- **parse after reading:** `JSON.parse(row.logs)` before returning to the client
+The **only** JSON field is `sessionEventsTable.data` — a catch-all blob for event-specific
+metadata. That one field needs serialize/parse treatment:
 
-The dashboard's `useTaskPolling` hook expects real arrays, not strings. If you forget this,
-the UI will break in a non-obvious way (logs will appear as a string `"[{...}]"`).
+- **stringify before writing:** `data: body.data ? JSON.stringify(body.data) : null`
+- **parse after reading:** `data: e.data ? JSON.parse(e.data) : undefined`
+
+Everything else (`tasksTable`, `sessionsTable`) is plain text/integer columns — no
+conversion needed.
 
 ### Drizzle Query Patterns
 
@@ -445,26 +449,6 @@ import { tasksTable, sessionEventsTable } from './db/schema'
 
 const app = new Hono()
 
-// Helper: parse stored JSON text back to arrays on every task row
-function parseTasks(rows: (typeof tasksTable.$inferSelect)[]) {
-  return rows.map(t => ({
-    ...t,
-    logs: JSON.parse(t.logs ?? '[]'),
-    events: JSON.parse(t.events ?? '[]'),
-    dependencies: JSON.parse(t.dependencies ?? '[]'),
-  }))
-}
-
-// Helper: stringify array fields before writing to database
-function serializeTask(task: Record<string, unknown>) {
-  return {
-    ...task,
-    logs:         task.logs         ? JSON.stringify(task.logs)         : '[]',
-    events:       task.events       ? JSON.stringify(task.events)       : '[]',
-    dependencies: task.dependencies ? JSON.stringify(task.dependencies) : '[]',
-  }
-}
-
 // ─── TASKS ───────────────────────────────────────────────────────────────────
 
 // GET /tasks  — list all, optionally filtered by ?status= or ?sessionId=
@@ -477,7 +461,7 @@ app.get('/tasks', async (c) => {
   // If one or both params exist, add eq() conditions and use and()
 
   const rows = [] // TODO: replace with real query
-  return c.json(parseTasks(rows))
+  return c.json(rows)
 })
 
 // GET /tasks/:id
@@ -485,15 +469,15 @@ app.get('/tasks/:id', async (c) => {
   const id = c.req.param('id')
   // TODO: select from tasksTable where id matches
   // TODO: if rows is empty, return c.json({ error: 'Not found' }, 404)
-  return c.json(/* parseTasks(rows)[0] */)
+  // TODO: return rows[0]
+  return c.json({})
 })
 
 // POST /tasks — called by pre-tool-agent.sh
 app.post('/tasks', async (c) => {
   const body = await c.req.json()
-  // TODO: serializeTask(body) before inserting
-  // TODO: db.insert(tasksTable).values(...).returning()
-  // TODO: return parseTasks(result)[0] with status 201
+  // TODO: db.insert(tasksTable).values({ id, name, sessionId, status, createdAt }).returning()
+  // TODO: return result[0] with status 201
   return c.json({}, 201)
 })
 
@@ -501,8 +485,7 @@ app.post('/tasks', async (c) => {
 app.patch('/tasks/:id', async (c) => {
   const id   = c.req.param('id')
   const body = await c.req.json()
-  // TODO: serializeTask(body) before updating
-  // TODO: db.update(tasksTable).set(...).where(eq(...)).returning()
+  // TODO: db.update(tasksTable).set(body).where(eq(...)).returning()
   // TODO: if result is empty, return 404
   return c.json({})
 })
@@ -519,15 +502,15 @@ app.delete('/tasks/:id', async (c) => {
 // GET /sessionEvents
 app.get('/sessionEvents', async (c) => {
   // TODO: select all from sessionEventsTable
-  // TODO: map rows to parse the data JSON field
+  // TODO: map rows — parse the `data` JSON field back to an object
   return c.json([])
 })
 
 // POST /sessionEvents — called by session-event.sh
 app.post('/sessionEvents', async (c) => {
   const body = await c.req.json()
-  // TODO: stringify body.data if it exists
-  // TODO: insert and return
+  // TODO: insert — stringify body.data before storing (it's the only JSON field)
+  // TODO: return result[0] with status 201
   return c.json({}, 201)
 })
 
@@ -541,8 +524,8 @@ export default {
 
 **Questions to answer before looking at the solution:**
 
-- Why do we need `parseTasks()` and `serializeTask()` as separate helpers instead of
-  inlining the JSON logic in each route?
+- Tasks have no JSON columns — so why does `sessionEventsTable` need serialize/parse
+  treatment but `tasksTable` does not?
 - The POST route returns status `201` but the PATCH route returns `200` (default). What
   does the HTTP status code communicate to the caller?
 - Why does `.returning()` matter on an insert? What happens without it?
@@ -837,25 +820,8 @@ import { tasksTable, sessionEventsTable } from './db/schema'
 
 const app = new Hono()
 
-function parseTasks(rows: (typeof tasksTable.$inferSelect)[]) {
-  return rows.map(t => ({
-    ...t,
-    logs:         JSON.parse(t.logs         ?? '[]'),
-    events:       JSON.parse(t.events       ?? '[]'),
-    dependencies: JSON.parse(t.dependencies ?? '[]'),
-  }))
-}
-
-function serializeTask(task: Record<string, unknown>) {
-  return {
-    ...task,
-    logs:         task.logs         ? JSON.stringify(task.logs)         : '[]',
-    events:       task.events       ? JSON.stringify(task.events)       : '[]',
-    dependencies: task.dependencies ? JSON.stringify(task.dependencies) : '[]',
-  }
-}
-
 // ─── TASKS ────────────────────────────────────────────────────────────────────
+// tasksTable has no JSON columns — plain insert/select/update/delete
 
 app.get('/tasks', async (c) => {
   const status    = c.req.query('status')
@@ -869,20 +835,26 @@ app.get('/tasks', async (c) => {
     ? await db.select().from(tasksTable).where(and(...conditions))
     : await db.select().from(tasksTable)
 
-  return c.json(parseTasks(rows))
+  return c.json(rows)
 })
 
 app.get('/tasks/:id', async (c) => {
   const id   = c.req.param('id')
   const rows = await db.select().from(tasksTable).where(eq(tasksTable.id, id))
   if (!rows.length) return c.json({ error: 'Not found' }, 404)
-  return c.json(parseTasks(rows)[0])
+  return c.json(rows[0])
 })
 
 app.post('/tasks', async (c) => {
   const body   = await c.req.json()
-  const result = await db.insert(tasksTable).values(serializeTask(body)).returning()
-  return c.json(parseTasks(result)[0], 201)
+  const result = await db.insert(tasksTable).values({
+    id:        crypto.randomUUID(),
+    name:      body.name,
+    sessionId: body.sessionId,
+    status:    body.status ?? 'unassigned',
+    createdAt: new Date().toISOString(),
+  }).returning()
+  return c.json(result[0], 201)
 })
 
 app.patch('/tasks/:id', async (c) => {
@@ -890,11 +862,11 @@ app.patch('/tasks/:id', async (c) => {
   const body   = await c.req.json()
   const result = await db
     .update(tasksTable)
-    .set(serializeTask(body))
+    .set(body)
     .where(eq(tasksTable.id, id))
     .returning()
   if (!result.length) return c.json({ error: 'Not found' }, 404)
-  return c.json(parseTasks(result)[0])
+  return c.json(result[0])
 })
 
 app.delete('/tasks/:id', async (c) => {
@@ -904,6 +876,7 @@ app.delete('/tasks/:id', async (c) => {
 })
 
 // ─── SESSION EVENTS ───────────────────────────────────────────────────────────
+// sessionEventsTable.data IS a JSON blob — the only field that needs serialize/parse
 
 app.get('/sessionEvents', async (c) => {
   const rows = await db.select().from(sessionEventsTable)
@@ -931,15 +904,17 @@ export default {
 
 **Key points:**
 
-- `parseTasks()` and `serializeTask()` are helpers to isolate JSON logic — if you inline it
-  in every route, you'll inevitably miss one and have a bug that's hard to trace
+- `tasksTable` has no JSON columns — logs live in `logsTable`, dependencies in
+  `taskDependenciesTable`. Tasks routes are clean Drizzle CRUD with no conversion logic.
+- `sessionEventsTable.data` is the only JSON field in the whole schema. You serialize
+  on write and parse on read for that one field only.
 - `201 Created` vs `200 OK`: `201` tells the caller that a new resource was created (not
   just that the request succeeded). Your hook scripts don't check this, but good APIs
-  communicate intent through status codes
+  communicate intent through status codes.
 - `.returning()` is essential after `insert` and `update` — without it, Drizzle returns
-  metadata (rows affected) not the actual saved record
+  metadata (rows affected) not the actual saved record.
 - The Vite proxy strips `/api` before forwarding. Hook scripts call the server directly
-  (no Vite proxy), so they use `http://localhost:3001/tasks` without `/api`
+  (no Vite proxy), so they use `http://localhost:3001/tasks` without `/api`.
 
 ---
 
