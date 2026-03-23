@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/index';
-import { tasksTable, sessionEventsTable } from './db/schema';
+import { tasksTable, sessionEventsTable, sessionsTable } from './db/schema';
 
 const app = new Hono();
 
@@ -39,6 +39,7 @@ const VALID_STATUSES = [
 app.get('/tasks', async (c) => {
   const status = c.req.query('status');
   const sessionId = c.req.query('sessionId');
+  console.log('GET /tasks called with:', { status, sessionId });
 
   if (!status || !sessionId) {
     return c.json({ error: 'status and sessionId required' }, 400);
@@ -53,6 +54,7 @@ app.get('/tasks', async (c) => {
     .from(tasksTable)
     .where(and(eq(tasksTable.status, status), eq(tasksTable.sessionId, sessionId)));
 
+  console.log('Query returned:', rows.length, 'rows');
   return c.json({ data: rows });
 });
 
@@ -97,3 +99,16 @@ app.post('/tasks', async (c) => {
   const task = parseTasks(result)[0];
   return c.json({ task }, 201);
 });
+
+app.get('/debug/sessions', async (c) => {
+  const sessions = await db.select().from(sessionsTable);
+
+  return c.json({ sessions });
+});
+
+const PORT = parseInt(Bun.env.PORT || '3000');
+
+export default {
+  fetch: app.fetch,
+  port: PORT,
+};
