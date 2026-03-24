@@ -4,8 +4,8 @@ import * as schema from './schema';
 
 const sqlite = new Database('./data/dashboard.db');
 
-sqlite.exec('PRAGMA journal_mode = WAL');
-sqlite.exec('PRAGMA synchronous = NORMAL');
+sqlite.run('PRAGMA journal_mode = WAL');
+sqlite.run('PRAGMA synchronous = NORMAL');
 
 export const db = drizzle({
   client: sqlite,

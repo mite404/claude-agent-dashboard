@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey, json } from 'drizzle-orm/sqlite-core';
 
 export const sessionsTable = sqliteTable('sessions', {
   id: text().primaryKey(),
@@ -67,7 +67,7 @@ export const sessionEventsTable = sqliteTable('session_events', {
   agentId: text().unique(),
   agentType: text().unique(),
   model: text(),
-  metadata: text(),
+  metadata: json().default(null),
 });
 
 export const schemaVersion = sqliteTable('schema_version', {

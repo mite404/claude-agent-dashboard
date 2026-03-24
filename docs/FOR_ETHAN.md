@@ -2364,3 +2364,538 @@ useEffect(() => { el.scrollTop = el.scrollHeight; }, [events.length, open]);
 // Wrong — fires on every event mutation (status updates, timestamps)
 useEffect(() => { el.scrollTop = el.scrollHeight; }, [events, open]);
 ```
+
+---
+
+## Pattern: Request Logging in HTTP Handlers (2026-03-23)
+
+### The Concept
+
+Every HTTP request has a signal chain:
+
+```
+REQUEST → PARSE INPUT → VALIDATE → QUERY DB → TRANSFORM → SEND RESPONSE
+```
+
+You need to know **three things** at each stage to debug production issues:
+
+1. **What did the client ask for?** (request intent)
+2. **What did the system find?** (database truth)
+3. **What did we send back?** (response contract)
+
+Without these markers, an error in production is a mystery. With them, you can trace the exact
+path the request took and where it broke.
+
+### The Pattern: Three Log Points
+
+**Analogy:** Think of logging like the director's calls on a film set. "Action" is when something
+starts, "cut" is when it ends. Between them, we mark the takes that matter:
+
+```typescript
+app.post('/endpoint', async (c) => {
+  // Stage 1: PARSE INPUT
+  let body;
+  try {
+    body = await c.req.json();
+  } catch (error) {
+    console.error('❌ Failed to parse JSON:', error.message);
+    return c.json({ error: 'Bad request' }, 400);
+  }
+
+  // Stage 2: LOG THE REQUEST (the "slate")
+  console.log('📩 POST /endpoint called with:', { key1: body.key1, key2: body.key2 });
+
+  // Stage 3: VALIDATE INPUT (expected failures)
+  if (!body.key1 || !body.key2) {
+    console.error('❌ Missing required fields:', { hasKey1: !!body.key1, hasKey2: !!body.key2 });
+    return c.json({ error: 'key1 and key2 required' }, 400);
+  }
+
+  // Stage 4: EXECUTE BUSINESS LOGIC (unexpected failures)
+  try {
+    console.log('🔄 Querying database for:', { key1: body.key1 });
+    const result = await db.insert(...).values({...}).returning();
+
+    console.log('✅ Success: created ID', result[0].id, 'with status', result[0].status);
+    return c.json(result[0], 201);
+  } catch (error) {
+    console.error('❌ Database error:', error.message);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+```
+
+### Breaking Down the Three Zones
+
+**Zone 1: Input Parsing (try/catch)**
+- Wraps **async input** that might throw unexpectedly
+- JSON parsing, headers, file reads — anything the client sends
+- Log the error; return a 400 (bad request)
+
+```typescript
+try {
+  body = await c.req.json();
+} catch (error) {
+  console.error('Malformed JSON:', error.message);
+  return c.json({ error: 'Bad request' }, 400);
+}
+```
+
+**Zone 2: Request Entry (console.log)**
+- Logs the **intent** with minimal data loss
+- Captured early, before any state changes
+- Answer: "What did the client ask for?"
+
+```typescript
+console.log('POST /tasks called with:', { name: body.name, sessionId: body.sessionId });
+```
+
+**Zone 3: Validation (if/else)**
+- Uses **conditions you expect** and can handle
+- Missing fields, invalid enums, not found — normal error paths
+- Log what's missing; return a 400
+
+```typescript
+if (!body.name || !body.sessionId) {
+  console.error('Missing required:', { hasName: !!body.name, hasSessionId: !!body.sessionId });
+  return c.json({ error: 'name and sessionId required' }, 400);
+}
+```
+
+**Zone 4: Execution (try/catch + logging)**
+- Wraps **business logic** that might fail unexpectedly
+- Database queries, external APIs, file operations
+- Log **before** (what you're about to do) and **after** (what you got)
+
+```typescript
+try {
+  console.log('Inserting task:', { name: body.name, sessionId: body.sessionId });
+  const result = await db.insert(tasksTable).values({...}).returning();
+
+  console.log('Task inserted:', { id: result[0].id, status: result[0].status });
+  return c.json(result[0], 201);
+} catch (error) {
+  console.error('Failed to insert task:', error.message);
+  return c.json({ error: 'Database error' }, 500);
+}
+```
+
+---
+
+### Conceptual Foundation: The Three Stages
+
+Before we look at real code, understand that **every request follows three stages**:
+
+```
+STAGE 1: EXTRACT/PARSE INPUT
+(Get data from the request)
+    ↓
+STAGE 2: VALIDATE
+(Check the data is usable)
+    ↓
+STAGE 3: QUERY/MODIFY DB
+(Use the clean data)
+```
+
+**What happens at each stage:**
+
+**Stage 1: Extract/Parse Input** — Get data from the request
+- Extract query params: `c.req.query('sessionId')` → always a string (no try/catch needed)
+- Parse JSON body: `c.req.json()` → might throw (try/catch needed)
+- Extract URL params: `c.req.param('id')` → always a string (no try/catch needed)
+
+**Stage 2: Validate** — Check the data exists and is in the right format
+- Is the field present? `if (!sessionId) { return error }`
+- Is it the right type? Check enums, formats, ranges
+- Always use if/else — these are expected failures
+
+**Stage 3: Query/Modify DB** — Use the clean data to access the database
+- `await db.select().from(...).where(...)`
+- Wrap in try/catch — database errors are unexpected
+
+**Why this matters:** Each stage has a different purpose and different error handling. Mixing them up
+is where bugs hide.
+
+---
+
+### Real Example: GET /sessionEvents (All Three Stages)
+
+Here's how the three stages look in practice with your actual code:
+
+```typescript
+// GET /sessionEvents
+app.get('/sessionEvents', async (c) => {
+  // ─────── STAGE 1: EXTRACT ───────
+  const sessionId = c.req.query('sessionId');  // ← Extract from URL (no try/catch)
+  console.log('GET /sessionEvents called with:', sessionId);
+
+  // ─────── STAGE 2: VALIDATE ───────
+  if (!sessionId) {  // ← Validate it exists (if/else)
+    console.error('Missing required sessionId:', { hasSessionId: !!sessionId });
+    return c.json({ error: 'sessionId required' }, 400);
+  }
+
+  // ─────── STAGE 3: QUERY DB ───────
+  try {  // ← Database operation (try/catch)
+    const rows = sessionId
+      ? await db
+          .select()
+          .from(sessionEventsTable)
+          .where(eq(sessionEventsTable.sessionId, sessionId))
+      : await db.select().from(sessionEventsTable);
+
+    console.log('Query returned:', {
+      rows: rows.length,
+      id: rows[0]?.id,
+      sessionId: rows[0]?.id,
+    });
+
+    return c.json(
+      rows.map((e) => ({
+        ...e,
+        metadata: e.metadata ? JSON.parse(e.metadata) : undefined,
+      })),
+    );
+  } catch (error) {  // ← Catch unexpected DB errors
+    console.error('Query failed:', error.message);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+```
+
+**Notice:**
+- **Stage 1** (extract): No try/catch. Query params are always strings.
+- **Stage 2** (validate): if/else. You expect some requests to be missing sessionId.
+- **Stage 3** (query): try/catch. Database errors are unexpected.
+
+---
+
+### Real Example: POST /tasks in server.ts
+
+```typescript
+// POST /tasks - called by pre-tool-agent.sh
+app.post('/tasks', async (c) => {
+  let body;
+
+  // Zone 1: Parse
+  try {
+    body = await c.req.json();
+  } catch (error) {
+    console.error('Malformed JSON response', error);
+    return c.json({ error: 'Bad request' }, 400);
+  }
+
+  // Zone 2: Log request
+  console.log('POST /tasks called with:', { name: body.name, sessionId: body.sessionId });
+
+  // Zone 3: Validate
+  if (!body.name || !body.sessionId) {
+    console.error('Missing required fields:', { hasName: !!body.name, hasSessionId: !!body.sessionId });
+    return c.json({ error: 'name and sessionId required' }, 400);
+  }
+
+  // Zone 4: Execute
+  try {
+    console.log('Inserting task:', { name: body.name, sessionId: body.sessionId });
+    const result = await db
+      .insert(tasksTable)
+      .values({
+        id: crypto.randomUUID(),
+        name: body.name,
+        sessionId: body.sessionId,
+        status: 'unassigned',
+        createdAt: new Date().toISOString(),
+      })
+      .returning();
+
+    console.log('Task inserted successfully:', { id: result[0].id, status: result[0].status });
+    return c.json(result[0], 201);
+  } catch (error) {
+    console.error('Failed to insert task:', error);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+```
+
+### When to Use console.log vs console.error
+
+- **console.log** — Informational flow ("request came in", "query returned 5 rows", "response sent")
+- **console.error** — Something went wrong ("validation failed", "database threw", "JSON unparseable")
+
+In production with proper logging libraries (like Pino), these map to different levels (`info` vs
+`error`), which let you filter and alert separately. For now, the distinction matters for clarity.
+
+### The Lesson: Explicit Over Implicit
+
+Without these logs, you have:
+- A 500 error response, but no idea which code path was taken
+- A database failure, but no way to know what the request was asking for
+
+With them, you have a **breadcrumb trail**: "client asked for X, system checked Y, database did Z,
+sent back response." That trail is the difference between "something broke" and "something broke
+**here**, **because of that**, and **here's how to fix it**."
+
+---
+
+### Adapting the Pattern: GET vs POST vs PATCH vs DELETE
+
+The four-zone pattern works for all HTTP methods, but what you log **changes** depending on the
+operation. Use this memory hook: **"CRUD → Log the Boundaries"** — think of what **enters** and
+what **exits**.
+
+```
+GET     → enters: filters/queries | exits: data        → log both
+POST    → enters: body            | exits: new ID      → log both
+PATCH   → enters: ID + body       | exits: updated     → log all three
+DELETE  → enters: ID              | exits: deleted OK   → log both
+```
+
+#### GET Requests: Log the Filter, Log the Result
+
+Query parameters don't need try/catch (they're always strings). Log what you're looking for and
+what you found:
+
+```typescript
+app.get('/tasks', async (c) => {
+  const status = c.req.query('status');
+  const sessionId = c.req.query('sessionId');
+  console.log('GET /tasks called with:', { status, sessionId });  // ← What you're looking for
+
+  if (!status || !sessionId) {
+    console.error('Missing required query:', { hasStatus: !!status, hasSessionId: !!sessionId });
+    return c.json({ error: 'status and sessionId required' }, 400);
+  }
+
+  try {
+    const rows = await db.select().from(tasksTable).where(...);
+    console.log('Query returned:', rows.length, 'rows');  // ← What you found
+    return c.json({ data: rows });
+  } catch (error) {
+    console.error('Query failed:', error.message);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+```
+
+#### POST Requests: Log the Body, Log the New ID
+
+Full four-zone pattern — parse, log, validate, execute:
+
+```typescript
+app.post('/tasks', async (c) => {
+  let body;
+  try {
+    body = await c.req.json();
+  } catch (error) {
+    console.error('Malformed JSON:', error.message);
+    return c.json({ error: 'Bad request' }, 400);
+  }
+
+  console.log('POST /tasks called with:', { name: body.name, sessionId: body.sessionId });
+
+  if (!body.name || !body.sessionId) {
+    console.error('Missing required fields:', { hasName: !!body.name, hasSessionId: !!body.sessionId });
+    return c.json({ error: 'name and sessionId required' }, 400);
+  }
+
+  try {
+    const result = await db.insert(tasksTable).values({...}).returning();
+    console.log('Task created:', { id: result[0].id, status: result[0].status });
+    return c.json(result[0], 201);
+  } catch (error) {
+    console.error('Failed to insert:', error.message);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+```
+
+#### PATCH Requests: Log ID, Log What's Changing, Log the Result
+
+Update operations need three logs: which resource, what's changing, what resulted:
+
+```typescript
+app.patch('/tasks/:id', async (c) => {
+  const id = c.req.param('id');
+  let body;
+
+  try {
+    body = await c.req.json();
+  } catch (error) {
+    console.error('Malformed JSON:', error.message);
+    return c.json({ error: 'Bad request' }, 400);
+  }
+
+  console.log('PATCH /tasks/:id called:', { id, updating: Object.keys(body) });
+
+  try {
+    // Check if exists first
+    const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+    if (!existing.length) {
+      console.error('Task not found:', id);
+      return c.json({ error: 'task not found' }, 404);
+    }
+
+    // Then update
+    console.log('Updating task:', { id, fields: Object.keys(body) });
+    const result = await db.update(tasksTable).set(body).where(eq(tasksTable.id, id)).returning();
+
+    console.log('Task updated:', { id, newStatus: result[0].status });
+    return c.json(result[0]);
+  } catch (error) {
+    console.error('Failed to update task:', error.message);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+```
+
+#### DELETE Requests: Log the ID, Confirm It's Gone
+
+No body to parse. Log what you're deleting and confirm it happened:
+
+```typescript
+app.delete('/tasks/:id', async (c) => {
+  const id = c.req.param('id');
+
+  if (!id) {
+    console.error('Missing ID param');
+    return c.json({ error: 'id required' }, 400);
+  }
+
+  try {
+    console.log('Deleting task:', id);
+    const result = await db.delete(tasksTable).where(eq(tasksTable.id, id)).returning();
+
+    if (!result.length) {
+      console.error('Task not found for deletion:', id);
+      return c.json({ error: 'task not found' }, 404);
+    }
+
+    console.log('Task deleted:', id);
+    return c.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to delete task:', error.message);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+```
+
+---
+
+### Quick Reference: HTTP Method Logging Cheat Sheet
+
+| Method | Input Zone | Log Entry | Log Success |
+|--------|-----------|-----------|-------------|
+| **GET /list** | Query params | "called with filters X" | "found N rows" |
+| **GET /:id** | URL param | "looking for ID X" | "found/not found" |
+| **POST** | Parse body | "received body with keys X" | "created ID X with status Y" |
+| **PATCH /:id** | Parse body + ID | "updating ID X with fields Y" | "updated, new status Z" |
+| **DELETE /:id** | URL param | "deleting ID X" | "deleted / not found" |
+
+**The pattern is always the same:** Log what enters, validate, execute with try/catch, log what
+results. Only the **details** of what to log change based on what the HTTP method does.
+
+---
+
+### Senior Engineer Note: Why This Matters for Your Portfolio
+
+When someone reviews your `server.ts`, they'll immediately see:
+- Do you understand request/response contracts?
+- Do you think about the common failure modes?
+- Can you debug production issues later?
+
+Good logging answers all three. It shows you're thinking like someone who has to support code at
+2 AM when something breaks.
+
+---
+
+### Your Learning Path: Weak Points & Study Areas
+
+You've implemented the logging pattern well. Here's what you struggled with and what to study next:
+
+#### 1. **API Contract Definition** (Weakest Point)
+
+**What you struggled with:** Identifying which fields are actually required for an endpoint. You
+initially validated `name` for sessionEvents (a tasks field), then had to look at the schema and
+hook script to figure out the real contract.
+
+**What to study:**
+- Before you write a handler, document what the client **will send** and what the server
+  **guarantees to return**
+- Create a simple interface or comment above each endpoint:
+  ```typescript
+  // POST /sessionEvents
+  // Input: { sessionId: string, type: string, summary?: string, metadata?: object }
+  // Output: { id: string, sessionId: string, type: string, ... }
+  // Errors: 400 (missing sessionId/type), 500 (DB error)
+  ```
+- Read: REST API design best practices — understand how to think about requests/responses as a contract
+
+#### 2. **HTTP Status Codes** (Moderate Point)
+
+**What you struggled with:** You initially returned 400 (Bad Request) for database errors when
+it should be 500 (Internal Server Error). The semantic difference matters:
+- 4xx = Client's fault (bad input, not found, etc.)
+- 5xx = Server's fault (database crashed, unexpected error, etc.)
+
+**What to study:**
+- HTTP status codes: 400, 404, 409, 500, 503 and when to use each
+- The rule: if the client can fix it by changing their request, use 4xx. If the server has a
+  problem, use 5xx.
+
+#### 3. **Silent Failures** (Moderate Point)
+
+**What you did right:** You caught this during review. You initially didn't log "task not found"
+errors — they were silent returns.
+
+**Why this matters:** If a client can't find a resource, that's a real failure state. Logging it
+means you can later debug "why are clients getting 404s?" by checking the logs.
+
+**What to study:** Every if/else that returns an error should have a corresponding
+`console.error()` call. If you ever need to debug why users are getting errors, logs are your
+only clue.
+
+#### 4. **Input Validation vs Transformation** (Good Instinct, Needs Depth)
+
+**What you got right:** You asked the question "do we need to transform or just validate?" This
+is senior-level thinking.
+
+**What to study deeper:**
+- **Validation** = "Is this the right format and does it exist?"
+- **Transformation** = "Convert this format into a different format (string → Date, snake_case
+  → camelCase, etc.)"
+- Most of your endpoints validate. Some will need transformation later (like date strings →
+  Date objects). Know the difference.
+
+#### 5. **Logging Specificity** (Good Overall, Minor Gaps)
+
+**What you did well:** Most of your logs are specific. `console.log('Task inserted:', { id,
+status })` tells you exactly what happened.
+
+**What needs work:**
+- Don't log entire objects: `console.error('Failed:', error)` — include `error.message` or
+  `error.code`
+- Log action + context: "Task not found" is less clear than "Task not found for deletion: abc123"
+
+**What to study:** Structured logging — what fields matter for each decision point?
+
+---
+
+### Next Steps for Mastery
+
+1. **Read:** REST API best practices guide (understand the contract pattern)
+2. **Read:** HTTP status codes semantics (4xx vs 5xx, specific codes)
+3. **Practice:** Write the "Input/Output" comments above every endpoint BEFORE you code it
+4. **Practice:** For each error case, ask: "If I see this error in production logs, will I know
+   what happened?" If the answer is no, add more context to the log.
+
+**The Senior Engineer Question:** After you write a handler, imagine it's 2 AM, the app is
+broken, and all you have is the logs. Can you trace exactly what the client sent, what the
+server did, and where it failed? If yes, you're done. If no, add more logging.
+
+---
+
+### A Word on Growth
+
+You learned this logging pattern in one session and applied it consistently across 8 endpoints.
+That's solid progress. The weak points above aren't failures — they're just the next layer of
+depth. Every senior engineer had to learn these distinctions.
