@@ -634,6 +634,65 @@ for reference, no longer rendered.
 
 ---
 
+## Phase 13 (✅ Completed 2026-03-26): SQLite Migration + Server Fixes
+
+### 13.1 Data Migration (`scripts/migrate-to-sqlite.ts`)
+
+Migrated existing data from `db.json` (json-server flat file) to the SQLite database
+(`data/dashboard.db`) via Drizzle ORM. The migration script:
+
+- Reads `db.json` with `Bun.file('./db.json').json()`
+- Checks if data already exists before migrating (all-or-nothing safety check)
+- Generates placeholder sessions from unique `sessionId` values found in tasks (since `db.json`
+  has no `sessions` collection, but `tasksTable` has a foreign key to `sessionsTable`)
+- Inserts tasks directly with `??` null guards for nullable fields
+- Destructures each session event to separate schema columns (`id`, `sessionId`, `type`, etc.)
+  from extra fields (`...rest`), storing extras in `metadata` as `JSON.stringify(rest)`
+- Uses `.onConflictDoNothing()` on session events to skip duplicate IDs in source data
+
+### 13.2 Bug: `casing` mismatch between drizzle-kit and drizzle ORM
+
+**Root cause:** `src/db/index.ts` instantiated Drizzle with `casing: 'snake_case'`, which tells
+the ORM to convert camelCase TypeScript keys to `snake_case` SQL column names at query time.
+But `drizzle.config.ts` did not have this option, so `drizzle-kit push` created columns in
+camelCase (e.g. `parentSessionId`). The ORM then queried for `parent_session_id`, which didn't
+exist.
+
+**Fix:** Added `casing: 'snake_case'` to `drizzle.config.ts` so both tools agree on column
+naming. Deleted and recreated the database to apply clean snake_case schema.
+
+### 13.3 Bug: GET /tasks and GET /sessionEvents returning 400 for all frontend polls
+
+**Root cause:** The Hono server's `GET /tasks` handler required **both** `status` and `sessionId`
+as query params on every request, returning 400 if either was missing. The frontend's
+`useTaskPolling` hook polls `/api/tasks` with no filters — it fetches all tasks to build the
+tree client-side.
+
+Similarly, `GET /sessionEvents` required `sessionId` even though the handler already had logic
+to return all rows when no `sessionId` was provided. The guard clause fired before reaching
+that logic.
+
+**Fix for `GET /tasks`:** Made both `status` and `sessionId` optional query params. Filters
+are only applied when provided:
+
+```typescript
+const conditions = [];
+if (status) conditions.push(eq(tasksTable.status, status));
+if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
+
+const rows = await db
+  .select()
+  .from(tasksTable)
+  .where(conditions.length ? and(...conditions) : undefined);
+```
+
+**Fix for `GET /sessionEvents`:** Removed the early 400 return. The existing fallback logic
+(`sessionId ? filter : return all`) now runs on every request.
+
+**Why this matters:** The server was designed for filtered queries (like a search endpoint),
+but the dashboard needs a "give me everything" poll to build the task tree. REST endpoints
+used for polling must support unfiltered requests.
+
 ## Key Architectural Decisions
 
 1. **Vite** over Bun's built-in server — better plugin ecosystem, mature HMR
