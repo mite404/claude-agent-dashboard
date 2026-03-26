@@ -24,20 +24,20 @@ app.get('/tasks', async (c) => {
 
   console.log('GET /tasks called with:', { status: status, sessionId: sessionId });
 
-  if (!status || !sessionId) {
-    return c.json({ error: 'status and sessionId required' }, 400);
-  }
-
-  if (!VALID_STATUSES.includes(status)) {
+  if (status && !VALID_STATUSES.includes(status)) {
     console.error('Invalid status:', { status, valid: VALID_STATUSES });
     return c.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, 400);
   }
 
   try {
+    const conditions = [];
+    if (status) conditions.push(eq(tasksTable.status, status));
+    if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
+
     const rows = await db
       .select()
       .from(tasksTable)
-      .where(and(eq(tasksTable.status, status), eq(tasksTable.sessionId, sessionId)));
+      .where(conditions.length ? and(...conditions) : undefined);
 
     console.log('Query returned:', {
       count: rows.length,
@@ -193,12 +193,7 @@ app.get('/sessionEvents', async (c) => {
   const sessionId = c.req.query('sessionId');
   console.log('GET /sessionEvents called with:', sessionId);
 
-  if (!sessionId) {
-    console.error('Missing required sessionId:', { hasSessionId: !!sessionId });
-    return c.json({ error: 'sessionId required' }, 400);
-  }
-
-  // select rows based on param: sessionId or 'all' if no param sent in req
+  // select rows based on param: sessionId or all if no param sent in req
   try {
     const rows = sessionId
       ? await db

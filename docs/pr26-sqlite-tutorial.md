@@ -575,10 +575,9 @@ async function migrate() {
 
   for (const task of data.tasks) {
     await db.insert(tasksTable).values({
-      id:       task.id,
-      name:     task.name,
-      status:   task.status,
-      agentType: task.agentType ?? 'unknown',
+      id: task.id,
+      sessionId: task.sessionId,
+      parentId: task.parentId ?? null,
       // TODO: fill in remaining fields from the schema
       // TODO: stringify logs, events, dependencies with JSON.stringify(task.x ?? [])
       // TODO: handle nullable fields with ?? null

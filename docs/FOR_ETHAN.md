@@ -1286,6 +1286,48 @@ just now enforcing uniqueness on the SQL column, not the TypeScript key.
 **The lesson:** Type annotations are convenient but expensive. Let TypeScript infer, especially when
 you're building references between tables. The inferred type is more specific and more useful.
 
+### On JSON Columns: TEXT vs Native JSON Types
+
+**The pattern:** You have two ways to store JSON in a database.
+
+1. **Native JSON column** (`json()` in Drizzle):
+   - Database understands the structure natively
+   - Can query inside the JSON without parsing (advanced feature)
+   - Drizzle handles serialization automatically
+   - You pass JavaScript objects directly; Drizzle stringifies on write, parses on read
+
+2. **TEXT column storing JSON** (like your `metadata` field):
+   - Database treats it as plain text
+   - Must manually `JSON.stringify()` before inserting
+   - Must manually `JSON.parse()` when reading
+   - Useful if you need opaque storage (audit trail, raw webhook payloads, etc.)
+
+**The code pattern:**
+
+```typescript
+// Native JSON column — automatic serialize/parse
+metadata: text({ mode: 'json' }).default(null)
+// When inserting: no stringify needed
+await db.insert(table).values({ metadata: body.metadata })
+
+// TEXT column — manual serialize/parse
+metadata: text().default(null)
+// When inserting: must stringify
+await db.insert(table).values({
+  metadata: body.metadata ? JSON.stringify(body.metadata) : null,
+})
+// When reading: must parse
+const parsed = row.metadata ? JSON.parse(row.metadata) : null
+```
+
+**Why TEXT sometimes makes sense:** If you're storing opaque blobs (raw hook output, third-party
+webhooks, debug snapshots), TEXT is simpler and doesn't require schema changes if the shape evolves.
+But if you're storing structured data you'll query or filter on, native JSON is cleaner.
+
+**Works everywhere:** Both SQLite and PostgreSQL (and MySQL) have native JSON support via Drizzle.
+The pattern is identical across databases — you define `json()` and Drizzle handles the rest. No
+database-specific code needed.
+
 ### On Accessibility as a Design Constraint (Not an Afterthought)
 
 **The pattern:** When this project's UI was finished and "visually polished," a RAMS accessibility
@@ -2428,6 +2470,7 @@ app.post('/endpoint', async (c) => {
 ### Breaking Down the Three Zones
 
 **Zone 1: Input Parsing (try/catch)**
+
 - Wraps **async input** that might throw unexpectedly
 - JSON parsing, headers, file reads — anything the client sends
 - Log the error; return a 400 (bad request)
@@ -2442,6 +2485,7 @@ try {
 ```
 
 **Zone 2: Request Entry (console.log)**
+
 - Logs the **intent** with minimal data loss
 - Captured early, before any state changes
 - Answer: "What did the client ask for?"
@@ -2451,6 +2495,7 @@ console.log('POST /tasks called with:', { name: body.name, sessionId: body.sessi
 ```
 
 **Zone 3: Validation (if/else)**
+
 - Uses **conditions you expect** and can handle
 - Missing fields, invalid enums, not found — normal error paths
 - Log what's missing; return a 400
@@ -2463,6 +2508,7 @@ if (!body.name || !body.sessionId) {
 ```
 
 **Zone 4: Execution (try/catch + logging)**
+
 - Wraps **business logic** that might fail unexpectedly
 - Database queries, external APIs, file operations
 - Log **before** (what you're about to do) and **after** (what you got)
@@ -2500,16 +2546,19 @@ STAGE 3: QUERY/MODIFY DB
 **What happens at each stage:**
 
 **Stage 1: Extract/Parse Input** — Get data from the request
+
 - Extract query params: `c.req.query('sessionId')` → always a string (no try/catch needed)
 - Parse JSON body: `c.req.json()` → might throw (try/catch needed)
 - Extract URL params: `c.req.param('id')` → always a string (no try/catch needed)
 
 **Stage 2: Validate** — Check the data exists and is in the right format
+
 - Is the field present? `if (!sessionId) { return error }`
 - Is it the right type? Check enums, formats, ranges
 - Always use if/else — these are expected failures
 
 **Stage 3: Query/Modify DB** — Use the clean data to access the database
+
 - `await db.select().from(...).where(...)`
 - Wrap in try/catch — database errors are unexpected
 
@@ -2564,6 +2613,7 @@ app.get('/sessionEvents', async (c) => {
 ```
 
 **Notice:**
+
 - **Stage 1** (extract): No try/catch. Query params are always strings.
 - **Stage 2** (validate): if/else. You expect some requests to be missing sessionId.
 - **Stage 3** (query): try/catch. Database errors are unexpected.
@@ -2628,6 +2678,7 @@ In production with proper logging libraries (like Pino), these map to different 
 ### The Lesson: Explicit Over Implicit
 
 Without these logs, you have:
+
 - A 500 error response, but no idea which code path was taken
 - A database failure, but no way to know what the request was asking for
 
@@ -2799,6 +2850,7 @@ results. Only the **details** of what to log change based on what the HTTP metho
 ### Senior Engineer Note: Why This Matters for Your Portfolio
 
 When someone reviews your `server.ts`, they'll immediately see:
+
 - Do you understand request/response contracts?
 - Do you think about the common failure modes?
 - Can you debug production issues later?
@@ -2819,25 +2871,30 @@ initially validated `name` for sessionEvents (a tasks field), then had to look a
 hook script to figure out the real contract.
 
 **What to study:**
+
 - Before you write a handler, document what the client **will send** and what the server
   **guarantees to return**
 - Create a simple interface or comment above each endpoint:
+
   ```typescript
   // POST /sessionEvents
   // Input: { sessionId: string, type: string, summary?: string, metadata?: object }
   // Output: { id: string, sessionId: string, type: string, ... }
   // Errors: 400 (missing sessionId/type), 500 (DB error)
   ```
+
 - Read: REST API design best practices — understand how to think about requests/responses as a contract
 
 #### 2. **HTTP Status Codes** (Moderate Point)
 
 **What you struggled with:** You initially returned 400 (Bad Request) for database errors when
 it should be 500 (Internal Server Error). The semantic difference matters:
+
 - 4xx = Client's fault (bad input, not found, etc.)
 - 5xx = Server's fault (database crashed, unexpected error, etc.)
 
 **What to study:**
+
 - HTTP status codes: 400, 404, 409, 500, 503 and when to use each
 - The rule: if the client can fix it by changing their request, use 4xx. If the server has a
   problem, use 5xx.
@@ -2860,6 +2917,7 @@ only clue.
 is senior-level thinking.
 
 **What to study deeper:**
+
 - **Validation** = "Is this the right format and does it exist?"
 - **Transformation** = "Convert this format into a different format (string → Date, snake_case
   → camelCase, etc.)"
@@ -2872,6 +2930,7 @@ is senior-level thinking.
 status })` tells you exactly what happened.
 
 **What needs work:**
+
 - Don't log entire objects: `console.error('Failed:', error)` — include `error.message` or
   `error.code`
 - Log action + context: "Task not found" is less clear than "Task not found for deletion: abc123"
@@ -2899,3 +2958,195 @@ server did, and where it failed? If yes, you're done. If no, add more logging.
 You learned this logging pattern in one session and applied it consistently across 8 endpoints.
 That's solid progress. The weak points above aren't failures — they're just the next layer of
 depth. Every senior engineer had to learn these distinctions.
+
+---
+
+## Phase 12: Database Migration Testing Strategy (2026-03-26)
+
+### The Problem: How Do You Test a Migration Safely?
+
+When migrating data from one schema to another (e.g., json-server `db.json` → SQLite), you can't
+just run it once in production. But you also can't test it in a shared staging environment
+because teammates depend on stable staging data.
+
+The solution: **isolated test database + seeded test data**.
+
+### The Pattern: Three Environments
+
+**1. Local Test Database** (just for you)
+- Created fresh, runs migration, validated
+- Throwaway — you can destroy it and recreate anytime
+- Used for rapid iteration during development
+
+**2. Staging Database** (shared team resource — never for testing migrations)
+- Used by all team members for QA
+- Contains realistic data
+- You test the migration here AFTER you've validated locally
+- Coordinated with the team (off-hours, with notifications)
+
+**3. Production Database** (the real deal)
+- Backup before migration
+- Rollback plan documented
+- Run during maintenance window
+
+### Implementation: The Test Script
+
+Create a separate migration test:
+
+```typescript
+// scripts/test-migrate.ts (runs against test-dashboard.db)
+import { db as testDb } from '../src/db/index';  // Points to test database
+import * as schema from '../src/db/schema';
+
+async function testMigration() {
+  // Load test data (small, diverse dataset)
+  const testData = await Bun.file('./test-data.json').json();
+
+  console.log('🧪 Testing migration with mock data...');
+
+  // Run migration against test database
+  for (const session of testData.sessions) {
+    await testDb.insert(schema.sessionsTable).values({...});
+  }
+  for (const task of testData.tasks) {
+    await testDb.insert(schema.tasksTable).values({...});
+  }
+  // ... all tables
+
+  // Validate results
+  const sessionCount = await testDb.select().from(schema.sessionsTable);
+  const taskCount = await testDb.select().from(schema.tasksTable);
+
+  console.log(`✅ Sessions: ${sessionCount.length} rows inserted`);
+  console.log(`✅ Tasks: ${taskCount.length} rows inserted`);
+
+  // Test foreign key integrity
+  const orphanedTasks = await testDb
+    .select()
+    .from(schema.tasksTable)
+    .where(sql`sessionId NOT IN (SELECT id FROM sessions)`);
+
+  if (orphanedTasks.length > 0) {
+    throw new Error(`Foreign key violation: ${orphanedTasks.length} orphaned tasks`);
+  }
+
+  console.log('✅ All validations passed');
+}
+
+testMigration().catch(console.error);
+```
+
+### Test Data: Representative, Not Real
+
+Create `test-data.json` with diverse but small dataset:
+
+```json
+{
+  "sessions": [
+    {
+      "id": "test-session-1",
+      "type": "UserPromptSubmit",
+      "model": "claude-opus-4-6",
+      "status": "completed",
+      "createdAt": "2026-03-26T10:00:00Z",
+      "stoppedAt": "2026-03-26T10:05:00Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "sessionId": "test-session-1",
+      "parentId": null,
+      "name": "Root task",
+      "status": "completed",
+      "progressPercentage": 100,
+      "createdAt": "2026-03-26T10:00:00Z"
+    },
+    {
+      "id": "task-2",
+      "sessionId": "test-session-1",
+      "parentId": "task-1",
+      "name": "Subtask",
+      "status": "completed",
+      "progressPercentage": 100
+    }
+  ],
+  "sessionEvents": [
+    {
+      "id": "event-1",
+      "sessionId": "test-session-1",
+      "type": "TaskCompleted",
+      "timestamp": "2026-03-26T10:05:00Z",
+      "metadata": { "taskId": "task-1" }
+    }
+  ]
+}
+```
+
+Why small? Because you're testing logic, not volume. 5–10 representative rows per table catches
+90% of bugs.
+
+### Validation Checklist
+
+After running the test migration, verify:
+
+1. **Row counts match:** All rows from test-data.json were inserted
+2. **No orphaned records:** Foreign keys point to valid parent records
+3. **Nullable defaults applied:** Fields without `.notNull()` got proper defaults (null or `??`)
+4. **JSON columns parsed:** Metadata/data fields store valid JSON
+5. **Primary keys unique:** No duplicate IDs
+6. **Timestamps preserved:** Dates in correct format
+
+```typescript
+// Validation example
+const tasks = await testDb.select().from(schema.tasksTable);
+const hasMissingSessionId = tasks.some(t => !t.sessionId);
+if (hasMissingSessionId) {
+  throw new Error('ValidationError: sessionId is required');
+}
+```
+
+### Staging Validation (After Local Success)
+
+Once the test migration passes:
+
+1. **Backup staging database**
+2. **Schedule off-hours window** (when team isn't using staging)
+3. **Notify teammates:** "Migration running on staging tonight, expect a 5-minute downtime"
+4. **Run migration on staging**
+5. **Smoke test critical flows:** Log in, create task, update task, view logs
+6. **Report results:** "Migration succeeded, 500 sessions + 3200 tasks migrated"
+
+### Rollback Plan (Document Before Running Anywhere)
+
+```bash
+# If migration fails:
+# 1. Stop the migration script (Ctrl+C)
+# 2. Restore from backup:
+cp dashboard.db.backup dashboard.db
+
+# 3. Verify backup is good:
+bun scripts/test-migrate.ts  # Run against restored backup
+
+# 4. Investigate the failure:
+# - Check logs
+# - Review the problematic row in test-data.json
+# - Fix the migration script
+# - Run test again locally
+```
+
+### Senior Engineer Note: Why This Pattern Matters
+
+Migrations are **state-altering, hard-to-reverse operations**. Every byte of data your app
+manages is sacred. A careless migration can:
+
+- Lose data (deleted rows never come back)
+- Corrupt relationships (orphaned records, broken foreign keys)
+- Create inconsistent state (partial migrations)
+
+Testing locally first isn't "extra work" — it's the minimum due diligence. Running against a
+test database isolated from teammates' work is professional. Documenting the rollback plan
+means you're thinking like someone who owns the data, not someone who's just running a script.
+
+This is the mindset that separates junior from senior engineers: **treating migrations like
+surgery, not like copying files.**
