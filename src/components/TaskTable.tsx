@@ -6,12 +6,6 @@ import {
   IconFilter,
   IconDotsVertical,
   IconChevronRight,
-  IconClockHour4,
-  IconCircle,
-  IconCircleCheck,
-  IconCircleX,
-  IconCircleOff,
-  IconPlayerPause,
   IconPlayerPlay,
   IconRotateDot,
   IconTerminal2,
@@ -26,9 +20,6 @@ import {
   IconClockPlay,
   IconSun,
   IconMoon,
-  IconBan,
-  IconMicroscope,
-  IconRuler,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -52,92 +43,38 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn, formatElapsed, formatTimestamp } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/badge";
+import { GlobalEventStrip } from "@/components/GlobalEventStrip";
+import {
+  ALL_STATUSES,
+  STATUS_ORDER,
+  STATUS_ICON,
+  STATUS_LABEL,
+  STATUS_TEXT,
+  PROGRESS_BAR,
+  LOG_LEVEL_STYLE,
+  LOG_LEVEL_LABEL,
+  CHECKPOINT_ICON,
+  CHECKPOINT_COLOR,
+  TOOL_EMOJI,
+  EVENT_STATUS_COLOR,
+  SESSION_EVENT_EMOJI,
+  TASK_KIND_ICON,
+  HIDEABLE_COLS,
+  type HideableCol,
+} from "@/lib/taskConfig";
+import {
+  sortNodes,
+  flattenVisible,
+  collectAllTasks,
+  collectIds,
+  type FlatTask,
+  type SortCol,
+  type SortState,
+} from "@/lib/taskUtils";
+import { patchTask, deleteTask } from "@/lib/taskApi";
 import type { TaskNode, TaskStatus, LogEntry, HookEvent, SessionEvent, SessionEventType, TaskKind } from "@/types/task";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const ALL_STATUSES: TaskStatus[] = [
-  "running",
-  "paused",
-  "blocked",
-  "pending",
-  "failed",
-  "completed",
-  "cancelled",
-];
-
-// Sort order: most urgent first
-const STATUS_ORDER: Record<TaskStatus, number> = {
-  running: 0,
-  paused: 1,
-  blocked: 2,
-  failed: 3,
-  pending: 4,
-  completed: 5,
-  cancelled: 6,
-};
-
-const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
-  running: <IconClockHour4 size={14} aria-hidden="true" className="text-lime-400" />,
-  completed: <IconCircleCheck size={14} aria-hidden="true" className="text-stone-500" />,
-  failed: <IconCircleX size={14} aria-hidden="true" className="text-red-500" />,
-  paused: <IconPlayerPause size={14} aria-hidden="true" className="text-amber-400" />,
-  pending: <IconCircle size={14} aria-hidden="true" className="text-stone-500" />,
-  cancelled: <IconCircleOff size={14} aria-hidden="true" className="text-stone-500" />,
-  blocked: <IconBan size={14} aria-hidden="true" className="text-orange-400" />,
-};
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  running: "Running",
-  completed: "Done",
-  failed: "Failed",
-  paused: "Paused",
-  pending: "Pending",
-  cancelled: "Cancelled",
-  blocked: "Blocked",
-};
-
-const STATUS_TEXT: Record<TaskStatus, string> = {
-  running: "text-lime-400",   // lime — actively doing work
-  failed: "text-red-500",     // red — needs attention
-  paused: "text-amber-400",   // amber — suspended
-  blocked: "text-orange-400", // orange — waiting on a dependency
-  pending: "text-stone-500",
-  completed: "text-stone-500",
-  cancelled: "text-stone-500",
-};
-
-const PROGRESS_BAR: Record<TaskStatus, string> = {
-  running: "bg-stone-300",
-  completed: "bg-stone-400",
-  failed: "bg-stone-500",
-  paused: "bg-stone-500",
-  blocked: "bg-orange-900/50",
-  pending: "bg-stone-700",
-  cancelled: "bg-stone-800",
-};
-
-const LOG_LEVEL_STYLE: Record<LogEntry["level"], string> = {
-  info: "text-stone-300",
-  debug: "text-stone-500",
-  warn: "text-amber-400",
-  error: "text-red-400",
-};
-
-const LOG_LEVEL_LABEL: Record<LogEntry["level"], string> = {
-  info: "INFO ",
-  debug: "DEBUG",
-  warn: "WARN ",
-  error: "ERROR",
-};
-
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface FlatTask {
-  task: TaskNode;
-  depth: number;
-  hasChildren: boolean;
-}
 
 interface TaskTableProps {
   tree: TaskNode[];
@@ -148,92 +85,6 @@ interface TaskTableProps {
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
   lightMode: boolean;
   onThemeToggle: () => void;
-}
-
-type SortCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
-type HideableCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
-
-const HIDEABLE_COLS: { col: HideableCol; label: string }[] = [
-  { col: "task", label: "Task" },
-  { col: "agent", label: "Agent" },
-  { col: "id", label: "Task ID" },
-  { col: "status", label: "Status" },
-  { col: "subtasks", label: "Subtasks" },
-  { col: "progress", label: "Progress" },
-  { col: "duration", label: "Duration" },
-];
-
-interface SortState {
-  col: SortCol | null;
-  dir: "asc" | "desc";
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function patchTask(taskId: string, patch: object) {
-  const res = await fetch(`/api/tasks/${taskId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw new Error(`PATCH failed: HTTP ${res.status}`);
-}
-
-async function deleteTask(id: string) {
-  const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`DELETE ${id} failed: HTTP ${res.status}`);
-}
-
-function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
-  if (!sort.col) return nodes;
-  const now = Date.now();
-  const sorted = [...nodes].sort((a, b) => {
-    let cmp = 0;
-    if (sort.col === "status") {
-      cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-    } else if (sort.col === "task") {
-      cmp = a.name.localeCompare(b.name);
-    } else if (sort.col === "agent") {
-      cmp = a.agentType.localeCompare(b.agentType);
-    } else if (sort.col === "id") {
-      cmp = (a.agentId ?? "").localeCompare(b.agentId ?? "");
-    } else if (sort.col === "subtasks") {
-      cmp = a.children.length - b.children.length;
-    } else if (sort.col === "progress") {
-      cmp = a.progressPercentage - b.progressPercentage;
-    } else if (sort.col === "duration") {
-      const aDur = a.startedAt
-        ? new Date(a.completedAt ?? now).getTime() - new Date(a.startedAt).getTime()
-        : 0;
-      const bDur = b.startedAt
-        ? new Date(b.completedAt ?? now).getTime() - new Date(b.startedAt).getTime()
-        : 0;
-      cmp = aDur - bDur;
-    }
-
-    return sort.dir === "asc" ? cmp : -cmp;
-  });
-  return sorted.map((n) => ({ ...n, children: sortNodes(n.children, sort) }));
-}
-
-function flattenVisible(nodes: TaskNode[], expanded: Set<string>, depth = 0): FlatTask[] {
-  const result: FlatTask[] = [];
-  for (const node of nodes) {
-    const hasChildren = node.children.length > 0;
-    result.push({ task: node, depth, hasChildren });
-    if (hasChildren && expanded.has(node.id)) {
-      result.push(...flattenVisible(node.children, expanded, depth + 1));
-    }
-  }
-  return result;
-}
-
-function collectAllTasks(nodes: TaskNode[]): TaskNode[] {
-  return nodes.flatMap((n) => [n, ...collectAllTasks(n.children)]);
-}
-
-function collectIds(nodes: TaskNode[]): string[] {
-  return nodes.flatMap((n) => [n.id, ...collectIds(n.children)]);
 }
 
 // ─── FilterPopover ────────────────────────────────────────────────────────────
@@ -369,73 +220,6 @@ function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) 
 
 // ─── CheckpointRow ────────────────────────────────────────────────────────────
 
-const CHECKPOINT_ICON: Record<TaskStatus, string> = {
-  completed: "✓",
-  running:   "●",
-  pending:   "○",
-  paused:    "◐",
-  failed:    "✗",
-  cancelled: "–",
-  blocked:   "⊘",
-};
-
-const CHECKPOINT_COLOR: Record<TaskStatus, string> = {
-  completed: "text-green-400",
-  running:   "text-blue-400",
-  failed:    "text-red-400",
-  paused:    "text-amber-400",
-  blocked:   "text-orange-400",
-  pending:   "text-stone-600",
-  cancelled: "text-stone-700",
-};
-
-// ─── Event Trail constants ────────────────────────────────────────────────────
-
-const TOOL_EMOJI: Record<string, string> = {
-  Bash:      "💻",
-  Read:      "📖",
-  Write:     "✍️",
-  Edit:      "✏️",
-  Grep:      "🔍",
-  Glob:      "📂",
-  WebFetch:  "🌐",
-  WebSearch: "🔎",
-  Agent:     "🤖",
-  Task:      "🤖",
-};
-
-const EVENT_STATUS_COLOR: Record<HookEvent["status"], string> = {
-  running:   "text-blue-400",
-  completed: "text-stone-500",
-  failed:    "text-red-400",
-};
-
-// ─── Session Strip constants ──────────────────────────────────────────────────
-
-const SESSION_EVENT_EMOJI: Record<SessionEventType, string> = {
-  UserPromptSubmit:   "💬",
-  SessionStart:       "🚀",
-  Stop:               "🛑",
-  SubagentStart:      "🟢",
-  SubagentStop:       "👥",
-  Notification:       "🔔",
-  PermissionRequest:  "🔐",
-  PreCompact:         "📦",
-  PostToolUseFailure: "❌",
-  SessionEnd:         "🏁",
-  TeammateIdle:       "😴",
-  TaskCompleted:      "✅",
-  InstructionsLoaded: "📋",
-  ConfigChange:       "⚙️",
-  WorktreeCreate:     "🌿",
-  WorktreeRemove:     "🍂",
-};
-
-const TASK_KIND_ICON: Partial<Record<TaskKind, React.ReactNode>> = {
-  evaluation: <IconMicroscope size={11} className="text-sky-400" />,
-  planning:   <IconRuler size={11} className="text-violet-400" />,
-};
-
 function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
   return (
     <TableRow className="hover:bg-transparent border-b-0">
@@ -551,110 +335,6 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
         </div>
       </TableCell>
     </TableRow>
-  );
-}
-
-// ─── GlobalEventStrip ─────────────────────────────────────────────────────────
-
-export function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
-  const [open, setOpen] = useState(() => events.length > 0);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom whenever new events arrive or the panel opens
-  useEffect(() => {
-    if (!open) return;
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [events.length, open]);
-
-  return (
-    <div className="rounded-md border border-stone-800 overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left bg-stone-900/60 hover:bg-stone-900 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
-        aria-expanded={open}
-        aria-label={open ? "Collapse session events" : "Expand session events"}
-      >
-        <IconChevronRight
-          size={13}
-          aria-hidden="true"
-          className={cn("text-stone-500 transition-transform duration-150 shrink-0", open && "rotate-90")}
-        />
-        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
-          Session Events
-        </span>
-        <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-800 px-1 text-[10px] font-semibold tabular-nums text-stone-400">
-          {events.length}
-        </span>
-      </button>
-
-      {open && (
-        <>
-          {/* Header row — outside scrollable container, no overlap */}
-          {events.length > 0 && (
-            <div className="flex items-center gap-2 px-3 h-10 bg-stone-900/60 border-b border-stone-800 text-stone-400 text-xs font-medium">
-              <span className="shrink-0 w-5" />
-              <span className="w-40 shrink-0 text-left">Event</span>
-              <span className="flex-1 truncate text-left">Summary</span>
-              <span className="w-36 shrink-0 text-left">Agent ID</span>
-              <span className="shrink-0 text-left font-mono">Time</span>
-            </div>
-          )}
-          <div ref={scrollRef} className="max-h-64 overflow-auto divide-y divide-stone-800/40">
-            {events.length === 0 ? (
-              <div className="px-3 py-3 text-xs text-stone-600 italic">
-                No session events yet — submit a user prompt to start.
-              </div>
-            ) : (
-              <>
-                {events.map((event) => (
-              <div
-                key={event.id}
-                className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-900/40 transition-colors"
-              >
-                {/* Emoji */}
-                <span className="shrink-0 w-5 text-center select-none" aria-hidden="true">
-                  {SESSION_EVENT_EMOJI[event.type] ?? "📋"}
-                </span>
-                {/* Event type */}
-                <span className="w-40 shrink-0 text-[11px] text-stone-500">
-                  {event.type}
-                </span>
-                {/* Summary */}
-                <span
-                  className="flex-1 truncate font-mono text-[10px] text-stone-300"
-                  title={event.summary}
-                >
-                  {event.summary}
-                </span>
-                {/* Skill pill — shown for UserPromptSubmit events with a skill */}
-                {event.type === 'UserPromptSubmit' && event.originatingSkill && (
-                  <span className="shrink-0 rounded bg-violet-950 px-1.5 py-0.5 font-mono text-[10px] text-violet-300 border border-violet-700">
-                    {event.originatingSkill}
-                  </span>
-                )}
-                {/* Agent ID — fixed column, always present */}
-                <span
-                  className="w-36 shrink-0 truncate font-mono text-[10px] text-stone-500"
-                  title={event.agentId
-                    ? `${event.agentType ?? "agent"}: ${event.agentId}`
-                    : undefined}
-                >
-                  {event.agentId ?? "—"}
-                </span>
-                {/* Timestamp (24hr) */}
-                <span className="shrink-0 font-mono text-[10px] text-stone-600">
-                  {formatTimestamp(event.timestamp)}
-                </span>
-              </div>
-            ))}
-              </>
-            )}
-          </div>
-        </>
-      )}
-    </div>
   );
 }
 

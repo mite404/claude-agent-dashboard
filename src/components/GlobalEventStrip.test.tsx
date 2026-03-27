@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { GlobalEventStrip } from './TaskTable';
+import { GlobalEventStrip } from './GlobalEventStrip';
 import type { SessionEvent, SessionEventType } from '@/types/task';
 
 function createMockSessionEvent(
