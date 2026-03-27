@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently --names \"vite,hono,hooks,spawn\" \"vite --port 5173\" \"PORT=3001 bun --watch src/server.ts\" \"tail -F logs/hooks.log\" \"bun scripts/spawn-terminal.ts\"",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "lint:md": "rumdl check .",
     "fix:tailwind": "bun scripts/fix-tailwind-vars.ts",

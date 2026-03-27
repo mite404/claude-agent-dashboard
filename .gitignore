@@ -24,6 +24,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # database
 data/dashboard.db
+data/dashboard.db-shm
+data/dashboard.db-wal
 
 # caches
 .eslintcache
