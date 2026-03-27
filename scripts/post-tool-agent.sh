@@ -114,7 +114,7 @@ if echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
       lastAssistantMessage: (if $last_msg != "" then $last_msg else .lastAssistantMessage end)
     }')
 
-  RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK_ID" \
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "http://localhost:3001/tasks/$TASK_ID" \
     -H "Content-Type: application/json" \
     -d "$UPDATED")
 
@@ -123,7 +123,7 @@ if echo "$EXISTING" | jq -e '.id' > /dev/null 2>&1; then
   if [ "$HTTP_CODE" = "200" ]; then
     log "OK: updated task $TASK_ID → $STATUS"
   else
-    log "ERROR: PUT /tasks/$TASK_ID failed (HTTP $HTTP_CODE)"
+    log "ERROR: PATCH /tasks/$TASK_ID failed (HTTP $HTTP_CODE)"
   fi
 
 else

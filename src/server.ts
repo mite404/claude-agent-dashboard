@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/index';
-import { tasksTable, sessionEventsTable, sessionsTable } from './db/schema';
+import { tasksTable, sessionEventsTable, sessionsTable, logsTable } from './db/schema';
 
 const app = new Hono();
 
@@ -45,7 +45,7 @@ app.get('/tasks', async (c) => {
       status: rows[0]?.status,
     });
 
-    return c.json({ data: rows });
+    return c.json(rows);
   } catch (error) {
     console.error('Failed to get task:', error);
     return c.json({ error: 'Database error' }, 500);
@@ -75,7 +75,7 @@ app.get('/tasks/:id', async (c) => {
       return c.json({ error: 'task not found' }, 404);
     }
 
-    return c.json({ task });
+    return c.json(task);
   } catch (error) {
     console.error('Failed to get task:', error);
     return c.json({ error: 'Database error' }, 500);
@@ -104,17 +104,47 @@ app.post('/tasks', async (c) => {
   }
 
   try {
-    console.log('Inserting task:', { name: body.name, sessionId: body.sessionId });
+    // Auto-upsert a sessions row for the sessionId (prevents FK constraint issues)
+    await db
+      .insert(sessionsTable)
+      .values({
+        id: body.sessionId,
+        type: 'auto',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing();
+
+    // Strip logs and events (not schema columns) and preserve incoming id if provided
+    const { logs, events, dependencies, ...safeFields } = body;
+    const taskId = body.id || crypto.randomUUID();
+
+    console.log('Inserting task:', { id: taskId, name: body.name, sessionId: body.sessionId });
     const result = await db
       .insert(tasksTable)
       .values({
-        id: crypto.randomUUID(),
+        id: taskId,
         name: body.name,
         sessionId: body.sessionId,
-        status: 'unassigned',
+        status: body.status || 'unassigned',
         createdAt: new Date().toISOString(),
+        ...safeFields, // includes agentType, parentId, etc if provided
       })
-      .returning(); // returns an array of props
+      .returning();
+
+    // Insert first log entry separately if provided
+    if (logs?.[0]) {
+      await db
+        .insert(logsTable)
+        .values({
+          id: crypto.randomUUID(),
+          taskId: taskId,
+          timestamp: logs[0].timestamp || new Date().toISOString(),
+          level: logs[0].level || 'info',
+          message: logs[0].message,
+        })
+        .catch((err) => console.error('Failed to insert log:', err));
+    }
 
     console.log('Task inserted successfully:', { id: result[0].id, status: result[0].status });
     return c.json(result[0], 201);
@@ -124,8 +154,8 @@ app.post('/tasks', async (c) => {
   }
 });
 
-// PATCH /tasks/:id - called by post-tool-agent.sh
-app.patch('/tasks/:id', async (c) => {
+// Shared handler for PATCH and PUT /tasks/:id
+async function handleTaskUpdate(c: any) {
   const id = c.req.param('id');
   let body;
 
@@ -142,12 +172,32 @@ app.patch('/tasks/:id', async (c) => {
   }
 
   try {
+    // Whitelist valid schema columns (exclude logs, events, dependencies, etc)
+    const { logs, events, dependencies, ...safeFields } = body;
+    const validCols = [
+      'name',
+      'description',
+      'status',
+      'kind',
+      'priority',
+      'progressPercentage',
+      'startedAt',
+      'completedAt',
+      'claimedAt',
+      'agentId',
+      'originatingSkill',
+      'taskKind',
+      'parentId',
+    ];
+    const update = Object.fromEntries(
+      Object.entries(safeFields).filter(([k]) => validCols.includes(k)),
+    );
+
     console.log('Updating task:', {
-      name: body.name,
-      status: body.status,
-      description: body.description,
+      id,
+      fieldsToUpdate: Object.keys(update),
     });
-    const result = await db.update(tasksTable).set(body).where(eq(tasksTable.id, id)).returning();
+    const result = await db.update(tasksTable).set(update).where(eq(tasksTable.id, id)).returning();
 
     if (!result.length) {
       console.error('Task not found:', id);
@@ -156,10 +206,16 @@ app.patch('/tasks/:id', async (c) => {
 
     return c.json(result[0], 200);
   } catch (error) {
-    console.error('Failed to insert task:', error);
+    console.error('Failed to update task:', error);
     return c.json({ error: 'Database error' }, 500);
   }
-});
+}
+
+// PATCH /tasks/:id - called by post-tool-agent.sh
+app.patch('/tasks/:id', handleTaskUpdate);
+
+// PUT /tasks/:id - alias for PATCH (for backward compat with shell scripts)
+app.put('/tasks/:id', handleTaskUpdate);
 
 // DELETE /tasks/:id
 app.delete('/tasks/:id', async (c) => {

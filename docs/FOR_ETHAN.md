@@ -2974,17 +2974,20 @@ The solution: **isolated test database + seeded test data**.
 ### The Pattern: Three Environments
 
 **1. Local Test Database** (just for you)
+
 - Created fresh, runs migration, validated
 - Throwaway — you can destroy it and recreate anytime
 - Used for rapid iteration during development
 
 **2. Staging Database** (shared team resource — never for testing migrations)
+
 - Used by all team members for QA
 - Contains realistic data
 - You test the migration here AFTER you've validated locally
 - Coordinated with the team (off-hours, with notifications)
 
 **3. Production Database** (the real deal)
+
 - Backup before migration
 - Rollback plan documented
 - Run during maintenance window
@@ -3150,3 +3153,94 @@ means you're thinking like someone who owns the data, not someone who's just run
 
 This is the mindset that separates junior from senior engineers: **treating migrations like
 surgery, not like copying files.**
+
+---
+
+## 4d. Bloopers — Backend/Frontend Build Separation (2026-03-26)
+
+### 🎬 Blooper 15: Why does the frontend build compile the backend server?
+
+**The symptom:** Running `bun run build` failed with **515 TypeScript errors**. Most errors were:
+
+- `Cannot use JSX unless the '--jsx' flag is provided` (in server.ts)
+- `Cannot find module '@/components/ui/button'` (path aliases not defined for backend)
+- `Cannot find name 'document'` (server files don't have DOM types)
+
+**The confusion:** The `tsconfig.json` included all of `src/`, which includes `src/server.ts`
+(the Hono backend). When `tsc -b` ran (TypeScript build), it tried to compile the server as if
+it were frontend code, because the tsconfig.app.json had no way to distinguish.
+
+**The root cause:** This is a **monorepo architecture issue**. Your project has two separate
+applications in one directory:
+
+```
+/src
+├── server.ts          ← Bun + Hono (backend, runs on port 3001)
+├── db/                ← SQLite schema (used by backend)
+├── components/        ← React (frontend, runs on port 5173)
+├── hooks/             ← React hooks
+├── types/             ← Shared TypeScript types
+└── main.tsx           ← Frontend entrypoint
+```
+
+The build script was `"build": "tsc -b && vite build"`:
+
+1. `tsc -b` tried to compile the entire project (including server)
+2. `vite build` then built just the frontend
+
+This created a conflict because `tsc` and `vite` have different TypeScript configurations.
+
+**The fix:**
+
+```json
+// Before
+"build": "tsc -b && vite build"
+
+// After
+"build": "vite build"
+```
+
+And added excludes to `tsconfig.app.json`:
+
+```json
+"exclude": ["src/server.ts", "src/db"]
+```
+
+**Why this works:**
+
+Each application has its own build process:
+
+- **Frontend:** `vite build` (via `bun run build`)
+  - Handles TypeScript → JavaScript compilation
+  - Bundles React, Tailwind, components
+  - Outputs to `dist/`
+- **Backend:** `bun --watch src/server.ts` (via `bun run server` or `bun run dev`)
+  - Bun's native TypeScript support (no compilation needed)
+  - Runs directly, no bundling
+  - Listens on port 3001
+
+**The pattern:** In monorepos, **separate build processes = separate tsconfig files**. You don't
+force everything through one build system.
+
+### Director's Commentary: On Monorepo Architecture
+
+**The lesson:** When you have multiple applications (frontend + backend) in one repo, resist the
+urge to "make them one build." They have different:
+
+- Language targets (React/DOM vs Node/Bun)
+- Module systems (ES modules vs CommonJS)
+- Type definitions (vitest globals vs Node.js types)
+- Deployment targets (CDN vs process)
+
+Trying to unify them creates friction. Each should have:
+
+1. Its own `tsconfig.json` (in this case, just tsconfig.app.json for frontend)
+2. Its own build command
+3. Its own entry point
+
+The **signal you got it right:** You can run frontend and backend independently, and they work.
+You can rebuild frontend without touching backend. You can run backend without frontend.
+
+If you find yourself saying "but I want one build command," that's a smell that your tooling
+is fighting your architecture. The right fix isn't a clever build script—it's respecting the
+separation.

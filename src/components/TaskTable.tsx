@@ -700,7 +700,7 @@ function TaskRow({
   const isFailed = task.status === "failed";
   const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
-  const hasDetail = (task.events?.length ?? 0) > 0 || task.children.length > 0 || task.logs.length > 0;
+  const hasDetail = (task.events?.length ?? 0) > 0 || task.children.length > 0 || (task.logs?.length ?? 0) > 0;
 
   // For blocked tasks: look up the names of the tasks causing the block
   const blockingNames = task.blockedBy
@@ -1501,7 +1501,7 @@ export function TaskTable({
                         ? <EventTrailRow task={task} colSpan={totalCols} />
                         : task.children.length > 0
                           ? <CheckpointRow task={task} colSpan={totalCols} />
-                          : task.logs.length > 0
+                          : (task.logs?.length ?? 0) > 0
                             ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
                             : null}
                       {task.lastAssistantMessage && <AgentSummaryRow message={task.lastAssistantMessage} colSpan={totalCols} />}
