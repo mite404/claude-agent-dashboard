@@ -3,14 +3,17 @@
 ## Overview
 
 A real-time web dashboard for tracking Claude Code subagent task execution. The dashboard polls
-json-server (backed by `db.json`) every 2.5 seconds and displays task status, relationships, logs,
-and control buttons (cancel/pause/retry).
+a Hono REST API (backed by SQLite via Drizzle ORM) every 2.5 seconds and displays task status,
+relationships, logs, and control buttons (cancel/pause/retry).
 
-**Tech Stack**: Bun + Vite 6 + React 19 + Tailwind v4 + Radix UI + json-server
+**Tech Stack**: Bun + Vite 6 + React 19 + Tailwind v4 + Radix UI + Hono + SQLite + Drizzle ORM
+
+> **Architecture pivot (PR #26):** json-server + `db.json` replaced by Hono (`src/server.ts`) +
+> SQLite (`data/dashboard.db`). The `bun run server` script now runs Hono, not json-server.
 
 ---
 
-## Current Status (as of 2026-03-10)
+## Current Status (as of 2026-03-26)
 
 ### ✅ Completed
 
@@ -49,6 +52,16 @@ and control buttons (cancel/pause/retry).
   - Log panel margin tuned to `mx-[30px]` (was `mx-10`)
 - **New Agent button** (`scripts/spawn-terminal.ts`) — detects `$TERM_PROGRAM` and uses
   terminal-specific AppleScript to open a new window and run `claude`
+- **PR #26 — SQLite Migration** ✅ (2026-03-26)
+  - `json-server` + `db.json` replaced by **Hono** (`src/server.ts`) + **SQLite**
+    (`data/dashboard.db`) via **Drizzle ORM**
+  - `src/db/schema.ts` — Drizzle schema (sessions, tasks, logs, session_events, task_dependencies,
+    schema_version tables)
+  - `src/db/index.ts` — Drizzle client with `casing: 'snake_case'` + WAL pragmas
+  - `drizzle.config.ts` — must match `casing: 'snake_case'` to stay in sync with ORM
+  - `scripts/migrate-to-sqlite.ts` — one-time migration from `db.json` → SQLite
+  - `bun run dev` now runs: Vite + `PORT=3001 bun --watch src/server.ts` + hooks + terminal
+  - GET `/tasks` + GET `/sessionEvents` support **optional** filters — no params returns all rows
 
 ---
 
@@ -693,6 +706,95 @@ const rows = await db
 but the dashboard needs a "give me everything" poll to build the task tree. REST endpoints
 used for polling must support unfiltered requests.
 
+---
+
+## Hono REST API Reference (`src/server.ts`)
+
+### Endpoint Map
+
+| Method | Route | Caller | Purpose |
+|--------|-------|--------|---------|
+| GET | `/tasks` | Frontend poll | All tasks, optional `?status=` `?sessionId=` filters |
+| GET | `/tasks/:id` | Frontend detail | Single task by ID |
+| POST | `/tasks` | `pre-tool-agent.sh` | Create task when Agent tool fires |
+| PATCH | `/tasks/:id` | `post-tool-agent.sh` | Update status/logs after tool completes |
+| DELETE | `/tasks/:id` | Frontend actions | Remove a task |
+| GET | `/sessionEvents` | Frontend poll | All events, optional `?sessionId=` filter |
+| POST | `/sessionEvents` | `session-event.sh` | Record a Claude Code lifecycle event |
+| GET | `/debug/sessions` | Dev only | Inspect sessions table |
+
+### Pattern 1 — Optional Filter with Dynamic Conditions
+
+Used in `GET /tasks`. Builds a `WHERE` clause only from params that were actually sent:
+
+```typescript
+const conditions = [];
+if (status) conditions.push(eq(tasksTable.status, status));
+if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
+
+const rows = await db
+  .select()
+  .from(tasksTable)
+  .where(conditions.length ? and(...conditions) : undefined);
+```
+
+No params → returns all rows. Partial params → filters only what's provided. This is what
+the frontend's 2.5s poll uses — no filters, full dataset, tree built client-side.
+
+### Pattern 2 — Three-Zone Error Handling (Parse → Validate → Execute)
+
+Every mutating endpoint follows the same structure:
+
+```typescript
+// Zone 1: parse (catch malformed JSON)
+let body;
+try { body = await c.req.json(); }
+catch { return c.json({ error: 'Bad request' }, 400); }
+
+// Zone 2: validate (catch missing required fields)
+if (!body.name || !body.sessionId) {
+  return c.json({ error: 'name and sessionId required' }, 400);
+}
+
+// Zone 3: execute (catch DB errors)
+try {
+  const result = await db.insert(tasksTable).values({ ... }).returning();
+  return c.json(result[0], 201);
+} catch (error) {
+  return c.json({ error: 'Database error' }, 500);
+}
+```
+
+### Pattern 3 — Metadata Round-Trip (Stringify on Write, Parse on Read)
+
+`sessionEventsTable.metadata` is `text({ mode: 'json' })`. Extra event fields (toolName, error,
+tokenCount, etc.) are stored as a JSON string and parsed back on GET:
+
+```typescript
+// POST: stored as stringified JSON
+metadata: body.metadata || null
+
+// GET: parsed back to object before returning to frontend
+return c.json(
+  rows.map((e) => ({
+    ...e,
+    metadata: e.metadata ? JSON.parse(e.metadata as string) : undefined,
+  }))
+);
+```
+
+### Pattern 4 — `RETURNING` Clause (Get Back What You Just Wrote)
+
+Drizzle's `.returning()` tells SQLite to return the inserted/updated row immediately —
+no need for a second SELECT query:
+
+```typescript
+const result = await db.insert(tasksTable).values({ ... }).returning();
+return c.json(result[0], 201); // result is an array; [0] is the new row
+```
+
+---
+
 ## Key Architectural Decisions
 
 1. **Vite** over Bun's built-in server — better plugin ecosystem, mature HMR
@@ -705,3 +807,10 @@ used for polling must support unfiltered requests.
 6. **vite-tsconfig-paths** — single source of truth for `@/` alias
    (reads tsconfig, no duplication)
 7. **Radix UI primitives** — accessible accordion for logs, slot for polymorphic Button component
+8. **Hono** over json-server for the API layer — json-server has no custom logic; Hono lets us
+   write typed handlers, input validation, and proper error codes while staying lightweight
+9. **SQLite + Drizzle** over `db.json` — relational constraints (foreign keys), type-safe queries,
+   and schema versioning. `data/dashboard.db` is gitignored; run `bunx drizzle-kit push` to
+   initialize. Always set `casing: 'snake_case'` in both `drizzle.config.ts` and `drizzle()` call
+10. **`casing: 'snake_case'` must be set in two places** — `drizzle.config.ts` (schema push) AND
+    `src/db/index.ts` (ORM queries). Mismatch causes `SQLITE_CANTOPEN` / column-not-found errors
