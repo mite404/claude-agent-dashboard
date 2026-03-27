@@ -71,7 +71,7 @@ import {
   type SortCol,
   type SortState,
 } from "@/lib/taskUtils";
-import { patchTask, deleteTask } from "@/lib/taskApi";
+import { patchTask, deleteTask, clearAllSessionEvents } from "@/lib/taskApi";
 import type { TaskNode, TaskStatus, LogEntry, HookEvent, SessionEvent, SessionEventType, TaskKind } from "@/types/task";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1205,7 +1205,10 @@ export function TaskTable({
       </div>
 
       {/* Global session event strip */}
-      <GlobalEventStrip events={sessionEvents} />
+      <GlobalEventStrip
+        events={sessionEvents}
+        onClearAllEvents={clearAllSessionEvents}
+      />
     </div>
   );
 }
