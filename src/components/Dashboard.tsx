@@ -62,7 +62,7 @@ export default function Dashboard() {
           />
         </div>
         <p className="text-xs text-stone-500">
-          {tasks.length > 0
+          {tasks.length > 0 || sessionEvents.length > 0
             ? `${running} running · ${completed} done · ${failed} failed`
             : "No active session"}
         </p>
@@ -70,7 +70,7 @@ export default function Dashboard() {
 
       {/* Screen reader live region — announces polling updates */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {tasks.length > 0
+        {tasks.length > 0 || sessionEvents.length > 0
           ? `${running} running, ${completed} done, ${failed} failed`
           : "No active tasks"}
       </div>
@@ -81,7 +81,7 @@ export default function Dashboard() {
           <strong>Connection error:</strong> {error}
           <br />
           <span className="text-xs text-red-500/70">
-            Make sure json-server is running: <code className="font-mono">bun run server</code>
+            Make sure the Hono server is running: <code className="font-mono">bun run dev</code>
           </span>
         </div>
       )}

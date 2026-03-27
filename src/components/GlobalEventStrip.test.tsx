@@ -121,7 +121,7 @@ describe('GlobalEventStrip', () => {
     const events = [createMockSessionEvent('Stop')];
     render(<GlobalEventStrip events={events} />);
 
-    const toggle = screen.getByRole('button');
+    const toggle = screen.getByRole('button', { name: /collapse session events/i });
     // Starts open (events.length > 0)
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
 

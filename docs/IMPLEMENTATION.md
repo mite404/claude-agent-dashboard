@@ -702,6 +702,27 @@ used for polling must support unfiltered requests.
 
 ---
 
+## TODOs Identified (2026-03-27)
+
+From the post-SQLite-migration codebase audit:
+
+- [ ] **`HookEvent` table is missing from the schema.** `pre-tool-all.sh` and `post-tool-all.sh`
+  embed `events: [HookEvent]` in their PATCH bodies, but `server.ts` strips the `events` field
+  before every Drizzle UPDATE (`const { logs, events, ... } = body`). The scripts were written
+  against the old json-server API that stored events as embedded arrays in `db.json`. With
+  SQLite, there is no `hook_events` table — the data is silently dropped on every write. A
+  `hookEventsTable` needs to be added to `src/db/schema.ts` and the POST/PATCH handlers need to
+  insert rows into it.
+
+- [ ] **`EventTrailRow` will always be empty until the above is fixed.** The tool event timeline
+  per task (`EventTrailRow` in `TaskTable.tsx` ~line 283) reads `task.events` to render the
+  timeline of Bash/Read/Write calls. Because HookEvents are stripped at the server before they
+  reach SQLite, `task.events` is always `undefined` and the row renders nothing. Fix depends on
+  adding the `hookEventsTable` and updating `GET /tasks` (or a separate `GET /tasks/:id/events`
+  endpoint) to return the events alongside the task.
+
+---
+
 ## Hono REST API Reference (`src/server.ts`)
 
 ### Endpoint Map
