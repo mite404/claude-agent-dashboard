@@ -86,7 +86,7 @@ UPDATED=$(echo "$EXISTING" | jq \
     end
   ]')
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "http://localhost:3001/tasks/$TASK_ID" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "http://localhost:3001/tasks/$TASK_ID" \
   -H "Content-Type: application/json" \
   -d "$UPDATED")
 
@@ -95,5 +95,5 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 if [ "$HTTP_CODE" = "200" ]; then
   log "OK: updated event ($TOOL_NAME) → $FINAL_STATUS on task $TASK_ID [via $LOOKUP_METHOD]"
 else
-  log "ERROR: PUT /tasks/$TASK_ID failed (HTTP $HTTP_CODE) for event $EVENT_ID"
+  log "ERROR: PATCH /tasks/$TASK_ID failed (HTTP $HTTP_CODE) for event $EVENT_ID"
 fi
