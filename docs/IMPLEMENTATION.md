@@ -19,24 +19,19 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 - **Project initialized** — Vite + React 19 + TypeScript 5.7
 - **Tailwind v4** configured via `@tailwindcss/vite` plugin (CSS-first, no `tailwind.config.ts`)
-- **Dependencies installed** — Radix UI (accordion, slot), lucide-react, class-variance-authority,
-  json-server, concurrently, vite-tsconfig-paths
+- **Dependencies installed** — Radix UI (accordion, slot), @tabler/icons-react, class-variance-authority,
+  concurrently, vite-tsconfig-paths, hono, drizzle-orm, drizzle-kit, better-sqlite3
 - **TypeScript** — tsconfig.app.json + tsconfig.node.json project references, `@/*` path alias
   working via `vite-tsconfig-paths`
 - **All React components built**:
   - `Dashboard.tsx` — main container, stats strip, polling state
-  - `TaskTree.tsx` — recursive parent/child hierarchy with connector lines
-  - `TaskCard.tsx` — status badge, progress bar, elapsed time, accent bar
+  - `TaskTable.tsx` — shadcn-mira table with sortable columns, row selection, actions
+  - `GlobalEventStrip.tsx` — session events panel with "Clear all" button
   - `LogViewer.tsx` — Radix Accordion, terminal-style log table (line numbers, timestamps, levels)
-  - `ControlButtons.tsx` — Cancel/Pause/Retry via PATCH to json-server
   - `ui/button.tsx`, `ui/badge.tsx`, `ui/progress.tsx` — custom shadcn-style primitives
-- **Bun server** — replaced by Vite dev server + json-server combo
-- **json-server** — serves `db.json` as REST API on port 3001
+- **Hono server** — `src/server.ts` handles GET/POST/PATCH/DELETE for tasks and session events
+- **SQLite database** — `data/dashboard.db` persists tasks, logs, and session events
 - **Vite proxy** — `/api/*` → `http://localhost:3001/*` (no CORS needed)
-- **Mock data** — `db.json` has 6 realistic tasks with parent/child relationships, logs,
-  varied statuses
-- **Vite watcher** — `db.json` excluded from HMR (`server.watch.ignored`) so json-server writes
-  don't trigger page reloads
 - **Docs** — `docs/API.md`, `docs/HOOK.md`, `docs/FOR_ETHAN.md`
 - **Phase 5 — Claude Code Hook Integration** ✅ (rewritten 2026-03-08)
   - `scripts/pre-tool-agent.sh` — PreToolUse hook; creates `running` task via REST API
@@ -73,25 +68,24 @@ Two bash scripts in `scripts/` handle the full task lifecycle:
 
 | Script | Hook type | What it does |
 |--------|-----------|--------------|
-| `scripts/pre-tool-agent.sh` | `PreToolUse` | Creates a `running` task record in `db.json` when an Agent tool call starts |
-| `scripts/post-tool-agent.sh` | `PostToolUse` | Updates the task to `completed` / `failed` (or keeps `running` for background tasks) when the call ends |
+| `scripts/pre-tool-agent.sh` | `PreToolUse` | Creates a `running` task record via POST to Hono API when an Agent tool call starts |
+| `scripts/post-tool-agent.sh` | `PostToolUse` | Updates the task via PATCH when the call ends (status, logs, elapsed time) |
 
 Both scripts:
 
 - Read JSON from stdin (`INPUT=$(cat)`)
 - Use `tool_use_id` as the stable task ID linking pre and post calls
-- Talk to json-server via `curl` (REST API) — never write to `db.json` directly
-- Bootstrap `db.json` as a pre-flight check (so server can restart cleanly if killed)
+- Talk to Hono server via `curl` (REST API) — all writes go through `src/server.ts` endpoints
 - Log every API call result to `logs/hooks.log` with timestamp + `[pre-hook]`/`[post-hook]` label
 
-**Why curl instead of jq file writes?** json-server loads `db.json` into memory at startup and
-serves its in-memory store. Direct writes to `db.json` bypass that memory entirely — the API
-keeps returning stale data from boot. The fix is to route all writes through the REST API so
-json-server's in-memory state stays authoritative.
+**Why REST API instead of direct file writes?** Hono + SQLite use Drizzle ORM with type-safe
+queries and proper transactions. Bypassing the API (e.g., direct SQL or file manipulation) breaks
+schema validation, foreign keys, and migrations. All state changes must flow through the REST
+endpoints.
 
-**Why GET → mutate → PUT for the post-hook?** json-server's `PATCH` is a shallow merge — it
-would overwrite the `logs` array instead of appending. We fetch the full task, build the updated
-version in `jq`, then `PUT` it back as a complete replacement.
+**PATCH vs PUT:** Hono's PATCH endpoint in `src/server.ts` uses Drizzle's `.update().set()` to
+do shallow merges — only the provided fields are updated. This is more efficient than
+GET → mutate → PUT and matches REST semantics.
 
 ### 5.2 Global hook wiring (`~/.claude/settings.json`)
 
@@ -231,7 +225,7 @@ Colors match existing semantic palette: green-400 / blue-400 / stone-600 / amber
 ### 7.3 Data Model (No Schema Changes)
 
 `TaskNode.children[]` was already built client-side from `parentId` in `useTaskPolling.ts`.
-The checkpoint view simply renders that existing array — no new API fields, no db.json changes.
+The checkpoint view simply renders that existing array — no new API fields, no schema changes needed.
 
 ### 7.4 Files Changed
 

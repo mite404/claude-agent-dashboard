@@ -33,3 +33,14 @@ export async function deleteTask(taskId: string): Promise<void> {
     throw new Error(`DELETE /api/tasks/${taskId} failed: HTTP ${res.status}`);
   }
 }
+
+/**
+ * DELETE all session events.
+ */
+export async function clearAllSessionEvents(): Promise<void> {
+  const res = await fetch(`${API_BASE}/sessionEvents`, { method: "DELETE" });
+
+  if (!res.ok) {
+    throw new Error(`DELETE /api/sessionEvents failed: HTTP ${res.status}`);
+  }
+}

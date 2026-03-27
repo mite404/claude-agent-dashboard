@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import { IconChevronRight } from "@tabler/icons-react";
+import { IconChevronRight, IconTrash } from "@tabler/icons-react";
 import { cn, formatTimestamp } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { SESSION_EVENT_EMOJI } from "@/lib/taskConfig";
 import type { SessionEvent } from "@/types/task";
 
-export function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
+export function GlobalEventStrip({
+  events,
+  onClearAllEvents,
+}: {
+  events: SessionEvent[];
+  onClearAllEvents?: () => Promise<void>;
+}) {
   const [open, setOpen] = useState(() => events.length > 0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [clearing, setClearing] = useState(false);
 
   // Auto-scroll to bottom whenever new events arrive or the panel opens
   useEffect(() => {
@@ -16,26 +24,52 @@ export function GlobalEventStrip({ events }: { events: SessionEvent[] }) {
     el.scrollTop = el.scrollHeight;
   }, [events.length, open]);
 
+  const handleClearAll = async () => {
+    if (!onClearAllEvents) return;
+    setClearing(true);
+    try {
+      await onClearAllEvents();
+    } catch (err) {
+      console.error("Failed to clear session events:", err);
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
     <div className="rounded-md border border-stone-800 overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left bg-stone-900/60 hover:bg-stone-900 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
-        aria-expanded={open}
-        aria-label={open ? "Collapse session events" : "Expand session events"}
-      >
-        <IconChevronRight
-          size={13}
-          aria-hidden="true"
-          className={cn("text-stone-500 transition-transform duration-150 shrink-0", open && "rotate-90")}
-        />
-        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
-          Session Events
-        </span>
-        <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-800 px-1 text-[10px] font-semibold tabular-nums text-stone-400">
-          {events.length}
-        </span>
-      </button>
+      <div className="flex w-full items-center gap-2 px-3 py-2 bg-stone-900/60 hover:bg-stone-900 transition-colors">
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded px-1"
+          aria-expanded={open}
+          aria-label={open ? "Collapse session events" : "Expand session events"}
+        >
+          <IconChevronRight
+            size={13}
+            aria-hidden="true"
+            className={cn("text-stone-500 transition-transform duration-150 shrink-0", open && "rotate-90")}
+          />
+          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+            Session Events
+          </span>
+          <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-800 px-1 text-[10px] font-semibold tabular-nums text-stone-400">
+            {events.length}
+          </span>
+        </button>
+        {events.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearAll}
+            disabled={clearing}
+            className="gap-1.5 bg-rose-500 text-white hover:bg-rose-400 shrink-0"
+          >
+            <IconTrash size={13} />
+            Clear all
+          </Button>
+        )}
+      </div>
 
       {open && (
         <>

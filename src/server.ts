@@ -327,6 +327,27 @@ app.post('/sessionEvents', async (c) => {
   }
 });
 
+// DELETE /sessionEvents - clear all session events
+app.delete('/sessionEvents', async (c) => {
+  const sessionId = c.req.query('sessionId');
+  console.log('DELETE /sessionEvents called with:', { sessionId });
+
+  try {
+    const conditions = sessionId ? [eq(sessionEventsTable.sessionId, sessionId)] : [];
+    const result = await db
+      .delete(sessionEventsTable)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .returning();
+
+    console.log('Deleted session events:', { count: result.length, sessionId });
+
+    return c.json({ ok: true, deleted: result.length });
+  } catch (error) {
+    console.error('Failed to delete session events:', error);
+    return c.json({ error: 'Database error' }, 500);
+  }
+});
+
 app.get('/debug/sessions', async (c) => {
   const sessions = await db.select().from(sessionsTable);
 
