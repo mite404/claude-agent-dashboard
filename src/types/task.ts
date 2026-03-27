@@ -82,7 +82,7 @@ export interface Task {
   startedAt?: string | null;
   completedAt?: string | null;
   progressPercentage: number; // 0–100
-  logs: LogEntry[];
+  logs?: LogEntry[];  // optional — stored in logsTable, not returned by GET /tasks
   events?: HookEvent[]; // tool events fired during this task's execution
   dependencies?: string[]; // IDs of tasks this task must wait for
   agentId?: string; // subagent's agent_id from SubagentStart — matches agentId in session events

@@ -185,6 +185,7 @@ async function handleTaskUpdate(c: any) {
       'completedAt',
       'claimedAt',
       'agentId',
+      'agentType',
       'originatingSkill',
       'taskKind',
       'parentId',
@@ -192,6 +193,13 @@ async function handleTaskUpdate(c: any) {
     const update = Object.fromEntries(
       Object.entries(safeFields).filter(([k]) => validCols.includes(k)),
     );
+
+    if (Object.keys(update).length === 0) {
+      console.log('No valid fields to update for task:', id);
+      const current = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+      if (!current.length) return c.json({ error: 'no task found for that id' }, 404);
+      return c.json(current[0], 200);
+    }
 
     console.log('Updating task:', {
       id,

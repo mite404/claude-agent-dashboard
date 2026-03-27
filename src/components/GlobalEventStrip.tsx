@@ -83,7 +83,7 @@ export function GlobalEventStrip({
               <span className="shrink-0 text-left font-mono">Time</span>
             </div>
           )}
-          <div ref={scrollRef} className="max-h-64 overflow-auto divide-y divide-stone-800/40">
+          <div ref={scrollRef} className="max-h-96 overflow-auto divide-y divide-stone-800/40">
             {events.length === 0 ? (
               <div className="px-3 py-3 text-xs text-stone-600 italic">
                 No session events yet — submit a user prompt to start.

@@ -20,6 +20,8 @@ import {
   IconClockPlay,
   IconSun,
   IconMoon,
+  IconPlayerPause,
+  IconCircleX,
 } from "@tabler/icons-react";
 import {
   Table,
@@ -142,7 +144,7 @@ function FilterPopover({
 
 // ─── LogDetailRow ─────────────────────────────────────────────────────────────
 
-function LogDetailRow({ logs, colSpan }: { logs: LogEntry[]; colSpan: number }) {
+function LogDetailRow({ logs = [], colSpan }: { logs?: LogEntry[]; colSpan: number }) {
   const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 

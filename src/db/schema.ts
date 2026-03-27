@@ -30,6 +30,7 @@ export const tasksTable = sqliteTable('tasks', {
   claimedAt: text(),
   completedAt: text(),
   agentId: text(),           // hex agent ID from SubagentStart PATCH
+  agentType: text(),         // subagent type from PreToolUse hook (e.g. "general-purpose", "Explore")
   originatingSkill: text(),  // e.g. "/review-pr" from UserPromptSubmit hook
   taskKind: text(),          // "orchestrator" | "work" | "background-task"
 });
