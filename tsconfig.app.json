@@ -36,5 +36,9 @@
   "include": [
     "src",
     "./vitest-setup.ts"
+  ],
+  "exclude": [
+    "src/server.ts",
+    "src/db"
   ]
 }
