@@ -26,6 +26,38 @@ log() {
   echo "[$(date -u +"%H:%M:%S")] [session] $*" >> "$LOG_FILE"
 }
 
+# Retry a curl POST with exponential backoff (up to 3 attempts, 100ms → 200ms → 400ms)
+retry_post() {
+  local url="$1"
+  local data="$2"
+  local attempt=1
+  local max_attempts=3
+
+  while [ $attempt -le $max_attempts ]; do
+    local response=$(curl -s -w "\n%{http_code}" -X POST "$url" \
+      -H "Content-Type: application/json" \
+      -d "$data")
+    local http_code=$(echo "$response" | tail -n1)
+
+    # Success (201 Created)
+    if [ "$http_code" = "201" ]; then
+      echo "$http_code"
+      return 0
+    fi
+
+    # Server error or connection failure — retry
+    if [ "$attempt" -lt $max_attempts ]; then
+      sleep_ms=$((100 * attempt))
+      sleep "0.$(printf '%03d' $sleep_ms)"
+      attempt=$((attempt + 1))
+    else
+      # Final attempt failed
+      echo "$http_code"
+      return 1
+    fi
+  done
+}
+
 # Parse --event-type argument
 EVENT_TYPE=""
 while [[ $# -gt 0 ]]; do
@@ -225,11 +257,7 @@ SESSION_EVENT=$(jq -n \
     summary: $summary
   } + $extra + $agent')
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:3001/sessionEvents \
-  -H "Content-Type: application/json" \
-  -d "$SESSION_EVENT")
-
-HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+HTTP_CODE=$(retry_post "http://localhost:3001/sessionEvents" "$SESSION_EVENT")
 
 if [ "$HTTP_CODE" = "201" ]; then
   log "OK: $EVENT_TYPE — $SUMMARY (session $SESSION_ID${AGENT_ID:+ agent $AGENT_ID})"
