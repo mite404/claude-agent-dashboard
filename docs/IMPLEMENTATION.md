@@ -13,6 +13,34 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 ---
 
+## TODOs (Backlog)
+
+- [ ] **Hook scripts don't capture the current Claude Code session ID.** All tasks created in the
+  current session are being tagged with the session ID from yesterday. The hook scripts need to
+  get the persistent Claude Code session ID (the one used to resume a conversation with full chat
+  history) from an environment variable or state file that Claude Code sets on session start.
+  This session ID should be used consistently across all tasks created during that session so
+  that: (1) tasks can be linked to their corresponding chat history, (2) the session filter in
+  the dashboard works correctly, and (3) tasks can be shared/referenced externally. This is a
+  data plumbing issue — the dashboard logic is correct, but the source data is wrong.
+
+- [ ] **`HookEvent` table is missing from the schema.** `pre-tool-all.sh` and `post-tool-all.sh`
+  embed `events: [HookEvent]` in their PATCH bodies, but `server.ts` strips the `events` field
+  before every Drizzle UPDATE (`const { logs, events, ... } = body`). The scripts were written
+  against the old json-server API that stored events as embedded arrays in `db.json`. With
+  SQLite, there is no `hook_events` table — the data is silently dropped on every write. A
+  `hookEventsTable` needs to be added to `src/db/schema.ts` and the POST/PATCH handlers need to
+  insert rows into it.
+
+- [ ] **`EventTrailRow` will always be empty until the above is fixed.** The tool event timeline
+  per task (`EventTrailRow` in `TaskTable.tsx` ~line 283) reads `task.events` to render the
+  timeline of Bash/Read/Write calls. Because HookEvents are stripped at the server before they
+  reach SQLite, `task.events` is always `undefined` and the row renders nothing. Fix depends on
+  adding the `hookEventsTable` and updating `GET /tasks` (or a separate `GET /tasks/:id/events`
+  endpoint) to return the events alongside the task.
+
+---
+
 ## Current Status (as of 2026-03-26)
 
 ### ✅ Completed
@@ -699,29 +727,6 @@ const rows = await db
 **Why this matters:** The server was designed for filtered queries (like a search endpoint),
 but the dashboard needs a "give me everything" poll to build the task tree. REST endpoints
 used for polling must support unfiltered requests.
-
----
-
-## TODOs Identified (2026-03-27)
-
-From the post-SQLite-migration codebase audit:
-
-- [ ] **`HookEvent` table is missing from the schema.** `pre-tool-all.sh` and `post-tool-all.sh`
-  embed `events: [HookEvent]` in their PATCH bodies, but `server.ts` strips the `events` field
-  before every Drizzle UPDATE (`const { logs, events, ... } = body`). The scripts were written
-  against the old json-server API that stored events as embedded arrays in `db.json`. With
-  SQLite, there is no `hook_events` table — the data is silently dropped on every write. A
-  `hookEventsTable` needs to be added to `src/db/schema.ts` and the POST/PATCH handlers need to
-  insert rows into it.
-
-- [ ] **`EventTrailRow` will always be empty until the above is fixed.** The tool event timeline
-  per task (`EventTrailRow` in `TaskTable.tsx` ~line 283) reads `task.events` to render the
-  timeline of Bash/Read/Write calls. Because HookEvents are stripped at the server before they
-  reach SQLite, `task.events` is always `undefined` and the row renders nothing. Fix depends on
-  adding the `hookEventsTable` and updating `GET /tasks` (or a separate `GET /tasks/:id/events`
-  endpoint) to return the events alongside the task.
-
----
 
 ## Hono REST API Reference (`src/server.ts`)
 

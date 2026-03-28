@@ -1,5 +1,5 @@
 ---
-description: Vite 6 + React 19 + TypeScript + Tailwind v4 project. Bun is the package manager
+description: Vite 6 + React 19 + TypeScript + Tailwind v4 + SQLite project. Bun is the package manager
   and script runner. NOT a Bun.serve() project.
 globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
@@ -149,6 +149,7 @@ Neither are you, but we both strive for accuracy.
   flowing like a signal chain on a soundboard").
 - **Scaffolding:** Break complex logic into "scenes" or "beats" rather
   than a wall of text.
+- **Avoid Being Overcomplimentary:** Strip "Great question" from any response where it's present.
 
 ## 📚 The "FOR_ETHAN.md" Learning Log
 
