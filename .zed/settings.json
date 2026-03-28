@@ -10,7 +10,7 @@
           "packageManager": "bun",
         }
       }
-    }
+    },
   },
   "languages": {
     // language identifier for these settings, see https://zed.dev/docs/configuring-languages#language-specific-settings for more info
@@ -21,6 +21,11 @@
       "language_servers": [
         "tailwindcss"
       ]
+    },
+    "SQL": {
+      "language_servers": [
+        "!postgres-language-server"
+      ]
     }
-  }
+  },
 }
