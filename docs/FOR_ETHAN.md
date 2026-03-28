@@ -1402,6 +1402,54 @@ navigation. These decisions cost nothing early but everything later.
 
 ---
 
+### On Defensive Programming: API Data vs React State
+
+**The pattern:** When fetching from an API, follow this three-step pattern:
+
+1. **Get fresh data** — `const rawTasks = await response.json()`
+2. **Make defensive copies** — `const data = rawTasks.map((t) => ({ ...t }))`
+3. **Mutate the copies, not the original** — `computeBlockedState(data)`
+
+**Why it matters:** The API response is your source of truth from the database. React state is
+your working layer. Keep them separate.
+
+**The spread operator `{ ...t }` creates a shallow copy** — all top-level properties are copied,
+but nested objects still reference the original. For simple data models (like `Task`), this is
+sufficient and cheap.
+
+**The mental model:** Database can mutate (PATCH updates SQLite), but in-memory React data
+follows immutability patterns. Get immutable copy from API → manipulate safely in memory → if
+verified, send changes back to database. This prevents bugs where you accidentally mutate what
+the server gave you, lose the original data, and can't debug what went wrong.
+
+**The full flow:**
+
+```javascript
+// 1. Get from database (source of truth)
+const rawTasks = await fetch('/api/tasks').then(r => r.json());
+
+// 2. Make a working copy
+const workingCopy = rawTasks.map(t => ({ ...t }));
+
+// 3. Mutate the copy in memory
+workingCopy[0].status = "completed";
+workingCopy[0].progressPercentage = 100;
+
+// 4. Validate
+if (isValid(workingCopy[0])) {
+  // 5. Write back to database
+  await fetch(`/api/tasks/${workingCopy[0].id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "completed", progressPercentage: 100 })
+  });
+} else {
+  // Validation failed — discard the copy, original DB data untouched
+  console.log("Invalid, discarding changes");
+}
+```
+
+---
+
 ## Feature: Checkpoint View + Column Reorder (2026-03-07)
 
 ### The Problem
