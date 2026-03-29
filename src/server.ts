@@ -82,6 +82,38 @@ app.get('/tasks/pool', async (c) => {
   }
 });
 
+app.get('/tasks/:id/claim', async (c) => {
+  // parse
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => null);
+
+  // validate
+  if (!body?.claimedBy) {
+    return c.json({ error: 'claimedBy required' }, 400);
+  }
+
+  // query DB
+  let result;
+  try {
+    result = await db
+      .update(tasksTable)
+      .set({ status: 'claimed', claimedBy: body.claimedBy, claimedAt: new Date().toISOString() })
+      .where(and(eq(tasksTable.id, id), eq(tasksTable.status, 'unassigned')))
+      .returning();
+
+    if (!result.length) {
+      const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+      if (!existing.length) return c.json({ error: 'task not found' }, 404);
+      return c.json({ error: 'task already claimed', claimedBy: existing[0].claimedBy }, 409);
+    }
+  } catch (error) {
+    console.error('Failed to find task:', id);
+    return c.json({ error: 'Server error' }, 500);
+  }
+
+  return c.json(result[0], 200);
+});
+
 // GET /tasks/:id
 app.get('/tasks/:id', async (c) => {
   const id = c.req.param('id');
@@ -306,10 +338,10 @@ app.get('/sessionEvents', async (c) => {
 
     // map over each event in rows and parse metadata field back into an object
     return c.json(
-      rows.map((e) => ({
-        ...e,
-        metadata: e.metadata ? JSON.parse(e.metadata) : undefined,
-      })),
+      {
+        data: rows,
+      },
+      200,
     );
   } catch (error) {
     console.error('Query failed:', error);
