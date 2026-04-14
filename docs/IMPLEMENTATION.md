@@ -13,31 +13,76 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 ---
 
-## TODOs (Backlog)
+## Open TODOs — Prioritized
 
-- [ ] **Hook scripts don't capture the current Claude Code session ID.** All tasks created in the
-  current session are being tagged with the session ID from yesterday. The hook scripts need to
-  get the persistent Claude Code session ID (the one used to resume a conversation with full chat
-  history) from an environment variable or state file that Claude Code sets on session start.
-  This session ID should be used consistently across all tasks created during that session so
-  that: (1) tasks can be linked to their corresponding chat history, (2) the session filter in
-  the dashboard works correctly, and (3) tasks can be shared/referenced externally. This is a
-  data plumbing issue — the dashboard logic is correct, but the source data is wrong.
+### P1 — Silent Data Loss (Fix Before Adding Features)
 
-- [ ] **`HookEvent` table is missing from the schema.** `pre-tool-all.sh` and `post-tool-all.sh`
-  embed `events: [HookEvent]` in their PATCH bodies, but `server.ts` strips the `events` field
-  before every Drizzle UPDATE (`const { logs, events, ... } = body`). The scripts were written
-  against the old json-server API that stored events as embedded arrays in `db.json`. With
-  SQLite, there is no `hook_events` table — the data is silently dropped on every write. A
-  `hookEventsTable` needs to be added to `src/db/schema.ts` and the POST/PATCH handlers need to
-  insert rows into it.
+- [ ] **`HookEvent` table is missing from the SQLite schema.**
+  `pre-tool-all.sh` and `post-tool-all.sh` PATCH tasks with an `events: [HookEvent]` array, but
+  `server.ts` destructures that field out before every Drizzle UPDATE
+  (`const { logs, events, ... } = body`). The scripts were written against the old json-server
+  API that stored events as embedded arrays in `db.json`. With SQLite there is no `hook_events`
+  table — the data is silently dropped on every write. Fix:
 
-- [ ] **`EventTrailRow` will always be empty until the above is fixed.** The tool event timeline
-  per task (`EventTrailRow` in `TaskTable.tsx` ~line 283) reads `task.events` to render the
-  timeline of Bash/Read/Write calls. Because HookEvents are stripped at the server before they
-  reach SQLite, `task.events` is always `undefined` and the row renders nothing. Fix depends on
-  adding the `hookEventsTable` and updating `GET /tasks` (or a separate `GET /tasks/:id/events`
-  endpoint) to return the events alongside the task.
+  1. Add `hookEventsTable` to `src/db/schema.ts` (columns: `id`, `taskId`, `toolName`, `phase`,
+     `status`, `summary`, `timestamp`, `completedAt`)
+  2. Run `bunx drizzle-kit push` to apply the schema change
+  3. Update the PATCH `/tasks/:id` handler to insert `HookEvent` rows instead of ignoring them
+  4. Update `GET /tasks` (or add `GET /tasks/:id/events`) to join hook events into the response
+
+- [ ] **`EventTrailRow` always renders empty — depends on the above fix.**
+  `EventTrailRow` in `TaskTable.tsx` reads `task.events` to show the Bash/Read/Write call
+  timeline. Because events are stripped before reaching SQLite, `task.events` is always
+  `undefined`. This todo closes automatically once the `hookEventsTable` fix lands and `GET
+  /tasks` includes the events array.
+
+### P2 — Data Accuracy
+
+- [ ] **Hook scripts don't capture the current Claude Code session ID.**
+  Tasks are being tagged with a stale session ID from a prior session. The hook scripts need to
+  read the session-start ID (the one Claude Code uses to resume a conversation) from the
+  environment or a state file written at `SessionStart`. Fix requires:
+
+  1. Confirm which env var or file Claude Code exposes the persistent session ID in
+     (check `session-event.sh` — `SessionStart` handler receives `.session_id` from stdin)
+  2. Store it to a predictable temp file (e.g. `/tmp/cc-session-current`) on `SessionStart`
+  3. Have `pre-tool-agent.sh` and `pre-tool-all.sh` read from that file instead of relying on
+     the `session_id` field in the per-tool hook payload (which may carry a stale ID)
+
+  Impact: session filter in the dashboard, task-to-chat attribution, and external sharing all
+  depend on this ID being correct.
+
+### P3 — Developer Experience
+
+- [ ] **Migrate bash hook scripts to TypeScript.**
+  All 5 scripts (`pre-tool-agent.sh`, `post-tool-agent.sh`, `pre-tool-all.sh`,
+  `post-tool-all.sh`, `session-event.sh`) can be ported to TypeScript and run directly with
+  `bun`. Benefits: shared types from `src/types/task.ts`, native `fetch()` instead of `curl`,
+  readable regex instead of `grep -oE`/`sed`, and real error objects instead of exit codes.
+  Steps:
+
+  1. Add `#!/opt/homebrew/bin/bun` shebang (absolute path — hooks run outside your login shell,
+     so `PATH` may not include `/opt/homebrew/bin`)
+  2. Replace `INPUT=$(cat)` + `jq -r '.field'` calls with `JSON.parse(await
+     Bun.stdin.text())`
+  3. Replace `curl -X POST` calls with `fetch()`
+  4. Replace tag-parsing `sed`/`grep` chains with `name.match(/\[parentId:([^\]]+)\]/)`
+  5. Import shared types: `import type { Task, HookEvent } from '../src/types/task'`
+  6. Update hook commands in `~/.claude/settings.json` to point to `.ts` files (same absolute
+     paths, shebang handles the rest)
+
+  Port `pre-tool-agent.sh` first — it has the most logic. Others follow the same pattern.
+
+### P4 — Future Features
+
+- [ ] **Skill attribution v2** (from Phase 12 notes). Current v1 captures `/skill-name` string
+  only. Future enhancements: source classification (anthropic | vercel | custom | community),
+  skill source UI filter (checkbox popover), author + experimental flag tracking.
+
+- [ ] **Confirm `parentId` tree renders correctly with live hook data.** Checked items in
+  Phase 8 Testing only confirmed cancel/pause/retry and polling. Child task rendering via live
+  hooks was not formally exercised. Verify with a real parallel agent session dispatching
+  sub-agents that set `[parentId:XXX]` in their description tags.
 
 ---
 
@@ -608,12 +653,17 @@ if (sessionFilter.size > 0 && task.sessionId && !sessionFilter.has(task.sessionI
 # Install
 bun install
 
-# Start both servers
+# Initialize the SQLite database (first time only)
+bunx drizzle-kit push
+
+# Start all services
 bun run dev
 # → Vite UI at http://localhost:5173
-# → json-server at http://localhost:3001
+# → Hono API server at http://localhost:3001
+# → tail -F logs/hooks.log (hook output stream)
+# → scripts/spawn-terminal.ts (new agent launcher)
 
-# json-server only (if you want to test the API separately)
+# Hono server only (test the API separately)
 bun run server
 ```
 
