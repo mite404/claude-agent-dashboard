@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql, asc } from 'drizzle-orm';
 import { db } from './db/index';
 import { tasksTable, sessionEventsTable, sessionsTable, logsTable } from './db/schema';
 
@@ -52,6 +52,68 @@ app.get('/tasks', async (c) => {
   }
 });
 
+// GET /tasks/pool
+// Input: {}
+// Output: { Array<Task> }
+// Errors: server 500 (DB error)
+app.get('/tasks/pool', async (c) => {
+  let rows;
+
+  try {
+    rows = await db
+      .select()
+      .from(tasksTable)
+      .where(eq(tasksTable.status, 'unassigned'))
+      .orderBy(
+        sql`CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`,
+        asc(tasksTable.createdAt),
+      );
+
+    if (!Array.isArray(rows)) {
+      console.error('ERROR: database returned non-array:', typeof rows);
+      return c.json({ error: 'Database error' }, 500);
+    }
+
+    console.log(`GET /tasks/pool -> ${rows.length} unassigned tasks`);
+    return c.json({ data: rows });
+  } catch (error) {
+    console.error('GET /tasks/pool failed:', error);
+    return c.json({ error: 'Server error' }, 500);
+  }
+});
+
+app.get('/tasks/:id/claim', async (c) => {
+  // parse
+  const id = c.req.param('id');
+  const body = await c.req.json().catch(() => null);
+
+  // validate
+  if (!body?.claimedBy) {
+    return c.json({ error: 'claimedBy required' }, 400);
+  }
+
+  // query DB
+  let result;
+  try {
+    result = await db
+      .update(tasksTable)
+      .set({ status: 'claimed', claimedBy: body.claimedBy, claimedAt: new Date().toISOString() })
+      .where(and(eq(tasksTable.id, id), eq(tasksTable.status, 'unassigned')))
+      .returning();
+
+    if (!result.length) {
+      const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+      if (!existing.length) return c.json({ error: 'task not found' }, 404);
+      return c.json({ error: 'task already claimed', claimedBy: existing[0].claimedBy }, 409);
+    }
+  } catch (error) {
+    console.error('Failed to find task:', id);
+    return c.json({ error: 'Server error' }, 500);
+  }
+
+  return c.json(result[0], 200);
+});
+
 // GET /tasks/:id
 app.get('/tasks/:id', async (c) => {
   const id = c.req.param('id');
@@ -89,7 +151,7 @@ app.post('/tasks', async (c) => {
   try {
     body = await c.req.json();
   } catch (error) {
-    console.error('Malformed JSON response', error);
+    console.error('Malformed JSON request', error);
     return c.json({ error: 'Bad request' }, 400);
   }
 
@@ -276,10 +338,10 @@ app.get('/sessionEvents', async (c) => {
 
     // map over each event in rows and parse metadata field back into an object
     return c.json(
-      rows.map((e) => ({
-        ...e,
-        metadata: e.metadata ? JSON.parse(e.metadata) : undefined,
-      })),
+      {
+        data: rows,
+      },
+      200,
     );
   } catch (error) {
     console.error('Query failed:', error);

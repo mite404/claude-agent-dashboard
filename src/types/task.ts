@@ -5,7 +5,11 @@ export type TaskStatus =
   | 'failed'
   | 'paused'
   | 'cancelled'
-  | 'blocked'; // computed client-side when dependencies are incomplete
+  | 'blocked' // computed client-side when dependencies are incomplete
+  | 'unassigned'
+  | 'claimed';
+
+export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export type TaskKind = 'work' | 'evaluation' | 'planning';
 
@@ -82,13 +86,19 @@ export interface Task {
   startedAt?: string | null;
   completedAt?: string | null;
   progressPercentage: number; // 0–100
-  logs?: LogEntry[];  // optional — stored in logsTable, not returned by GET /tasks
+  logs?: LogEntry[]; // optional — stored in logsTable, not returned by GET /tasks
   events?: HookEvent[]; // tool events fired during this task's execution
   dependencies?: string[]; // IDs of tasks this task must wait for
   agentId?: string; // subagent's agent_id from SubagentStart — matches agentId in session events
   lastAssistantMessage?: string; // final summary from SubagentStop payload
   originatingSkill?: string; // skill that spawned this task's session
   taskKind?: TaskKind; // work, evaluation, or planning
+  priority?: TaskPriority;
+  description?: string;
+  claimedBy?: string | null;
+  claimedAt?: string | null;
+  worktreePath?: string | null;
+  createdBy?: string | null;
 }
 
 export interface TaskNode extends Task {
