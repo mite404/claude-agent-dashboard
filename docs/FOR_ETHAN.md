@@ -3292,3 +3292,213 @@ You can rebuild frontend without touching backend. You can run backend without f
 If you find yourself saying "but I want one build command," that's a smell that your tooling
 is fighting your architecture. The right fix isn't a clever build script—it's respecting the
 separation.
+
+---
+
+## Phase 13: The Evidence That Never Made It to the Database (2026-04-14)
+
+### The Story
+
+After the SQLite migration landed, the hook pipeline looked healthy on the surface. Hooks fired,
+tasks appeared in the dashboard, statuses updated. But a key feature — the Event Trail showing
+every Bash/Read/Write/Grep call a subagent made — was always empty. No events. Ever.
+
+The bug wasn't a crash. It wasn't a 500. It was a polite, silent discard happening 20 lines into
+`handleTaskUpdate`.
+
+### 🎬 Blooper 25: The PATCH That Ate the Evidence
+
+**Background:** `pre-tool-all.sh` fires on every tool call (except Agent). It builds a hook event
+object — tool name, phase, summary, timestamp — and PATCHes the task with an accumulated
+`events` array:
+
+```bash
+UPDATED=$(echo "$EXISTING" | jq \
+  --argjson event "$NEW_EVENT" \
+  '. + { events: ((.events // []) + [$event]) }')
+
+curl -X PATCH "http://localhost:3001/tasks/$TASK_ID" -d "$UPDATED"
+```
+
+This worked perfectly with json-server, because json-server is a document store. It just merges
+whatever JSON you send into the stored object. Tasks literally had an embedded `events: [...]`
+array living inside them in `db.json`. No schema, no tables, no constraints — just JSON in,
+JSON out.
+
+**What broke:** After the SQLite migration, `handleTaskUpdate` does this on the first line of
+its try block:
+
+```ts
+const { logs, events, dependencies, ...safeFields } = body;
+```
+
+It destructures `events` out of the incoming body — and then does nothing with it. The
+`validCols` whitelist that follows only knows about columns in `tasksTable`. `events` isn't a
+column. It's extracted, it's given a name, and it quietly falls off the edge of the function
+into the void.
+
+```ts
+const validCols = ['name', 'status', 'completedAt', 'progressPercentage', ...];
+const update = Object.fromEntries(
+  Object.entries(safeFields).filter(([k]) => validCols.includes(k)),
+);
+// events was never included in safeFields. it was destructured out. gone.
+```
+
+**Why this is a hard bug to spot:** The PATCH still returns 200. The task fields still update.
+Nothing in the logs mentions events. The hook script sees a success response and logs "OK."
+The data just never reaches `hookEventsTable`. Every tool call audit trail — the Bash commands,
+the file reads, the grep searches — is silently dropped on every single hook fire.
+
+### The Relational vs. Document Store Mental Shift
+
+This bug is really a mental model mismatch carried over from the json-server era.
+
+With **json-server** (document store):
+
+```
+PATCH /tasks/abc { status: "completed", events: [...] }
+→ task.status = "completed"
+→ task.events = [...]          ← just merged into the same object
+```
+
+With **SQLite** (relational):
+
+```
+tasks table    → has columns: id, status, completedAt, ...
+hook_events    → has columns: id, taskId, toolName, phase, ...
+               ← completely separate table, linked by taskId
+```
+
+The events array in the PATCH body is **incoming data** that needs to be routed to the right
+table — it's not a column to merge. The server's job is to split the request: task fields go to
+`tasksTable`, event objects go to `hookEventsTable` as individual rows.
+
+### The Fix: Two Writes in One Request
+
+`handleTaskUpdate` needs to do two separate DB operations when `events` is present:
+
+1. **Update `tasksTable`** — already works, no changes needed
+2. **Upsert each event into `hookEventsTable`** — new operation, keyed on event `id`
+
+The upsert (INSERT OR REPLACE) handles both the pre-hook and post-hook cases cleanly:
+
+- Pre-hook sends: `{ id: "abc", phase: "pre", status: "running" }`
+- Post-hook sends the full array again: `{ id: "abc", phase: "post", status: "completed" }`
+
+Same `id`, updated fields — upsert writes it once, then overwrites the right row on the second
+call. No duplicates, no orphans.
+
+### The Dead Code That Confirmed Something Was Off
+
+While investigating, another artifact surfaced in `post-tool-agent.sh`:
+
+```bash
+# Ensure db.json is valid so json-server can start cleanly if restarted
+if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
+  echo '{"tasks":[],"sessionEvents":[]}' > "$DB_FILE"
+  log "WARN: db.json was missing or invalid — bootstrapped fresh"
+fi
+```
+
+`db.json` hasn't existed since PR #26. `DB_FILE` points to a file that will never be there.
+This check has been running on every post-hook fire and doing nothing — silently passing,
+silently useless. It's a ghost from a previous era: code that doesn't crash, doesn't warn, and
+doesn't do its job.
+
+**Lesson:** Dead code that references deleted infrastructure is a smell. If a variable like
+`DB_FILE` has no living referent, the code around it probably isn't doing what the comment says
+either. When you migrate a system, audit what you brought with you.
+
+---
+
+## Behind the Scenes: Why the Bash Hooks Are Moving to TypeScript (2026-04-14)
+
+### The Original Decision
+
+The hook scripts were written in Bash because of a reasonable assumption: Claude Code hooks
+are shell-level integrations, so they should be shell scripts. Staying close to the OS felt
+safe. Bash is universal; everyone has it.
+
+**That assumption was wrong.** Claude Code hooks are just commands. The hook system pipes JSON
+to stdin of whatever executable you point it at and reads the exit code. The language is
+irrelevant — what matters is the shebang.
+
+```bash
+#!/opt/homebrew/bin/bun
+```
+
+That single line makes a `.ts` file a valid Claude Code hook. Bun runs TypeScript natively.
+No compilation, no build step, no wrapper script.
+
+### Why It Matters Now
+
+The bash scripts have a compounding problem: they were written against json-server, and the
+migration to Hono + SQLite left behind dead code that's hard to spot if you don't read Bash
+fluently. Bloopers accumulate in scripts you can't fully read.
+
+TypeScript buys:
+
+- **Shared types** — `HookEvent`, `Task` from `src/types/task.ts` enforce the right shape at
+  write-time, not at 2am when a hook silently drops fields
+- **Native `fetch()`** — replaces `curl -s -w "\n%{http_code}"` and manual HTTP code parsing
+- **`JSON.parse(await Bun.stdin.text())`** — replaces `INPUT=$(cat)` + multiple `jq -r` calls
+- **Real error objects** — replaces exit codes and grep-based error detection
+- **Readable regex** — `.match(/\[parentId:([^\]]+)\]/)` replaces `grep -oE`/`sed` chains
+
+The equivalent of this bash ceremony:
+
+```bash
+NEW_EVENT=$(jq -n \
+  --arg id "$EVENT_ID" \
+  --arg tool "$TOOL_NAME" \
+  --arg summary "$SUMMARY" \
+  --arg now "$NOW" \
+  '{
+    id: $id,
+    toolName: $tool,
+    phase: "pre",
+    status: "running",
+    summary: $summary,
+    timestamp: $now
+  }')
+```
+
+…becomes this in TypeScript:
+
+```ts
+const event: HookEvent = {
+  id: payload.tool_use_id,
+  toolName: payload.tool_name,
+  phase: 'pre',
+  status: 'running',
+  summary: buildSummary(payload),
+  timestamp: new Date().toISOString(),
+};
+```
+
+Type errors surface at write-time. A missing field is a red underline, not a runtime discard.
+
+### The One Gotcha: Absolute Shebang Path
+
+Hooks run outside your login shell. `/opt/homebrew/bin` is not on `PATH` in that context.
+`#!/usr/bin/env bun` will fail silently. The shebang must be an absolute path:
+
+```bash
+#!/opt/homebrew/bin/bun
+```
+
+Linux users on non-Homebrew systems will have Bun at a different path (typically
+`/home/user/.bun/bin/bun`). That's a one-line setup note in the README — not a reason to
+maintain a separate implementation.
+
+### The Migration Order
+
+Port `pre-tool-agent.sh` first — it has the most logic and is the reference implementation for
+the others. The pattern established there carries through to `pre-tool-all.sh`,
+`post-tool-all.sh`, `post-tool-agent.sh`, and `session-event.sh`. Update
+`~/.claude/settings.json` to point to the `.ts` files after each script is ported and tested.
+
+**The right test:** fire a real Claude Code agent session with the dashboard running, confirm
+tasks appear and events land in `hookEventsTable`. Logs in `logs/hooks.log` are your signal
+chain — if a hook fires and nothing appears in the table, that's the diagnostic starting point.
