@@ -16,12 +16,6 @@ log() {
   echo "[$(date -u +"%H:%M:%S")] [pre-hook] $*" >> "$LOG_FILE"
 }
 
-# Ensure db.json is valid so json-server can start cleanly if restarted
-if [ ! -f "$DB_FILE" ] || ! jq -e '.tasks' "$DB_FILE" > /dev/null 2>&1; then
-  echo '{"tasks":[],"sessionEvents":[]}' > "$DB_FILE"
-  log "WARN: db.json was missing or invalid — bootstrapped fresh"
-fi
-
 INPUT=$(cat)
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // ""')

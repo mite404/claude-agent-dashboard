@@ -75,6 +75,19 @@ export const sessionEventsTable = sqliteTable('session_events', {
   metadata: text({ mode: 'json' }).default(null),
 });
 
+export const hookEventsTable = sqliteTable('hook_events', {
+  id: text().primaryKey(),
+  taskId: text()
+    .notNull()
+    .references(() => tasksTable.id),
+  toolName: text(),
+  phase: text(),
+  status: text().notNull(),
+  summary: text(),
+  timeStamp: text(),
+  completedAt: text(),
+});
+
 export const schemaVersion = sqliteTable('schema_version', {
   version: integer().primaryKey(),
   appliedAt: text().notNull().unique(),
