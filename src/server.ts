@@ -159,8 +159,8 @@ app.post('/tasks', async (c) => {
 
   if (!body.name || !body.sessionId) {
     console.error('Missing required name and sessionId:', {
-      hasName: !!body.name,
-      hasSessionId: !!body.sessionId,
+      hasName: Boolean(body.name),
+      hasSessionId: Boolean(body.sessionId),
     });
     return c.json({ error: 'name and sessionId required' }, 400);
   }
@@ -229,7 +229,7 @@ async function handleTaskUpdate(c: any) {
   }
 
   if (!id) {
-    console.error('Missing required id:', { hasId: !!body.id });
+    console.error('Missing required id:', { hasId: Boolean(body.id) });
     return c.json({ error: 'id required' }, 400);
   }
 
@@ -362,8 +362,8 @@ app.post('/sessionEvents', async (c) => {
 
   if (!body.sessionId || !body.type) {
     console.error('Missing required fields:', {
-      hasSessionId: !!body.sessionId,
-      hasType: !!body.type,
+      hasSessionId: Boolean(body.sessionId),
+      hasType: Boolean(body.type),
     });
     return c.json({ error: 'sessionId and type required' }, 400);
   }
