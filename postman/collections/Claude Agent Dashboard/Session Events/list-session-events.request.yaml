@@ -59,7 +59,7 @@ scripts:
       <html>
       <head>
         <meta charset="utf-8">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"><\/script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js" integrity="sha512-Xi9hntzKnjRajIIkbxU5XFCnY4fXApOTc/uf4TkJRE/kv5k9jAaK+CWLHJnpcGdWJsxNColUdRESQQPL+dSR9A==" crossorigin="anonymous"><\/script>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }

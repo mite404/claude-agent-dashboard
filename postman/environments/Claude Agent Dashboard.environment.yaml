@@ -1,10 +1,2 @@
 name: Claude Agent Dashboard
 values:
-  - key: baseUrl
-    value: 'http://localhost:3001'
-    enabled: true
-    type: default
-  - key: taskId
-    value: ''
-    enabled: true
-    type: default

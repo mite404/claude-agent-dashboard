@@ -16,5 +16,5 @@ body:
     {
       "status": "running",
       "progressPercentage": 50,
-      "startedAt": "2026-04-24T18:00:00.000Z"
+      "startedAt": '{{$isoTimestamp}}'
     }

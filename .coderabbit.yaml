@@ -9,7 +9,7 @@ reviews:
   auto_title_placeholder: '@coderabbitai'
   poem: false
   review_status: true
-  collapse_walkthrough: false
+  collapse_walkthrough: true
   sequence_diagrams: true
   changed_files_summary: true
   path_filters:
