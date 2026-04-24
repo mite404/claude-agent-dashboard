@@ -23,8 +23,10 @@ const payload: PreToolPayload = JSON.parse(raw);
 const {
   session_id: sessionId = '',
   tool_use_id: taskId = '',
-  tool_name: rawName = 'Unnamed task',
-  tool_input: { subagent_type: subagentType = 'general-purpose' } = {},
+  tool_input: {
+    description: rawName = 'Unnamed task',
+    subagent_type: subagentType = 'general-purpose',
+  } = {},
 } = payload;
 
 // caller can embed metadata directly in the task description string using bracket tags: [parentId:abc123]

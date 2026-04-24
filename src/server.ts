@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { db } from './db/index';
-import { tasksTable, sessionEventsTable, sessionsTable, logsTable } from './db/schema';
+import { tasksTable, sessionEventsTable, sessionsTable, logsTable, hookEventsTable } from './db/schema';
 
 const app = new Hono();
 
