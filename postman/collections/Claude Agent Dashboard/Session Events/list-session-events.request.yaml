@@ -1,0 +1,180 @@
+$kind: http-request
+name: List Session Events
+method: GET
+url: '{{baseUrl}}/sessionEvents'
+order: 1000
+queryParams:
+  - key: sessionId
+    value: ''
+    description: Filter by session ID
+    disabled: true
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const COLOR_MAP = {
+        UserPromptSubmit: '#4A90D9',
+        SubagentStart: '#5CB85C',
+        SubagentStop: '#F0AD4E',
+        Stop: '#D9534F',
+        PermissionRequest: '#9B59B6'
+      };
+
+      function getColor(type) {
+        return COLOR_MAP[type] || '#95A5A6';
+      }
+
+      function constructVisualizerPayload() {
+        const json = pm.response.json();
+        const rawEvents = (json && json.data) ? json.data : [];
+
+        const typeCounts = {};
+        const events = rawEvents.map(function(e) {
+          const t = e.type || 'Unknown';
+          typeCounts[t] = (typeCounts[t] || 0) + 1;
+          const d = new Date(e.timestamp);
+          const timeStr = isNaN(d.getTime()) ? e.timestamp : d.toLocaleTimeString();
+          return {
+            id: e.id,
+            sessionId: e.sessionId,
+            type: t,
+            summary: e.summary || '',
+            timestamp: timeStr,
+            agentId: e.agentId || '',
+            agentType: e.agentType || '',
+            model: e.model || '',
+            color: getColor(t)
+          };
+        });
+
+        const typeLabels = Object.keys(typeCounts);
+        const typeData = typeLabels.map(function(l) { return typeCounts[l]; });
+        const typeColors = typeLabels.map(function(l) { return getColor(l); });
+
+        return { events: events, typeCounts: typeCounts, typeLabels: typeLabels, typeData: typeData, typeColors: typeColors };
+      }
+
+      const template = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js" integrity="sha512-Xi9hntzKnjRajIIkbxU5XFCnY4fXApOTc/uf4TkJRE/kv5k9jAaK+CWLHJnpcGdWJsxNColUdRESQQPL+dSR9A==" crossorigin="anonymous"><\/script>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
+          h2 { color: #a0c4ff; margin-bottom: 16px; font-size: 18px; letter-spacing: 0.5px; }
+          .container { max-width: 900px; margin: 0 auto; }
+          .chart-wrapper { background: #16213e; border-radius: 10px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; }
+          canvas { max-width: 320px; max-height: 320px; }
+          .legend { margin-left: 32px; }
+          .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 14px; }
+          .legend-dot { width: 14px; height: 14px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
+          .legend-label { color: #c0c0c0; }
+          .legend-count { margin-left: 8px; color: #a0c4ff; font-weight: bold; }
+          .table-wrapper { background: #16213e; border-radius: 10px; padding: 20px; }
+          .table-scroll { max-height: 360px; overflow-y: auto; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          thead th { position: sticky; top: 0; background: #0f3460; color: #a0c4ff; padding: 10px 12px; text-align: left; font-weight: 600; letter-spacing: 0.3px; z-index: 1; }
+          tbody tr { border-bottom: 1px solid #1e2a45; transition: background 0.15s; }
+          tbody tr:hover { background: #1e2a45; }
+          td { padding: 9px 12px; vertical-align: top; color: #d0d0d0; }
+          td.time { white-space: nowrap; color: #8899aa; font-size: 12px; }
+          .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; }
+          td.summary { max-width: 480px; word-break: break-word; }
+          .empty { color: #666; text-align: center; padding: 32px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h2>Session Events</h2>
+          <div class="chart-wrapper">
+            <canvas id="donutChart"></canvas>
+            <div class="legend" id="legend"></div>
+          </div>
+          <div class="table-wrapper">
+            <h2 style="margin-bottom:12px;">Event Timeline</h2>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Time</th><th>Type</th><th>Summary</th></tr></thead>
+                <tbody id="eventBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <script>
+          pm.getData(function(err, value) {
+            if (err || !value) return;
+            function esc(s) {
+              return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            }
+            var events = value.events || [];
+            var typeLabels = value.typeLabels || [];
+            var typeData = value.typeData || [];
+            var typeColors = value.typeColors || [];
+            var typeCounts = value.typeCounts || {};
+
+            // Doughnut chart
+            var ctx = document.getElementById('donutChart').getContext('2d');
+            new Chart(ctx, {
+              type: 'doughnut',
+              data: {
+                labels: typeLabels,
+                datasets: [{
+                  data: typeData,
+                  backgroundColor: typeColors,
+                  borderColor: '#1a1a2e',
+                  borderWidth: 3
+                }]
+              },
+              options: {
+                responsive: true,
+                legend: { display: false },
+                cutoutPercentage: 60,
+                tooltips: {
+                  callbacks: {
+                    label: function(item, data) {
+                      return ' ' + data.labels[item.index] + ': ' + data.datasets[0].data[item.index];
+                    }
+                  }
+                }
+              }
+            });
+
+            // Legend
+            var legend = document.getElementById('legend');
+            typeLabels.forEach(function(label, i) {
+              var item = document.createElement('div');
+              item.className = 'legend-item';
+              item.innerHTML = '<div class="legend-dot" style="background:' + typeColors[i] + '"></div>' +
+                '<span class="legend-label">' + label + '</span>' +
+                '<span class="legend-count">' + typeData[i] + '</span>';
+              legend.appendChild(item);
+            });
+
+            // Timeline table
+            var tbody = document.getElementById('eventBody');
+            if (events.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="3" class="empty">No events found.</td></tr>';
+            } else {
+              events.forEach(function(e) {
+                var tr = document.createElement('tr');
+                tr.innerHTML =
+                  '<td class="time">' + esc(e.timestamp) + '</td>' +
+                  '<td><span class="badge" style="background:' + esc(e.color) + '">' + esc(e.type) + '</span></td>' +
+                  '<td class="summary">' + (e.summary ? esc(e.summary) : '<em style="color:#555">—</em>') + '</td>';
+                tbody.appendChild(tr);
+              });
+            }
+          });
+        <\/script>
+      </body>
+      </html>
+      `;
+
+      pm.visualizer.set(template, constructVisualizerPayload());

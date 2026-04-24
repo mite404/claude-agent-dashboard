@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get Task
+method: GET
+url: '{{baseUrl}}/tasks/{{taskId}}'
+order: 3000
+pathVariables:
+  - key: taskId
+    value: '{{taskId}}'
+    description: The task ID

@@ -78,6 +78,7 @@ const newTask = {
   startedAt: new Date().toISOString(),
   kind: finalKind,
   originatingSkill,
+  progressPercentage: 0,
   logs: [
     {
       timestamp: new Date().toISOString(),

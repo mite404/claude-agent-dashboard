@@ -36,5 +36,8 @@ data/dashboard.db-wal
 # IntelliJ based IDEs
 .idea
 
+# Postman
+.postman
+
 # Finder (MacOS) folder config
 .DS_Store

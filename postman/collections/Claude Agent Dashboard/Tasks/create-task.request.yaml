@@ -1,0 +1,21 @@
+$kind: http-request
+name: Create Task
+method: POST
+url: '{{baseUrl}}/tasks'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Task name",
+      "sessionId": "session-uuid",
+      "status": "unassigned",
+      "priority": "normal",
+      "agentType": "general-purpose",
+      "parentId": null,
+      "description": "Optional description",
+      "taskKind": "work"
+    }

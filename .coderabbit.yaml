@@ -1,0 +1,50 @@
+# .coderabbit.yaml
+language: en-US
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: '@coderabbitai summary'
+  auto_title_placeholder: '@coderabbitai'
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  sequence_diagrams: true
+  changed_files_summary: true
+  path_filters:
+    - '!**/*.lock'
+    - '!**/*.generated.*'
+    - '!**/dist/**'
+    - '!**/node_modules/**'
+    - '!**/*.min.js'
+    - '!**/coverage/**'
+    - '!**/__snapshots__/**'
+  path_instructions:
+    - path: 'src/api/**'
+      instructions: |
+        Review all API endpoints for:
+        - Input validation on all parameters
+        - Proper error handling with appropriate HTTP status codes
+        - Authentication and authorization checks
+        - Rate limiting considerations
+    - path: 'src/db/**'
+      instructions: |
+        Review all database code for:
+        - SQL injection prevention (parameterized queries only)
+        - Proper connection handling and cleanup
+        - Transaction usage where multiple writes occur
+    - path: '**/*.test.*'
+      instructions: |
+        For test files, focus on:
+        - Test coverage of edge cases
+        - Proper assertion usage
+        - Mock cleanup and isolation between tests
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: auto
