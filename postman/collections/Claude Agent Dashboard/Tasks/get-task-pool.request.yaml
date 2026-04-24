@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get Task Pool
+method: GET
+url: '{{baseUrl}}/tasks/pool'
+order: 2000

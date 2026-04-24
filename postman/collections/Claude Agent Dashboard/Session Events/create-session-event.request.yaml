@@ -1,0 +1,19 @@
+$kind: http-request
+name: Create Session Event
+method: POST
+url: '{{baseUrl}}/sessionEvents'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "sessionId": "session-uuid",
+      "type": "UserPromptSubmit",
+      "summary": "User submitted a prompt",
+      "agentType": "general-purpose",
+      "model": "claude-opus-4-5",
+      "timestamp": "2026-04-24T18:00:00.000Z"
+    }

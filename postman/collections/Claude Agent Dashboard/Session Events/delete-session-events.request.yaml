@@ -1,0 +1,10 @@
+$kind: http-request
+name: Delete Session Events
+method: DELETE
+url: '{{baseUrl}}/sessionEvents'
+order: 3000
+queryParams:
+  - key: sessionId
+    value: ''
+    description: 'Session ID to delete events for. If omitted, deletes ALL session events.'
+    disabled: true

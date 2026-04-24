@@ -1,0 +1,5 @@
+$kind: http-request
+name: List Sessions
+method: GET
+url: '{{baseUrl}}/debug/sessions'
+order: 1000

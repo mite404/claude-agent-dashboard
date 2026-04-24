@@ -1,0 +1,14 @@
+$kind: http-request
+name: List Tasks
+method: GET
+url: '{{baseUrl}}/tasks'
+order: 1000
+queryParams:
+  - key: status
+    value: ''
+    description: 'Filter by status: unassigned, claimed, running, completed, failed, paused, cancelled, blocked'
+    disabled: true
+  - key: sessionId
+    value: ''
+    description: Filter by session ID
+    disabled: true

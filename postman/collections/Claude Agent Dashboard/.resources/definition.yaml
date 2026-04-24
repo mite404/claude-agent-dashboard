@@ -1,0 +1,8 @@
+$kind: collection
+name: Claude Agent Dashboard
+description: API collection for the Claude Agent Dashboard - a real-time dashboard for monitoring Claude AI agent tasks and sessions.
+variables:
+  - key: baseUrl
+    value: 'http://localhost:3001'
+  - key: taskId
+    value: ''

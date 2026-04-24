@@ -1,0 +1,9 @@
+$kind: http-request
+name: Delete Task
+method: DELETE
+url: '{{baseUrl}}/tasks/{{taskId}}'
+order: 8000
+pathVariables:
+  - key: taskId
+    value: '{{taskId}}'
+    description: The task ID
