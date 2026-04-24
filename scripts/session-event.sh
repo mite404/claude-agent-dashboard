@@ -104,6 +104,8 @@ if [[ "$EVENT_TYPE" == "SubagentStart" ]] && [ -n "$AGENT_ID" ]; then
       -H "Content-Type: application/json" \
       -d "$PATCH")
     log "INFO: patched task $PARENT_TASK_ID with agentId=$AGENT_ID (HTTP $HTTP_STATUS)"
+    # Store mapping so SubagentStop can find the task even if the PATCH above raced with task creation
+    echo "$PARENT_TASK_ID" > "/tmp/cc-agentid-$AGENT_ID"
   else
     log "WARN: SubagentStart — could not resolve parent task for agentId patch"
   fi
@@ -152,6 +154,15 @@ case "$EVENT_TYPE" in
       TASK=$(curl -s "http://localhost:3001/tasks?sessionId=$SESSION_ID" \
         | jq "map(select(.agentId == \"$AGENT_ID\")) | .[0] // empty")
 
+      # Fallback: agentId may not have been written to DB if SubagentStart raced with task creation
+      if [ -z "$TASK" ] || ! echo "$TASK" | jq -e '.id' > /dev/null 2>&1; then
+        FALLBACK_TASK_ID=$(<"/tmp/cc-agentid-$AGENT_ID" 2>/dev/null || true)
+        if [ -n "$FALLBACK_TASK_ID" ]; then
+          TASK=$(curl -s "http://localhost:3001/tasks/$FALLBACK_TASK_ID")
+          log "INFO: SubagentStop — agentId not in DB, using temp file fallback for $FALLBACK_TASK_ID"
+        fi
+      fi
+
       if [ -n "$TASK" ] && echo "$TASK" | jq -e '.id' > /dev/null 2>&1; then
         TASK_ID=$(echo "$TASK" | jq -r '.id')
         PATCH=$(jq -n --arg status "completed" --arg now "$NOW" '{ status: $status, completedAt: $now, progressPercentage: 100 }')
@@ -159,6 +170,7 @@ case "$EVENT_TYPE" in
           -H "Content-Type: application/json" \
           -d "$PATCH")
         log "INFO: SubagentStop — marked task $TASK_ID as completed (HTTP $HTTP_STATUS)"
+        rm -f "/tmp/cc-agentid-$AGENT_ID"
       fi
     fi
     ;;
