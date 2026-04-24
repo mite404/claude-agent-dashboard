@@ -1,5 +1,7 @@
 # Claude Agent Dashboard
 
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/mite404/claude-agent-dashboard?utm_source=oss&utm_medium=github&utm_campaign=mite404%2Fclaude-agent-dashboard&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 A real-time observability dashboard for [Claude Code](https://claude.ai/code) agent sessions.
 When Claude Code dispatches subagents, this dashboard tracks every task as it runs — status,
 duration, logs, parent-child relationships, and the full session event trail — all updated live
