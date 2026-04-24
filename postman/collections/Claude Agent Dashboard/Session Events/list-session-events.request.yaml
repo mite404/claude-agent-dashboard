@@ -105,6 +105,14 @@ scripts:
         <script>
           pm.getData(function(err, value) {
             if (err || !value) return;
+            function esc(s) {
+              return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+            }
             var events = value.events || [];
             var typeLabels = value.typeLabels || [];
             var typeData = value.typeData || [];
@@ -157,9 +165,9 @@ scripts:
               events.forEach(function(e) {
                 var tr = document.createElement('tr');
                 tr.innerHTML =
-                  '<td class="time">' + e.timestamp + '</td>' +
-                  '<td><span class="badge" style="background:' + e.color + '">' + e.type + '</span></td>' +
-                  '<td class="summary">' + (e.summary || '<em style="color:#555">—</em>') + '</td>';
+                  '<td class="time">' + esc(e.timestamp) + '</td>' +
+                  '<td><span class="badge" style="background:' + esc(e.color) + '">' + esc(e.type) + '</span></td>' +
+                  '<td class="summary">' + (e.summary ? esc(e.summary) : '<em style="color:#555">—</em>') + '</td>';
                 tbody.appendChild(tr);
               });
             }

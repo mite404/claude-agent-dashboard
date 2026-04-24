@@ -1,7 +1,13 @@
 import { Hono } from 'hono';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { db } from './db/index';
-import { tasksTable, sessionEventsTable, sessionsTable, logsTable, hookEventsTable } from './db/schema';
+import {
+  tasksTable,
+  sessionEventsTable,
+  sessionsTable,
+  logsTable,
+  hookEventsTable,
+} from './db/schema';
 
 const app = new Hono();
 
@@ -82,7 +88,7 @@ app.get('/tasks/pool', async (c) => {
   }
 });
 
-app.get('/tasks/:id/claim', async (c) => {
+app.post('/tasks/:id/claim', async (c) => {
   // parse
   const id = c.req.param('id');
   const body = await c.req.json().catch(() => null);

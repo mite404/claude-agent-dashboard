@@ -1,6 +1,6 @@
 $kind: http-request
 name: Claim Task
-method: GET
+method: POST
 url: '{{baseUrl}}/tasks/{{taskId}}/claim'
 order: 4000
 pathVariables:
