@@ -3502,3 +3502,27 @@ the others. The pattern established there carries through to `pre-tool-all.sh`,
 **The right test:** fire a real Claude Code agent session with the dashboard running, confirm
 tasks appear and events land in `hookEventsTable`. Logs in `logs/hooks.log` are your signal
 chain — if a hook fires and nothing appears in the table, that's the diagnostic starting point.
+
+## Two Script Archetypes: Hooks vs CLI Tools
+
+As you migrate the scripts, you'll notice they fall into two distinct patterns — don't mix them up.
+
+**Hook Scripts** (`pre-tool-agent.ts`, `post-tool-agent.ts`, `session-event.ts`)
+
+- Called *by Claude Code*, not by humans
+- Receive JSON on **stdin** (pipe from Claude Code hook payload)
+- The `taskId` (or other IDs) come from the *input* — Claude Code provides them
+- Task metadata often gets **encoded in the description string** (`[parentId:abc]`, `[kind:work]`) because
+  Claude Code doesn't have a structured field for passing arbitrary task context
+- Example from `post-tool-agent.ts`: parse the description with regex to extract metadata tags
+
+**CLI Tools** (`post-task.ts`)
+
+- Called by humans or orchestrators directly from the command line
+- Receive input as **process.argv** (plain command-line arguments)
+- Create new resources on the server and get IDs *back* in the response
+- Input is clean and structured (name, description, priority as discrete args) — no encoding tricks
+- Example from `post-task.ts`: `POST /tasks`, parse `await res.json()` to extract the new `taskId`
+
+The key insight: **Hook scripts extract IDs from the input; CLI tools parse IDs from the response.**
+This distinction matters because it shapes the entire control flow and error handling strategy.
