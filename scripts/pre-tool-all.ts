@@ -34,10 +34,12 @@ const eventId = payload.tool_use_id ?? 'unknown';
 const agentId = payload.agent_id ?? '';
 const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
 
+if (toolName === 'Agent' || toolName === 'Task') process.exit(0);
+
 // log fn
 async function log(msg: string) {
   const timeStr = `[${new Date().toISOString().slice(0, 19)}Z]`; // YYYY-MM-DDTHH:MM:SS
-  const line = `[${timeStr}] [post-all] ${msg}\n`;
+  const line = `[${timeStr}] [pre-all] ${msg}\n`;
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
@@ -45,51 +47,80 @@ async function log(msg: string) {
   await Bun.write(file, existing + line);
 }
 
-//
-
 if (!sessionId) {
   await log(`SKIP: no session_id in hook payload for ${toolName} (${eventId})`);
   process.exit(0);
 }
 
-let existing: Task | null = null;
+let existingTask: Task | null = null;
 let lookupMethod: string;
 
 if (agentId) {
-  const res = await fetch(`${API_BASE}/tasks/${agentId}`);
-  existing = res.ok ? ((await res.json()) as Task) : null;
+  // lookup by agentId
+  const res = await fetch(`${API_BASE}/tasks?agentId=${agentId}`);
+  if (res.ok) {
+    const all = (await res.json()) as Array<Task>;
+    existingTask = all.find((t) => t.agentId === agentId) ?? null;
+  }
   lookupMethod = 'agent_id';
 } else {
+  // lookup by session
   const res = await fetch(`${API_BASE}/tasks?sessionId=${sessionId}`);
   if (res.ok) {
     const all = (await res.json()) as Array<Task>;
-    existing = all.find((t) => t.status === 'running') ?? null;
+    existingTask = all.find((t) => t.status === 'running') ?? null;
   }
   lookupMethod = 'sessionId';
 }
 
-function extractSummary(result: ToolResult): string {
-  // content of non consistent type
-  // null/undefined
-  if (typeof result.content === 'undefined') {
-    return '';
+function extractSummary(toolName: string, toolInput: Record<string, any>): string {
+  switch (toolName) {
+    case 'Bash':
+      return (toolInput.command ?? toolInput.cmd ?? '').slice(0, 120);
+    case 'Read':
+    case 'Write':
+    case 'Edit':
+      return (toolInput.file_path ?? toolInput.path ?? '').slice(0, 120);
+    case 'Grep':
+    case 'Glob':
+      return (toolInput.pattern ?? '').slice(0, 120);
+    case 'WebFetch':
+      return (toolInput.url ?? '').slice(0, 120);
+    case 'WebSearch':
+      return (toolInput.query ?? '').slice(0, 120);
   }
-  // account for string
-  if (typeof result.content === 'string') {
-    return result.content;
-  }
-  // array of content blocks: [{ text: "..." }, ...]
-  if (Array.isArray(result.content)) {
-    return result.content[0]?.text ?? '';
-  }
-  return ''; // exhausted all known shapes of data
+  return ''.slice(0, 120); // exhausted all known shapes of data
 }
 
-const event: HookEvent = {
-  id: payload.tool_use_id,
-  toolName: payload.tool_name,
-  phase: 'pre',
-  status: 'running',
-  summary: extractSummary(payload.tool_name, payload.tool_input),
-  timestamp: new Date().toISOString(),
-};
+if (existingTask) {
+  const newEvent: HookEvent = {
+    id: payload.tool_use_id,
+    toolName: payload.tool_name,
+    phase: 'pre',
+    status: 'running',
+    summary: extractSummary(payload.tool_name, payload.tool_input),
+    timestamp: new Date().toISOString(),
+  };
+
+  const newTask: Task = {
+    ...existingTask,
+    events: [...(existingTask.events ?? []), newEvent],
+  };
+
+  const res = await fetch(`${API_BASE}/tasks/${existingTask.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newTask),
+  });
+
+  if (res.ok) {
+    await log(`OK: updated task ${existingTask.id} -> ${existingTask.status}`);
+  } else {
+    await log(`ERROR: PATCH /tasks/${existingTask.id} failed (HTTP ${res.status})`);
+  }
+}
+
+if (!existingTask) {
+  await log(`SKIP: no running task found for ${toolName} (${eventId}) [via ${lookupMethod}]`);
+  process.exit(0);
+}

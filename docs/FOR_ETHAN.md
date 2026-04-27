@@ -3526,3 +3526,102 @@ As you migrate the scripts, you'll notice they fall into two distinct patterns �
 
 The key insight: **Hook scripts extract IDs from the input; CLI tools parse IDs from the response.**
 This distinction matters because it shapes the entire control flow and error handling strategy.
+
+## 4e. Bloopers — TypeScript Hook Migration (2026-04-26)
+
+### 🎬 Blooper 26: Three IDs That Look Like One
+
+During the `pre-tool-all.ts` migration, the `agentId` lookup path was broken from the start:
+
+```typescript
+// BROKEN
+const res = await fetch(`${API_BASE}/tasks/${agentId}`);
+```
+
+The comment in the bash original even said _"agent_id == tool_use_id == task.id"_ — but that
+is wrong. There are **three distinct IDs** in play:
+
+| ID | What it is | Where it lives |
+|----|-----------|----------------|
+| `tool_use_id` (current hook) | ID of this specific tool call (Bash, Read, etc.) | Becomes `HookEvent.id` |
+| `task.id` | ID of the Agent tool call that spawned the subagent | Set by `pre-tool-agent.ts` from *its* `tool_use_id` |
+| `task.agentId` | The subagent's own identity | Patched in by `session-event.ts` at SubagentStart |
+
+`GET /tasks/:id` does a primary key lookup. Passing `agent_id` there fails silently —
+the server returns nothing and the hook exits without logging an event.
+
+**The fix:** filter by the `agentId` column, same as the sessionId fallback path:
+
+```typescript
+// FIXED
+const res = await fetch(`${API_BASE}/tasks?agentId=${agentId}`);
+const all = (await res.json()) as Array<Task>;
+existing = all.find((t) => t.agentId === agentId) ?? null;
+```
+
+**Film analogy:** `task.id` is the production number assigned when the job was booked.
+`task.agentId` is the crew badge issued when the agent showed up on set. They refer to the
+same job — but through different identifiers issued at different moments. Never conflate them.
+
+---
+
+### 🎬 Blooper 27: `extractSummary` Had Two Different Jobs
+
+The bash `pre-tool-all.sh` and TypeScript `post-tool-agent.ts` both have a function called
+`extractSummary`. When migrating to TypeScript, the wrong version was copy-pasted:
+
+```typescript
+// post-tool-agent.ts version — extracts from tool OUTPUT
+function extractSummary(result: ToolResult): string {
+  if (typeof result.content === 'string') return result.content;
+  if (Array.isArray(result.content)) return result.content[0]?.text ?? '';
+  return '';
+}
+```
+
+```typescript
+// pre-tool-all.ts version — extracts from tool INPUT
+function extractSummary(toolName: string, toolInput: Record<string, any>): string {
+  switch (toolName) {
+    case 'Bash': return (toolInput.command ?? '').slice(0, 120);
+    case 'Read':
+    case 'Write':
+    case 'Edit': return (toolInput.file_path ?? '').slice(0, 120);
+    // ...
+  }
+  return '';
+}
+```
+
+They have opposite signatures because they operate at **opposite ends of the tool lifecycle**:
+
+- `post-tool-agent` runs *after* — it summarizes what the agent *produced*
+- `pre-tool-all` runs *before* — it summarizes what the tool is *about to do*
+
+**The tell:** the call site. `extractSummary(payload.tool_name, payload.tool_input)` takes
+two args — that's the pre-hook shape. `extractSummary(result)` takes one — that's the
+post-hook shape. If the signature doesn't match the call site, you have the wrong version.
+
+---
+
+### Director's Commentary: TypeScript Narrows Types Through Guards
+
+A pattern that came up repeatedly during this migration:
+
+```typescript
+let existing: Task | null = null;
+// ... lookup logic ...
+
+if (existing) {
+  existing.id   // ← TypeScript knows this is Task here, not null
+}
+```
+
+Inside `if (existing)`, TypeScript has already ruled out `null` — you don't need a separate
+null check or `existing?.id`. The `if` guard itself is the null check. This is called
+**type narrowing**: the compiler tracks what you've already verified and narrows the type
+in each branch accordingly.
+
+The flip side: `if (!existing)` means "if we did NOT find a task." That's the exit condition,
+not the working path. Getting this inverted is a classic early mistake — the code compiles
+fine, the PATCH just never fires.
