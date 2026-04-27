@@ -23,12 +23,17 @@ const VALID_STATUSES = [
 ];
 
 // -- TASKS
-// GET /tasks - list all, optionally filtered by ?status or ?sessionId
+// GET /tasks - list all, optionally filtered by ?status, ?sessionId, ?agentId
 app.get('/tasks', async (c) => {
   const status = c.req.query('status');
   const sessionId = c.req.query('sessionId');
+  const agentId = c.req.query('agentId');
 
-  console.log('GET /tasks called with:', { status: status, sessionId: sessionId });
+  console.log('GET /tasks called with:', {
+    status: status,
+    sessionId: sessionId,
+    agentId: agentId,
+  });
 
   if (status && !VALID_STATUSES.includes(status)) {
     console.error('Invalid status:', { status, valid: VALID_STATUSES });
@@ -39,6 +44,7 @@ app.get('/tasks', async (c) => {
     const conditions = [];
     if (status) conditions.push(eq(tasksTable.status, status));
     if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
+    if (agentId) conditions.push(eq(tasksTable.agentId, agentId));
 
     const rows = await db
       .select()

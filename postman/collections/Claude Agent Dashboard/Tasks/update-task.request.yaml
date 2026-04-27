@@ -1,20 +1,15 @@
 $kind: http-request
 name: Update Task
 method: PATCH
-url: '{{baseUrl}}/tasks/{{taskId}}'
+url: "{{baseUrl}}/tasks/{{taskId}}"
 order: 6000
-pathVariables:
-  - key: taskId
-    value: '{{taskId}}'
-    description: The task ID
 headers:
-  - key: Content-Type
-    value: application/json
+  Content-Type: application/json
 body:
   type: json
   content: |-
     {
       "status": "running",
-      "progressPercentage": 50,
-      "startedAt": '{{$isoTimestamp}}'
+      "progressPercentage": 80,
+      "startedAt": "{{$isoTimestamp}}"
     }

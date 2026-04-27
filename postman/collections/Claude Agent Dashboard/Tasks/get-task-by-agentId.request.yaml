@@ -1,0 +1,7 @@
+$kind: http-request
+url: http://localhost:3001/tasks?agentId=a6af8a7c4073aa2f5
+method: GET
+queryParams:
+  - key: agentId
+    value: a6af8a7c4073aa2f5
+order: 2697896656899207

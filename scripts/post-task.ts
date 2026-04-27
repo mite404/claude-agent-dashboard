@@ -49,7 +49,7 @@ if (res.ok) {
 
 async function log(msg: string) {
   const timeStr = `[${new Date().toISOString().slice(0, 19)}Z]`; // YYYY-MM-DDTHH:MM:SS
-  const line = `[${timeStr}] [post-hook] ${msg}\n`;
+  const line = `[${timeStr}] [post-all] ${msg}\n`;
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
