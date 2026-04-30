@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import type { Task, TaskNode, SessionEvent } from "../types/task";
+import { useState, useEffect, useCallback } from 'react';
+import type { Task, TaskNode, SessionEvent } from '../types/task';
 
 // Mutates tasks in-place: marks tasks as "blocked" if any dependency is incomplete.
 // Must run BEFORE buildTree so the tree inherits the updated status.
@@ -9,10 +9,10 @@ export function computeBlockedState(tasks: Task[]): void {
     if (!task.dependencies?.length) continue;
     const blocking = task.dependencies.filter((depId) => {
       const dep = taskMap.get(depId);
-      return dep && dep.status !== "completed" && dep.status !== "cancelled";
+      return dep && dep.status !== 'completed' && dep.status !== 'cancelled';
     });
     if (blocking.length > 0) {
-      task.status = "blocked";
+      task.status = 'blocked';
       (task as TaskNode).blockedBy = blocking;
     }
   }
@@ -63,8 +63,8 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
   const fetch_ = useCallback(async () => {
     try {
       const [tasksRes, eventsRes] = await Promise.all([
-        fetch("/api/tasks"),
-        fetch("/api/sessionEvents"),
+        fetch('/api/tasks'),
+        fetch('/api/sessionEvents'),
       ]);
       if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
 
@@ -78,13 +78,14 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
 
       if (eventsRes.ok) {
         const rawEvents = await eventsRes.json();
-        setSessionEvents(Array.isArray(rawEvents) ? rawEvents : []);
+        const eventsArray = rawEvents?.data ?? rawEvents;
+        setSessionEvents(Array.isArray(eventsArray) ? eventsArray : []);
       }
 
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch tasks");
+      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
     } finally {
       setLoading(false);
     }

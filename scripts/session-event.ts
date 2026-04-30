@@ -20,35 +20,41 @@
 //   .token_count        → PreCompact
 //   .error              → PostToolUseFailure
 
-import type { Task, SessionEvent, SessionEventType } from '../src/types/task';
+import type { SessionEventType } from '../src/types/task';
 
 const DASHBOARD_DIR = process.cwd();
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
 const API_BASE = 'http://localhost:3001';
 
-// TODO stdin
+// stdin
 interface ClaudeSessionEventPayload {
-  type: string;
   session_id: string;
-  timestamp: string;
-  agent_id: string;
-  agent_type: string;
-  metadata: { prompt?: string; model?: string };
+  agent_id?: string;
+  agent_type?: string;
+  prompt?: string;
+  model?: string;
+  message?: string;
+  notification_type?: string;
+  tool_name?: string;
+  error?: string;
+  token_count?: number;
+  reason?: string;
+  task_title?: string;
+  task_id?: string;
+  file_path?: string;
+  source?: string;
+  branch?: string;
 }
 
 // TODO parse
 const raw = await Bun.stdin.text();
 const payload: ClaudeSessionEventPayload = JSON.parse(raw);
-
-const type = payload.type ?? '';
-const agentId = payload.agent_id ?? '';
-const agentType = payload.agent_type;
 const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
 
 // log fn
 async function log(msg: string) {
   const timeStr = `[${new Date().toISOString().slice(0, 19)}Z]`; // YYYY-MM-DDTHH:MM:SS
-  const line = `[${timeStr}] [pre-all] ${msg}\n`;
+  const line = `[${timeStr}] [session] ${msg}\n`;
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
@@ -56,7 +62,7 @@ async function log(msg: string) {
   await Bun.write(file, existing + line);
 }
 
-log(`[session] [sessionId: ${sessionId}`);
+await log(`started sessionId: ${sessionId}`);
 
 async function retryPost(url: string, data: Record<string, any>): Promise<number> {
   const maxAttempts = 3;
@@ -109,7 +115,7 @@ function buildSessionEvent(
   payload: ClaudeSessionEventPayload,
   timestamp: string,
   sessionId: string,
-): Promise<Partial<SessionEventType>> {
+): Record<string, any> {
   const agentId = payload.agent_id ?? '';
   const agentType = payload.agent_type ?? '';
   let summary = '';
@@ -123,90 +129,94 @@ function buildSessionEvent(
       break;
     }
     case 'SessionStart': {
-      // TODO(human): extract model, build summary, populate extraFields
       const model = payload.model ?? 'unknown';
-      const summary = `${model}`;
-      const extraFields = { model: ${model} }
+      summary = model;
+      extraFields = { model };
       break;
     }
     case 'Stop': {
-      const summary = 'session ended'
-      const extraFields = {}
+      summary = 'session ended';
+      extraFields = {};
+      break;
     }
-    case 'SubagentStart': {
-      const summary = `agent ${agentId} started`
-      const extraFields = {}
-    }
+    case 'SubagentStart':
+      summary = `agent ${agentId} started`;
+      extraFields = {};
+      break;
     case 'SubagentStop': {
-
-
+      summary = `agent ${agentId} finished`;
+      extraFields = {};
+      break;
     }
     case 'Notification': {
       const message = payload.message ?? '';
-      const notifType = payload.notification_type ?? '';
-      const summary = `${notifType}: ${message}`;
-      const extraFields = { message: ${message}, notificationType: ${notifType} };
+      const notificationType = payload.notification_type ?? '';
+      summary = `${notificationType}: ${message.slice(0, 80)}`;
+      extraFields = { message, notificationType };
+      break;
     }
     case 'PermissionRequest': {
       const tool = payload.tool_name ?? 'unknown';
-      const summary = `${tool} requested`;
-      const extraFields = { toolName: ${tool} };
+      summary = `${tool} requested`;
+      extraFields = { toolName: tool };
+      break;
     }
     case 'PreCompact': {
       const tokenCount = payload.token_count ?? null;
-      const summary = tokenCount
+      summary = tokenCount
         ? `content compaction (${tokenCount} tokens)`
         : `context compaction triggered`;
-      const extraFields = { tokenCount };
+      extraFields = { tokenCount };
       break;
     }
     case 'PostToolUseFailure': {
       const tool = payload.tool_name ?? 'unknown';
       const error = payload.error ?? '';
-      const summary = `${tool} failed: ${error}`;
-      const extraFields = { toolName: ${tool}, error: ${error} };
+      summary = `${tool} failed: ${error.slice(0, 80)}`;
+      extraFields = { toolName: tool, error };
+      break;
     }
     case 'SessionEnd': {
       const reason = payload.reason ?? 'unknown';
-      const summary = `session endeded: ${reason}`;
-      const extraFields = { reason: ${reason} };
+      summary = `session ended: ${reason}`;
+      extraFields = { reason };
+      break;
     }
     case 'TeammateIdle': {
-      const summary = payload.
-      const extraFields = {};
+      summary = `teammate ${agentId} idle`;
+      extraFields = {};
+      break;
     }
     case 'TaskCompleted': {
       const taskTitle = payload.task_title ?? payload.task_id ?? 'unknown';
-      const summary = `task completed: ${taskTitle.slice(0, 80)}`;
-      const extraFields = { taskTitle };
+      summary = `task completed: ${taskTitle.slice(0, 80)}`;
+      extraFields = { taskTitle };
       break;
     }
     case 'InstructionsLoaded': {
-      const filePath = payload.filePath ?? 'unknown';
+      const filePath = payload.file_path ?? 'unknown';
       const source = payload.source ?? 'unknown';
-      const summary = `instructions loaded: ${filePath}`;
-      const extraFields = { filePath, source };
+      summary = `instructions loaded: ${filePath}`;
+      extraFields = { filePath, source };
       break;
     }
     case 'ConfigChange': {
-      const filePath = payload.filePath ?? 'unknown';
+      const filePath = payload.file_path ?? 'unknown';
       const source = payload.source ?? 'unknown';
-      const summary = `instructions loaded: ${filePath}`;
-      const extraFields = { filePath, source };
+      summary = `config changed: ${filePath} (${source})`;
+      extraFields = { filePath, source };
       break;
     }
     case 'WorktreeCreate': {
-      const filePath = payload.filePath ?? 'unknown';
-      const source = payload.source ?? 'unknown';
-      const summary = `instructions loaded: ${filePath}`;
-      const extraFields = { filePath, source };
+      const branch = payload.branch ?? 'unknown';
+      summary = `worktree created: ${branch}`;
+      extraFields = { branch };
       break;
     }
     case 'WorktreeRemove': {
-      const filePath = payload.filePath ?? 'unknown';
-      const source = payload.source ?? 'unknown';
-      const summary = `instructions loaded: ${filePath}`;
-      const extraFields = { filePath, source };
+      const branch = payload.branch ?? 'unknown';
+      summary = `worktree removed: ${branch}`;
+      extraFields = { branch };
       break;
     }
     default:
@@ -225,7 +235,7 @@ function buildSessionEvent(
 }
 
 const timestamp = new Date().toISOString();
-const sessionEvent = await buildSessionEvent(eventType, payload, timestamp, sessionId);
+const sessionEvent = buildSessionEvent(eventType, payload, timestamp, sessionId);
 
 const httpCode = await retryPost(`${API_BASE}/sessionEvents`, sessionEvent);
 
