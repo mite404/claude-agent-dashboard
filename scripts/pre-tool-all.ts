@@ -92,6 +92,11 @@ function extractSummary(toolName: string, toolInput: Record<string, any>): strin
   return ''.slice(0, 120); // exhausted all known shapes of data
 }
 
+if (!existingTask) {
+  await log(`SKIP: no running task found for ${toolName} (${eventId}) [via ${lookupMethod}]`);
+  process.exit(0);
+}
+
 if (existingTask) {
   const newEvent: HookEvent = {
     id: payload.tool_use_id,
@@ -118,9 +123,4 @@ if (existingTask) {
   } else {
     await log(`ERROR: PATCH /tasks/${existingTask.id} failed (HTTP ${res.status})`);
   }
-}
-
-if (!existingTask) {
-  await log(`SKIP: no running task found for ${toolName} (${eventId}) [via ${lookupMethod}]`);
-  process.exit(0);
 }
