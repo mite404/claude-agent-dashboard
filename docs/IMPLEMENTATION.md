@@ -86,7 +86,7 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 ---
 
-## Current Status (as of 2026-03-26)
+## Current Status (as of 2026-04-30)
 
 ### ✅ Completed
 
@@ -114,6 +114,31 @@ relationships, logs, and control buttons (cancel/pause/retry).
   - **Hooks now use `curl` against json-server REST API** — no more direct `jq` file writes
   - Hook observability: `logs/hooks.log` + `tail -F` as 4th `concurrently` process in `dev`
   - Defensive parse in `useTaskPolling`: `Array.isArray(raw) ? raw : []` guards `buildTree`
+- **PR #26 — SQLite Migration** ✅ (2026-03-26)
+  - `json-server` + `db.json` replaced by **Hono** + **SQLite** via **Drizzle ORM**
+- **PR #37 — ESLint enforcement** ✅ (2026-04-14)
+  - Sensible ESLint defaults added to promote TypeScript fluency across the codebase
+- **PR #38 — Hook pipeline data-loss fix** ✅ (2026-04-14)
+  - `hookEventsTable` added to SQLite schema; PATCH handler now writes `hookEvents` rows
+    instead of silently discarding `events` from every update body
+- **PR #39 — TypeScript migration: `pre-tool-agent.ts`** ✅ (2026-04-24)
+  - Replaces `pre-tool-agent.sh`; full type safety on stdin payload and POST body
+- **PR #40 — TypeScript migration: `post-tool-agent.ts`** ✅ (2026-04-24)
+  - Replaces `post-tool-agent.sh`; typed `extractSummary` on tool output content
+- **PR #41 — CodeRabbit + Postman integration** ✅ (2026-04-24)
+- **PR #42 — TypeScript migration: `post-task.ts`** ✅ (2026-04-24)
+  - CLI tool for Kanban task creation; not a hook — invoked manually by a developer
+- **PR #43 — TypeScript migration: `pre-tool-all.ts` + `post-tool-all.ts`** ✅ (2026-04-25)
+  - Replaces `pre-tool-all.sh` / `post-tool-all.sh`; `?agentId=` filter added to
+    `GET /tasks` to support per-agent task lookup
+- **PR #44 — TypeScript migration: `session-event.ts`** ✅ (2026-04-27)
+  - Replaces `session-event.sh`; 16-event switch dispatch with typed payload interface
+  - `retryPost` with exponential backoff (100 ms → 200 ms → 400 ms, 3 attempts)
+  - **Bug fix:** `useTaskPolling` now unwraps `rawEvents?.data ?? rawEvents` before the
+    `Array.isArray` guard — server returns `{ data: rows }` not a raw array
+- **Kanban backend endpoints** ✅ (2026-04-25)
+  - `GET /tasks/pool` — unassigned tasks ordered by priority (returns `{ data: rows }`)
+  - `POST /tasks/:id/claim` — atomic SQLite claim; returns 409 if already taken
 - **UI Polish (2026-03-04)**
   - Copy-log button with `IconCopy` → `IconCheck` 1.5s feedback in log panel header
   - Log count chip: `N LOGS` monospace text (replaces terminal icon in Name cell)
@@ -784,13 +809,17 @@ used for polling must support unfiltered requests.
 
 | Method | Route | Caller | Purpose |
 |--------|-------|--------|---------|
-| GET | `/tasks` | Frontend poll | All tasks, optional `?status=` `?sessionId=` filters |
+| GET | `/tasks` | Frontend poll | All tasks; optional `?status=` `?sessionId=` `?agentId=` |
+| GET | `/tasks/pool` | Kanban board | Unassigned tasks ordered by priority; returns `{ data: rows }` |
 | GET | `/tasks/:id` | Frontend detail | Single task by ID |
-| POST | `/tasks` | `pre-tool-agent.sh` | Create task when Agent tool fires |
-| PATCH | `/tasks/:id` | `post-tool-agent.sh` | Update status/logs after tool completes |
+| POST | `/tasks` | `pre-tool-agent.ts` | Create task when Agent tool fires |
+| POST | `/tasks/:id/claim` | `claim-task.sh` | Atomic claim; 409 if already claimed |
+| PATCH | `/tasks/:id` | `post-tool-agent.ts` | Update status/logs after tool completes |
+| PUT | `/tasks/:id` | Backward compat | Alias for PATCH |
 | DELETE | `/tasks/:id` | Frontend actions | Remove a task |
-| GET | `/sessionEvents` | Frontend poll | All events, optional `?sessionId=` filter |
-| POST | `/sessionEvents` | `session-event.sh` | Record a Claude Code lifecycle event |
+| GET | `/sessionEvents` | Frontend poll | All events; optional `?sessionId=`; returns `{ data: rows }` |
+| POST | `/sessionEvents` | `session-event.ts` | Record a Claude Code lifecycle event |
+| DELETE | `/sessionEvents` | Frontend "Clear all" | Remove events; optional `?sessionId=` |
 | GET | `/debug/sessions` | Dev only | Inspect sessions table |
 
 ### Pattern 1 — Optional Filter with Dynamic Conditions

@@ -21,13 +21,17 @@
 //   .error              → PostToolUseFailure
 
 import type { SessionEventType } from '../src/types/task';
+import {
+  buildSessionEvent,
+  type ClaudeSessionEventPayload,
+} from '../src/lib/sessionEventUtils.test';
 
 const DASHBOARD_DIR = process.cwd();
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
 const API_BASE = 'http://localhost:3001';
 
 // stdin
-interface ClaudeSessionEventPayload {
+export interface ClaudeSessionEventPayload {
   session_id: string;
   agent_id?: string;
   agent_type?: string;
@@ -110,7 +114,7 @@ if (!eventType) {
   process.exit(1); // exit Bun/node process
 }
 
-function buildSessionEvent(
+export function buildSessionEvent(
   eventType: string,
   payload: ClaudeSessionEventPayload,
   timestamp: string,
