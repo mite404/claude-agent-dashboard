@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useTaskPolling } from "@/hooks/useTaskPolling";
 import { TaskTable } from "@/components/TaskTable";
+import { KanbanBoard } from "@/components/KanbanBoard";
+import { IconLayoutList, IconLayoutColumns } from "@tabler/icons-react";
 import type { TaskStatus } from "@/types/task";
 
 export default function Dashboard() {
   const { tasks, tree, sessionEvents, loading, lastUpdated, error, refresh } = useTaskPolling(2500);
-  const [lightMode, setLightMode] = useState(false);
+  const [lightMode, setLightMode]   = useState(false);
+  const [viewMode, setViewMode]     = useState<"table" | "board">("board");
 
   // Cleanup: remove light class if component unmounts while in light mode
   useEffect(() => () => document.documentElement.classList.remove("light"), []);
@@ -31,6 +34,10 @@ export default function Dashboard() {
     },
     [refresh],
   );
+
+  // Use the most recent task's sessionId for new pool tasks; server auto-upserts sessions
+  const defaultSessionId =
+    tasks.find((t) => t.sessionId)?.sessionId ?? "kanban-pool";
 
   const running = tasks.filter((t) => t.status === "running").length;
   const completed = tasks.filter((t) => t.status === "completed").length;
@@ -61,11 +68,42 @@ export default function Dashboard() {
             )}
           />
         </div>
-        <p className="text-xs text-stone-500">
-          {tasks.length > 0 || sessionEvents.length > 0
-            ? `${running} running · ${completed} done · ${failed} failed`
-            : "No active session"}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-stone-500">
+            {tasks.length > 0 || sessionEvents.length > 0
+              ? `${running} running · ${completed} done · ${failed} failed`
+              : "No active session"}
+          </p>
+          {/* Table / Board toggle */}
+          <div className="flex items-center rounded-md border border-stone-800 p-0.5">
+            <button
+              aria-label="Table view"
+              onClick={() => setViewMode("table")}
+              className={cn(
+                "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors",
+                viewMode === "table"
+                  ? "bg-stone-700 text-stone-200"
+                  : "text-stone-500 hover:text-stone-300",
+              )}
+            >
+              <IconLayoutList size={13} />
+              Table
+            </button>
+            <button
+              aria-label="Board view"
+              onClick={() => setViewMode("board")}
+              className={cn(
+                "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors",
+                viewMode === "board"
+                  ? "bg-stone-700 text-stone-200"
+                  : "text-stone-500 hover:text-stone-300",
+              )}
+            >
+              <IconLayoutColumns size={13} />
+              Board
+            </button>
+          </div>
+        </div>
       </header>
 
       {/* Screen reader live region — announces polling updates */}
@@ -86,17 +124,25 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Main table — handles its own empty state */}
-      <TaskTable
-        tree={tree}
-        sessionEvents={sessionEvents}
-        loading={loading}
-        lastUpdated={lastUpdated}
-        onRefresh={refresh}
-        onStatusChange={handleStatusChange}
-        lightMode={lightMode}
-        onThemeToggle={handleThemeToggle}
-      />
+      {/* Main content — table or board */}
+      {viewMode === "board" ? (
+        <KanbanBoard
+          tasks={tasks}
+          sessionId={defaultSessionId}
+          onRefresh={refresh}
+        />
+      ) : (
+        <TaskTable
+          tree={tree}
+          sessionEvents={sessionEvents}
+          loading={loading}
+          lastUpdated={lastUpdated}
+          onRefresh={refresh}
+          onStatusChange={handleStatusChange}
+          lightMode={lightMode}
+          onThemeToggle={handleThemeToggle}
+        />
+      )}
     </div>
   );
 }
