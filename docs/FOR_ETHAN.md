@@ -3625,3 +3625,222 @@ in each branch accordingly.
 The flip side: `if (!existing)` means "if we did NOT find a task." That's the exit condition,
 not the working path. Getting this inverted is a classic early mistake — the code compiles
 fine, the PATCH just never fires.
+
+---
+
+## 4f. Bloopers — session-event.ts Migration (2026-04-27)
+
+### 🎬 Blooper 28: `const` Inside a `switch` Is a Scope Bomb
+
+The first draft of `buildSessionEvent` declared local variables inside each `case` block:
+
+```typescript
+switch (eventType) {
+  case 'SessionStart':
+    const model = payload.model ?? 'unknown';  // ← ERROR
+    summary = model;
+    break;
+  case 'Stop':
+    const model = 'gone';  // ← "already been declared"
+    break;
+}
+```
+
+TypeScript refused to compile. The error: `Cannot redeclare block-scoped variable 'model'`.
+
+The reason: a bare `switch` statement is **one lexical scope** shared by every `case`. So
+`const model` in `case 'SessionStart'` and `const model` in `case 'Stop'` are two declarations
+of the same name in the same scope. JavaScript doesn't allow that.
+
+There are two fixes:
+
+**Option A — wrap each case in its own `{}` block** (creates a new scope per case):
+
+```typescript
+case 'SessionStart': {
+  const model = payload.model ?? 'unknown';
+  summary = model;
+  break;
+}
+```
+
+**Option B — hoist to `let` above the switch, assign inside** (what we used):
+
+```typescript
+let summary = '';
+let extraFields: Record<string, any> = {};
+
+switch (eventType) {
+  case 'SessionStart':
+    summary = payload.model ?? 'unknown';
+    extraFields = { model: summary };
+    break;
+}
+```
+
+Option B was chosen because it makes the output shape explicit and keeps the switch cases
+tight — each one only has two lines and a `break`. Option A is also valid; the curly braces
+on some of the more complex cases (`UserPromptSubmit`, `Notification`) make the block scope
+obvious at a glance.
+
+**Film analogy:** The switch statement is a single dressing room. If two actors both need to
+use a prop called `model`, they have to take turns — or you get them separate rooms (curly
+braces). Hoisting the prop rack outside the room entirely is the third option.
+
+---
+
+### 🎬 Blooper 29: 170 Events in the Vault, Zero on the Screen
+
+This one was invisible until we ran a manual test and noticed the Session Events panel was
+empty — even after the hook had been firing for days.
+
+**The symptom:** 170 rows in `session_events` table. Dashboard shows nothing.
+
+**The root cause:** Two endpoints with inconsistent response shapes.
+
+`GET /tasks` returns a raw array:
+
+```json
+[ { "id": "...", "name": "..." }, ... ]
+```
+
+`GET /sessionEvents` returns a wrapped object:
+
+```json
+{ "data": [ { "id": "...", "type": "..." }, ... ] }
+```
+
+`useTaskPolling` was written assuming `sessionEvents` would also be a raw array:
+
+```typescript
+// BROKEN
+const rawEvents = await eventsRes.json();
+setSessionEvents(Array.isArray(rawEvents) ? rawEvents : []);
+```
+
+`Array.isArray({ data: [...] })` is `false`. So on every poll — every 2.5 seconds —
+`sessionEvents` was being reset to `[]`. The database had 170 events. The screen showed 0.
+
+**The fix** (`useTaskPolling.ts:81`):
+
+```typescript
+// FIXED
+const rawEvents = await eventsRes.json();
+const eventsArray = rawEvents?.data ?? rawEvents;
+setSessionEvents(Array.isArray(eventsArray) ? eventsArray : []);
+```
+
+The `?? rawEvents` fallback means the code handles both shapes — if the server ever changes
+its envelope, the frontend degrades gracefully instead of silently emptying.
+
+**Why the inconsistency exists in the first place:** `GET /tasks` was written when the
+endpoints were simpler. `GET /sessionEvents` was written later with an envelope to leave room
+for pagination metadata. Neither is "wrong," but they're inconsistent — a code reviewer
+would flag this immediately. A production API would pick one convention and stick to it.
+
+**Film analogy:** The footage vault (database) was full. The editor (frontend) was looking
+at an empty preview monitor. The signal chain was intact — the problem was the cable adapter
+between the vault output (`{ data: [...] }`) and the monitor input (`Array`). Plugging the
+right adapter in made 170 clips appear at once.
+
+---
+
+## Behind the Scenes: The Event Dispatch Pattern (2026-04-27)
+
+`session-event.ts` is the most architecturally interesting script in the hooks directory.
+Where `pre-tool-agent.ts` does one thing (create a task) and `post-tool-agent.ts` does one
+thing (update a task), `session-event.ts` handles **16 distinct event types** from a single
+entry point.
+
+### The Strategy: CLI Flag as Event Router
+
+Claude Code fires the same script for every session event. The only difference is the
+`--event-type` argument:
+
+```json
+{
+  "hooks": [
+    { "event": "UserPromptSubmit", "command": "bun session-event.ts --event-type UserPromptSubmit" },
+    { "event": "SessionStart",     "command": "bun session-event.ts --event-type SessionStart" }
+  ]
+}
+```
+
+The script reads `--event-type` from `process.argv`, then routes through a switch statement.
+This is a **dispatcher pattern** — one entry point, many code paths, unified output.
+
+### The Output: A Common Envelope
+
+Every case in the switch produces the same shape:
+
+```typescript
+return {
+  type: eventType,       // always — the event name
+  timestamp,             // always — ISO string set before the switch
+  sessionId,             // always — from stdin
+  summary,               // always — human-readable one-liner
+  ...(agentId && { agentId }),   // conditional — only for subagent events
+  ...(agentType && { agentType }),
+  ...extraFields,        // event-specific — model, prompt, toolName, etc.
+};
+```
+
+The `...(agentId && { agentId })` spread is a concise way to say "include this key only if
+the value is truthy." It avoids polluting every event row with empty `agentId: ""` strings.
+
+### Retry Logic: Exponential Backoff
+
+The server might not be running yet when a hook fires (especially at `SessionStart`).
+`retryPost` handles this with three attempts at increasing delays:
+
+```
+Attempt 1 → immediate
+Attempt 2 → wait 100 ms
+Attempt 3 → wait 200 ms
+```
+
+This is the simplest form of exponential backoff. A production implementation would double
+the delay each time (`100 → 200 → 400`), but for a local dev tool, the linear version is
+readable and sufficient.
+
+### The Routing Table in `~/.claude/settings.json`
+
+Each of the 16 events needs its own hook entry, all pointing to the same script with
+different `--event-type` values. This is repetitive but explicit — every event is
+independently traceable in `logs/hooks.log`.
+
+---
+
+## Kanban Backend: Atomic Claim via SQL WHERE (2026-04-25)
+
+The most architecturally interesting addition in the Kanban backend is `POST /tasks/:id/claim`.
+
+Two agents racing to claim the same task is a classic concurrency problem. The naive approach
+— read the task, check if it's unassigned, then update it — has a race condition: both agents
+can read "unassigned" before either updates it.
+
+The fix is to put the entire read-check-update into a single SQL statement:
+
+```typescript
+db.update(tasksTable)
+  .set({ status: 'claimed', claimedBy: body.claimedBy, claimedAt: now })
+  .where(
+    and(
+      eq(tasksTable.id, id),
+      eq(tasksTable.status, 'unassigned'),  // ← the atomic guard
+    )
+  )
+  .returning()
+```
+
+If the row was already claimed, `eq(tasksTable.status, 'unassigned')` is `false`. The
+`UPDATE` matches zero rows. `result.length === 0` tells the handler to return 409. The second
+agent gets a clear "already claimed" error with the `claimedBy` field telling it who won.
+
+SQLite processes this as a single atomic operation — there is no moment where two agents can
+both see "unassigned" and both think they won. This is **optimistic locking via conditional
+update** — the most reliable pattern for preventing double-claims in any SQL database.
+
+**Film analogy:** Only one director can call action on a take. Instead of radioing "is
+someone already rolling?", you attach a "ROLLING" flag to the slate in the same motion as
+you call action. If the flag was already there, you know someone else got there first.

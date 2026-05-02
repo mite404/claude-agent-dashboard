@@ -119,7 +119,7 @@ app.post('/tasks/:id/claim', async (c) => {
       return c.json({ error: 'task already claimed', claimedBy: existing[0].claimedBy }, 409);
     }
   } catch (error) {
-    console.error('Failed to find task:', id);
+    console.error(`Failed to find task: ${id}`, error);
     return c.json({ error: 'Server error' }, 500);
   }
 
