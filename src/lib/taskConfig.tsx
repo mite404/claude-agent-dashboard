@@ -7,6 +7,8 @@ import {
   IconCircle,
   IconCircleOff,
   IconBan,
+  IconInbox,
+  IconUserCheck,
   IconMicroscope,
   IconRuler,
 } from "@tabler/icons-react";
@@ -15,6 +17,8 @@ import type { TaskStatus, LogEntry, HookEvent, SessionEventType, TaskKind } from
 // ─── Task Status ──────────────────────────────────────────────────────────────
 
 export const ALL_STATUSES: TaskStatus[] = [
+  "unassigned",
+  "claimed",
   "running",
   "paused",
   "blocked",
@@ -26,53 +30,63 @@ export const ALL_STATUSES: TaskStatus[] = [
 
 // Sort order: most urgent first
 export const STATUS_ORDER: Record<TaskStatus, number> = {
-  running: 0,
-  paused: 1,
-  blocked: 2,
-  failed: 3,
-  pending: 4,
-  completed: 5,
-  cancelled: 6,
+  running:    0,
+  paused:     1,
+  blocked:    2,
+  failed:     3,
+  pending:    4,
+  claimed:    5,
+  unassigned: 6,
+  completed:  7,
+  cancelled:  8,
 };
 
 export const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
-  running: <IconClockHour4 size={14} aria-hidden="true" className="text-lime-400" />,
-  completed: <IconCircleCheck size={14} aria-hidden="true" className="text-stone-500" />,
-  failed: <IconCircleX size={14} aria-hidden="true" className="text-red-500" />,
-  paused: <IconPlayerPause size={14} aria-hidden="true" className="text-amber-400" />,
-  pending: <IconCircle size={14} aria-hidden="true" className="text-stone-500" />,
-  cancelled: <IconCircleOff size={14} aria-hidden="true" className="text-stone-500" />,
-  blocked: <IconBan size={14} aria-hidden="true" className="text-orange-400" />,
+  running:    <IconClockHour4  size={14} aria-hidden="true" className="text-lime-400" />,
+  completed:  <IconCircleCheck size={14} aria-hidden="true" className="text-stone-500" />,
+  failed:     <IconCircleX     size={14} aria-hidden="true" className="text-red-500" />,
+  paused:     <IconPlayerPause size={14} aria-hidden="true" className="text-amber-400" />,
+  pending:    <IconCircle      size={14} aria-hidden="true" className="text-stone-500" />,
+  cancelled:  <IconCircleOff   size={14} aria-hidden="true" className="text-stone-500" />,
+  blocked:    <IconBan         size={14} aria-hidden="true" className="text-orange-400" />,
+  unassigned: <IconInbox       size={14} aria-hidden="true" className="text-stone-400" />,
+  claimed:    <IconUserCheck   size={14} aria-hidden="true" className="text-violet-400" />,
 };
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
-  running: "Running",
-  completed: "Done",
-  failed: "Failed",
-  paused: "Paused",
-  pending: "Pending",
-  cancelled: "Cancelled",
-  blocked: "Blocked",
+  running:    "Running",
+  completed:  "Done",
+  failed:     "Failed",
+  paused:     "Paused",
+  pending:    "Pending",
+  cancelled:  "Cancelled",
+  blocked:    "Blocked",
+  unassigned: "Unassigned",
+  claimed:    "Claimed",
 };
 
 export const STATUS_TEXT: Record<TaskStatus, string> = {
-  running: "text-lime-400",   // lime — actively doing work
-  failed: "text-red-500",     // red — needs attention
-  paused: "text-amber-400",   // amber — suspended
-  blocked: "text-orange-400", // orange — waiting on a dependency
-  pending: "text-stone-500",
-  completed: "text-stone-500",
-  cancelled: "text-stone-500",
+  running:    "text-lime-400",
+  failed:     "text-red-500",
+  paused:     "text-amber-400",
+  blocked:    "text-orange-400",
+  pending:    "text-stone-500",
+  completed:  "text-stone-500",
+  cancelled:  "text-stone-500",
+  unassigned: "text-stone-400",
+  claimed:    "text-violet-400",
 };
 
 export const PROGRESS_BAR: Record<TaskStatus, string> = {
-  running: "bg-stone-300",
-  completed: "bg-stone-400",
-  failed: "bg-stone-500",
-  paused: "bg-stone-500",
-  blocked: "bg-orange-900/50",
-  pending: "bg-stone-700",
-  cancelled: "bg-stone-800",
+  running:    "bg-stone-300",
+  completed:  "bg-stone-400",
+  failed:     "bg-stone-500",
+  paused:     "bg-stone-500",
+  blocked:    "bg-orange-900/50",
+  pending:    "bg-stone-700",
+  cancelled:  "bg-stone-800",
+  unassigned: "bg-stone-700",
+  claimed:    "bg-violet-900/50",
 };
 
 // ─── Logs ──────────────────────────────────────────────────────────────────────
@@ -94,23 +108,27 @@ export const LOG_LEVEL_LABEL: Record<LogEntry["level"], string> = {
 // ─── Checkpoints (Subtasks) ───────────────────────────────────────────────────
 
 export const CHECKPOINT_ICON: Record<TaskStatus, string> = {
-  completed: "✓",
-  running:   "●",
-  pending:   "○",
-  paused:    "◐",
-  failed:    "✗",
-  cancelled: "–",
-  blocked:   "⊘",
+  completed:  "✓",
+  running:    "●",
+  pending:    "○",
+  paused:     "◐",
+  failed:     "✗",
+  cancelled:  "–",
+  blocked:    "⊘",
+  unassigned: "○",
+  claimed:    "◎",
 };
 
 export const CHECKPOINT_COLOR: Record<TaskStatus, string> = {
-  completed: "text-green-400",
-  running:   "text-blue-400",
-  failed:    "text-red-400",
-  paused:    "text-amber-400",
-  blocked:   "text-orange-400",
-  pending:   "text-stone-600",
-  cancelled: "text-stone-700",
+  completed:  "text-green-400",
+  running:    "text-blue-400",
+  failed:     "text-red-400",
+  paused:     "text-amber-400",
+  blocked:    "text-orange-400",
+  pending:    "text-stone-600",
+  cancelled:  "text-stone-700",
+  unassigned: "text-stone-600",
+  claimed:    "text-violet-500",
 };
 
 // ─── Tool Events ──────────────────────────────────────────────────────────────
