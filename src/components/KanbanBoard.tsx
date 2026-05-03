@@ -1,30 +1,31 @@
-import { useState, useRef } from "react";
+import { useState, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
   closestCenter,
   type DragEndEvent,
   type DragStartEvent,
-} from "@dnd-kit/core";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { toast } from "sonner";
-import { IconGripVertical, IconPlus, IconX } from "@tabler/icons-react";
-import { cn } from "@/lib/utils";
-import { StatusBadge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { patchTask, createTask, claimTask } from "@/lib/taskApi";
-import type { Task, TaskStatus, TaskPriority } from "@/types/task";
+} from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { toast } from 'sonner';
+import { IconGripVertical, IconPlus, IconX } from '@tabler/icons-react';
+import { cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { patchTask, createTask, claimTask } from '@/lib/taskApi';
+import type { Task, TaskStatus, TaskPriority } from '@/types/task';
 
 // ─── Transition rules ─────────────────────────────────────────────────────────
 // Defines which columns a card can be dragged into from its current status.
 // Terminal statuses (completed, cancelled) have no valid moves — they're done.
 // Blocked is computed client-side and can be manually overridden to running.
 const VALID_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
-  unassigned: ["claimed", "cancelled"],
-  claimed:    ["running", "unassigned", "cancelled"],
-  running:    ["completed", "cancelled"],
-  blocked:    ["running", "cancelled"],
+  unassigned: ['claimed', 'cancelled'],
+  claimed: ['running', 'unassigned', 'cancelled'],
+  running: ['paused', 'completed', 'cancelled'],
+  blocked: ['running', 'cancelled'],
+  paused: ['running', 'cancelled'],
   // pending: legacy hook-created tasks, not managed via the board
 };
 
@@ -33,78 +34,90 @@ interface ColumnConfig {
   id: string;
   label: string;
   statuses: TaskStatus[];
-  dropStatus: TaskStatus;        // status applied when a card lands here
-  readonly?: boolean;            // cannot be dragged into (computed status)
-  terminal?: boolean;            // cannot be dragged out
-  showNewCard?: boolean;         // renders the + card at the bottom
+  dropStatus: TaskStatus; // status applied when a card lands here
+  readonly?: boolean; // cannot be dragged into (computed status)
+  terminal?: boolean; // cannot be dragged out
+  showNewCard?: boolean; // renders the + card at the bottom
 }
 
 // Paused column intentionally omitted — see docs/kanban-column-tutorial.md
 const COLUMNS: ColumnConfig[] = [
   {
-    id:          "unassigned",
-    label:       "Unassigned",
-    statuses:    ["unassigned"],
-    dropStatus:  "unassigned",
+    id: 'unassigned',
+    label: 'Unassigned',
+    statuses: ['unassigned'],
+    dropStatus: 'unassigned',
     showNewCard: true,
   },
   {
-    id:         "claimed",
-    label:      "Claimed",
-    statuses:   ["claimed"],
-    dropStatus: "claimed",
+    id: 'claimed',
+    label: 'Claimed',
+    statuses: ['claimed'],
+    dropStatus: 'claimed',
   },
   {
-    id:         "running",
-    label:      "Running",
-    statuses:   ["running"],
-    dropStatus: "running",
+    id: 'running',
+    label: 'Running',
+    statuses: ['running'],
+    dropStatus: 'running',
   },
   {
-    id:       "blocked",
-    label:    "Blocked",
-    statuses: ["blocked"],
-    dropStatus: "blocked",
+    id: 'blocked',
+    label: 'Blocked',
+    statuses: ['blocked'],
+    dropStatus: 'blocked',
     readonly: true,
   },
-  // ── Add the Paused column here (tutorial step 3) ──────────────────────────
   {
-    id:       "done",
-    label:    "Done",
-    statuses: ["completed", "cancelled"],
-    dropStatus: "completed",
+    id: 'paused',
+    label: 'Paused',
+    statuses: ['paused'],
+    dropStatus: 'paused',
+  },
+  {
+    id: 'done',
+    label: 'Done',
+    statuses: ['completed', 'cancelled'],
+    dropStatus: 'completed',
     terminal: true,
   },
 ];
 
 const PRIORITY_COLOR: Record<TaskPriority, string> = {
-  urgent: "text-red-400",
-  high:   "text-amber-400",
-  normal: "text-stone-400",
-  low:    "text-stone-600",
+  urgent: 'text-red-400',
+  high: 'text-amber-400',
+  normal: 'text-stone-400',
+  low: 'text-stone-600',
 };
 
 // ─── KanbanCard ───────────────────────────────────────────────────────────────
 interface KanbanCardProps {
   task: Task;
-  overlay?: boolean;   // true when rendered inside DragOverlay
+  overlay?: boolean; // true when rendered inside DragOverlay
   onClaim: (taskId: string) => Promise<void>;
 }
 
 function KanbanCard({ task, overlay = false, onClaim }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id:   task.id,
+    id: task.id,
     data: { status: task.status },
   });
+
+  const claimLed =
+    task.claimedBy == null
+      ? null
+      : task.claimedBy.startsWith('manual-')
+        ? 'human'
+        : 'agent';
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "group flex items-start gap-2 rounded-md border border-stone-800 bg-stone-900 p-3",
-        "transition-colors",
-        isDragging && !overlay && "opacity-40",
-        overlay && "rotate-1 shadow-xl shadow-black/50 ring-1 ring-stone-600",
+        'group relative flex items-start gap-2 rounded-md border border-stone-800 bg-stone-900 p-3',
+        'transition-colors',
+        isDragging && !overlay && 'opacity-40',
+        overlay && 'rotate-1 shadow-xl ring-1 shadow-black/50 ring-stone-600',
       )}
     >
       {/* Drag handle — listeners attached here only, not to the whole card */}
@@ -113,9 +126,9 @@ function KanbanCard({ task, overlay = false, onClaim }: KanbanCardProps) {
         {...attributes}
         aria-label="Drag to reorder"
         className={cn(
-          "mt-0.5 shrink-0 cursor-grab touch-none text-stone-700 active:cursor-grabbing",
-          "opacity-0 transition-opacity group-hover:opacity-100",
-          overlay && "opacity-100",
+          'mt-0.5 shrink-0 cursor-grab touch-none text-stone-700 active:cursor-grabbing',
+          'opacity-0 transition-opacity group-hover:opacity-100',
+          overlay && 'opacity-100',
         )}
       >
         <IconGripVertical size={14} />
@@ -125,8 +138,8 @@ function KanbanCard({ task, overlay = false, onClaim }: KanbanCardProps) {
         {/* Priority + status row */}
         <div className="flex items-center justify-between gap-2">
           <StatusBadge status={task.status} />
-          {task.priority && task.priority !== "normal" && (
-            <span className={cn("text-xs font-medium", PRIORITY_COLOR[task.priority])}>
+          {task.priority && task.priority !== 'normal' && (
+            <span className={cn('text-xs font-medium', PRIORITY_COLOR[task.priority])}>
               {task.priority}
             </span>
           )}
@@ -151,7 +164,7 @@ function KanbanCard({ task, overlay = false, onClaim }: KanbanCardProps) {
         </div>
 
         {/* Claim button — only on unassigned cards */}
-        {task.status === "unassigned" && !overlay && (
+        {task.status === 'unassigned' && !overlay && (
           <Button
             size="sm"
             variant="outline"
@@ -162,6 +175,19 @@ function KanbanCard({ task, overlay = false, onClaim }: KanbanCardProps) {
           </Button>
         )}
       </div>
+
+      {/* Claim-owner LED — green = agent, blue = human */}
+      {claimLed && (
+        <span
+          aria-hidden
+          className={cn(
+            'absolute right-2 bottom-2 h-1.5 w-1.5 rounded-full',
+            claimLed === 'agent'
+              ? 'bg-emerald-400 shadow-[0_0_4px_2px_rgba(52,211,153,0.6)]'
+              : 'bg-blue-400 shadow-[0_0_4px_2px_rgba(96,165,250,0.6)]',
+          )}
+        />
+      )}
     </div>
   );
 }
@@ -173,10 +199,10 @@ interface NewTaskCardProps {
 }
 
 function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
-  const [open, setOpen]   = useState(false);
-  const [name, setName]   = useState("");
-  const [busy, setBusy]   = useState(false);
-  const inputRef          = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleOpen = () => {
     setOpen(true);
@@ -188,12 +214,12 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
     if (!trimmed) return;
     setBusy(true);
     try {
-      await createTask({ name: trimmed, sessionId, status: "unassigned" });
-      setName("");
+      await createTask({ name: trimmed, sessionId, status: 'unassigned' });
+      setName('');
       setOpen(false);
       onCreated();
     } catch {
-      toast.error("Failed to create task");
+      toast.error('Failed to create task');
     } finally {
       setBusy(false);
     }
@@ -204,9 +230,9 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
       <button
         onClick={handleOpen}
         className={cn(
-          "flex w-full items-center gap-1.5 rounded-md border border-dashed border-stone-800",
-          "px-3 py-2.5 text-xs text-stone-600 transition-colors hover:border-stone-600",
-          "hover:text-stone-400",
+          'flex w-full items-center gap-1.5 rounded-md border border-dashed border-stone-800',
+          'px-3 py-2.5 text-xs text-stone-600 transition-colors hover:border-stone-600',
+          'hover:text-stone-400',
         )}
       >
         <IconPlus size={12} />
@@ -222,21 +248,32 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter") handleSubmit();
-          if (e.key === "Escape") { setOpen(false); setName(""); }
+          if (e.key === 'Enter') handleSubmit();
+          if (e.key === 'Escape') {
+            setOpen(false);
+            setName('');
+          }
         }}
         placeholder="Task name…"
         className="h-7 text-xs"
       />
       <div className="flex gap-2">
-        <Button size="sm" className="h-6 flex-1 text-xs" disabled={busy || !name.trim()} onClick={handleSubmit}>
+        <Button
+          size="sm"
+          className="h-6 flex-1 text-xs"
+          disabled={busy || !name.trim()}
+          onClick={handleSubmit}
+        >
           Add
         </Button>
         <Button
           size="sm"
           variant="ghost"
           className="h-6 px-2"
-          onClick={() => { setOpen(false); setName(""); }}
+          onClick={() => {
+            setOpen(false);
+            setName('');
+          }}
         >
           <IconX size={12} />
         </Button>
@@ -255,7 +292,14 @@ interface KanbanColumnProps {
   isDragTarget: boolean;
 }
 
-function KanbanColumn({ config, tasks, sessionId, onClaim, onCreated, isDragTarget }: KanbanColumnProps) {
+function KanbanColumn({
+  config,
+  tasks,
+  sessionId,
+  onClaim,
+  onCreated,
+  isDragTarget,
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: config.id });
 
   return (
@@ -274,10 +318,10 @@ function KanbanColumn({ config, tasks, sessionId, onClaim, onCreated, isDragTarg
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-24 flex-col gap-2 rounded-lg p-2 transition-colors",
-          "border border-transparent",
-          isOver && isDragTarget && "border-stone-600 bg-stone-900/60",
-          config.readonly && "opacity-75",
+          'flex min-h-24 flex-col gap-2 rounded-lg p-2 transition-colors',
+          'border border-transparent',
+          isOver && isDragTarget && 'border-stone-600 bg-stone-900/60',
+          config.readonly && 'opacity-75',
         )}
       >
         {tasks.map((task) => (
@@ -288,9 +332,7 @@ function KanbanColumn({ config, tasks, sessionId, onClaim, onCreated, isDragTarg
           <p className="py-4 text-center text-xs text-stone-700">Empty</p>
         )}
 
-        {config.showNewCard && (
-          <NewTaskCard sessionId={sessionId} onCreated={onCreated} />
-        )}
+        {config.showNewCard && <NewTaskCard sessionId={sessionId} onCreated={onCreated} />}
       </div>
     </div>
   );
@@ -323,10 +365,10 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
     setDragTargetColumn(null);
     if (!over) return;
 
-    const task       = tasks.find((t) => t.id === active.id);
-    const targetCol  = COLUMNS.find((c) => c.id === over.id);
+    const task = tasks.find((t) => t.id === active.id);
+    const targetCol = COLUMNS.find((c) => c.id === over.id);
     if (!task || !targetCol) return;
-    if (task.status === targetCol.dropStatus) return;   // no-op: same column
+    if (task.status === targetCol.dropStatus) return; // no-op: same column
 
     // Check readonly (blocked is computed — can't drag into it)
     if (targetCol.readonly) {
@@ -347,10 +389,19 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
     }
 
     try {
-      await patchTask(task.id, { status: targetCol.dropStatus });
+      if (targetCol.dropStatus === 'claimed') {
+        const claimedBy = `manual-${Date.now()}`;
+        const result = await claimTask(task.id, claimedBy);
+        if (!result.ok) {
+          toast.error(`Already claimed by ${result.claimedBy}`);
+          return;
+        }
+      } else {
+        await patchTask(task.id, { status: targetCol.dropStatus });
+      }
       onRefresh();
     } catch {
-      toast.error("Failed to update task status");
+      toast.error('Failed to update task status');
     }
   };
 
@@ -361,7 +412,7 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
       toast.error(`Already claimed by ${result.claimedBy}`);
       return;
     }
-    toast.success("Task claimed");
+    toast.success('Task claimed');
     onRefresh();
   };
 
@@ -369,9 +420,12 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
     <DndContext
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragOver={({ over }) => setDragTargetColumn(over?.id as string ?? null)}
+      onDragOver={({ over }) => setDragTargetColumn((over?.id as string) ?? null)}
       onDragEnd={handleDragEnd}
-      onDragCancel={() => { setActiveTask(null); setDragTargetColumn(null); }}
+      onDragCancel={() => {
+        setActiveTask(null);
+        setDragTargetColumn(null);
+      }}
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map((col) => (
@@ -389,9 +443,7 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
 
       {/* Ghost card rendered at cursor position while dragging */}
       <DragOverlay>
-        {activeTask && (
-          <KanbanCard task={activeTask} overlay onClaim={handleClaim} />
-        )}
+        {activeTask && <KanbanCard task={activeTask} overlay onClaim={handleClaim} />}
       </DragOverlay>
     </DndContext>
   );
