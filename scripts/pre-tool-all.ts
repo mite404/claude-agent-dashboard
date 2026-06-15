@@ -10,11 +10,11 @@
 //   .tool_name     → Bash, Read, Write, Edit, Grep, Glob, etc.
 //   .tool_use_id   → event id
 //   .tool_input    → summarized for display
-import type { Task, HookEvent } from '../src/types/task';
+import type { Task, HookEvent } from "../src/types/task";
 
 const DASHBOARD_DIR = process.cwd();
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
-const API_BASE = 'http://localhost:3001';
+const API_BASE = "http://localhost:3001";
 
 // what Claude sends via stdin
 interface ClaudePreToolPayload {
@@ -25,16 +25,24 @@ interface ClaudePreToolPayload {
   agent_id?: string;
 }
 
+const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: "HEAD" })
+  .then((r) => r.ok)
+  .catch(() => false);
+
+if (!isServerUp) {
+  process.exit(0);
+}
+
 // stdin parsing
 const raw = await Bun.stdin.text();
 const payload: ClaudePreToolPayload = JSON.parse(raw);
 
-const toolName = payload.tool_name ?? '';
-const eventId = payload.tool_use_id ?? 'unknown';
-const agentId = payload.agent_id ?? '';
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+const toolName = payload.tool_name ?? "";
+const eventId = payload.tool_use_id ?? "unknown";
+const agentId = payload.agent_id ?? "";
+const sessionId = (payload.session_id ?? "").replace(/[^a-zA-Z0-9_-]/g, "");
 
-if (toolName === 'Agent' || toolName === 'Task') process.exit(0);
+if (toolName === "Agent" || toolName === "Task") process.exit(0);
 
 // log fn
 async function log(msg: string) {
@@ -43,7 +51,7 @@ async function log(msg: string) {
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
-  const existing = (await file.exists()) ? await file.text() : '';
+  const existing = (await file.exists()) ? await file.text() : "";
   await Bun.write(file, existing + line);
 }
 
@@ -62,34 +70,34 @@ if (agentId) {
     const all = (await res.json()) as Array<Task>;
     existingTask = all.find((t) => t.agentId === agentId) ?? null;
   }
-  lookupMethod = 'agent_id';
+  lookupMethod = "agent_id";
 } else {
   // lookup by session
   const res = await fetch(`${API_BASE}/tasks?sessionId=${sessionId}`);
   if (res.ok) {
     const all = (await res.json()) as Array<Task>;
-    existingTask = all.find((t) => t.status === 'running') ?? null;
+    existingTask = all.find((t) => t.status === "running") ?? null;
   }
-  lookupMethod = 'sessionId';
+  lookupMethod = "sessionId";
 }
 
 function extractSummary(toolName: string, toolInput: Record<string, any>): string {
   switch (toolName) {
-    case 'Bash':
-      return (toolInput.command ?? toolInput.cmd ?? '').slice(0, 120);
-    case 'Read':
-    case 'Write':
-    case 'Edit':
-      return (toolInput.file_path ?? toolInput.path ?? '').slice(0, 120);
-    case 'Grep':
-    case 'Glob':
-      return (toolInput.pattern ?? '').slice(0, 120);
-    case 'WebFetch':
-      return (toolInput.url ?? '').slice(0, 120);
-    case 'WebSearch':
-      return (toolInput.query ?? '').slice(0, 120);
+    case "Bash":
+      return (toolInput.command ?? toolInput.cmd ?? "").slice(0, 120);
+    case "Read":
+    case "Write":
+    case "Edit":
+      return (toolInput.file_path ?? toolInput.path ?? "").slice(0, 120);
+    case "Grep":
+    case "Glob":
+      return (toolInput.pattern ?? "").slice(0, 120);
+    case "WebFetch":
+      return (toolInput.url ?? "").slice(0, 120);
+    case "WebSearch":
+      return (toolInput.query ?? "").slice(0, 120);
   }
-  return ''.slice(0, 120); // exhausted all known shapes of data
+  return "".slice(0, 120); // exhausted all known shapes of data
 }
 
 if (!existingTask) {
@@ -101,8 +109,8 @@ if (existingTask) {
   const newEvent: HookEvent = {
     id: payload.tool_use_id,
     toolName: payload.tool_name,
-    phase: 'pre',
-    status: 'running',
+    phase: "pre",
+    status: "running",
     summary: extractSummary(payload.tool_name, payload.tool_input),
     timestamp: new Date().toISOString(),
   };
@@ -113,8 +121,8 @@ if (existingTask) {
   };
 
   const res = await fetch(`${API_BASE}/tasks/${existingTask.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(newTask),
   });
 
