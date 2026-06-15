@@ -9,6 +9,8 @@ body:
   type: json
   content: |-
     {
+      "id": "task_test_003",
+      "name": "Test task 03",
       "status": "running",
       "progressPercentage": 80,
       "startedAt": "{{$isoTimestamp}}"
