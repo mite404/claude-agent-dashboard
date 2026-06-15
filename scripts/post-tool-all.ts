@@ -9,11 +9,11 @@
 //    .tool_name            → used to skip Agent calls
 //    .tool_use_id          → matches the pre-event by id
 //    .tool_response        → is_error flag
-import type { Task } from '../src/types/task';
+import type { Task } from "../src/types/task";
 
 const DASHBOARD_DIR = process.cwd();
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
-const API_BASE = 'http://localhost:3001';
+const API_BASE = "http://localhost:3001";
 
 // stdin payload
 interface PostToolAllPayload {
@@ -25,21 +25,29 @@ interface PostToolAllPayload {
   tool_result?: { is_error?: boolean };
 }
 
+const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: "HEAD" })
+  .then((r) => r.ok)
+  .catch(() => false);
+
+if (!isServerUp) {
+  process.exit(0);
+}
+
 // stdin parsing
 const raw = await Bun.stdin.text();
 const payload: PostToolAllPayload = JSON.parse(raw);
 
-const toolName = payload.tool_name ?? ''; // what tool was it?
-const eventId = payload.tool_use_id ?? 'unknown'; // which event fired?
-const agentId = payload.agent_id ?? ''; // optional: if subagent
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, ''); // what session was it?
+const toolName = payload.tool_name ?? ""; // what tool was it?
+const eventId = payload.tool_use_id ?? "unknown"; // which event fired?
+const agentId = payload.agent_id ?? ""; // optional: if subagent
+const sessionId = (payload.session_id ?? "").replace(/[^a-zA-Z0-9_-]/g, ""); // what session was it?
 
 // normalize the 2 possible result field names into 1 var
 const result = payload.tool_response ?? payload.tool_result ?? {};
 const isError = result.is_error ?? false;
 const now = new Date().toISOString();
 
-const finalStatus = isError ? 'failed' : 'completed';
+const finalStatus = isError ? "failed" : "completed";
 
 async function log(msg: string) {
   const timeStr = `[${new Date().toISOString().slice(0, 19)}Z]`; // YYYY-MM-DDTHH:MM:SS
@@ -47,11 +55,11 @@ async function log(msg: string) {
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
-  const existing = (await file.exists()) ? await file.text() : '';
+  const existing = (await file.exists()) ? await file.text() : "";
   await Bun.write(file, existing + line);
 }
 
-if (toolName === 'Agent' || toolName === 'Task') {
+if (toolName === "Agent" || toolName === "Task") {
   process.exit(0);
 }
 
@@ -69,15 +77,15 @@ if (agentId) {
   const res = await fetch(`${API_BASE}/tasks?agentId=${agentId}`);
   const all = res.ok ? ((await res.json()) as Array<Task>) : [];
   existing = all[0] ?? null;
-  lookupMethod = 'agent_id';
+  lookupMethod = "agent_id";
 } else {
   // main session: no direct id, scan all tasks for this session
   const res = await fetch(`${API_BASE}/tasks?sessionId=${sessionId}`);
   if (res.ok) {
     const all = (await res.json()) as Array<Task>;
-    existing = all.find((t) => t.status === 'running' || t.status === 'paused') ?? null;
+    existing = all.find((t) => t.status === "running" || t.status === "paused") ?? null;
   }
-  lookupMethod = 'sessionId';
+  lookupMethod = "sessionId";
 }
 
 if (!existing) {
@@ -89,7 +97,7 @@ const events =
   ((existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>) ?? [];
 
 const updatedEvents = events.map((e) =>
-  e.id === eventId ? { ...e, phase: 'post', status: finalStatus, completedAt: now } : e,
+  e.id === eventId ? { ...e, phase: "post", status: finalStatus, completedAt: now } : e,
 );
 
 const taskId = existing.id;
@@ -101,8 +109,8 @@ if (existing) {
   };
 
   const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
 

@@ -1,16 +1,15 @@
 $kind: http-request
 name: List Session Events
 method: GET
-url: '{{baseUrl}}/sessionEvents'
+url: "{{baseUrl}}/sessionEvents"
 order: 1000
 queryParams:
   - key: sessionId
-    value: ''
-    description: Filter by session ID
+    value: ""
     disabled: true
+    description: Filter by session ID
 scripts:
   - type: afterResponse
-    language: text/javascript
     code: |-
       const COLOR_MAP = {
         UserPromptSubmit: '#4A90D9',
@@ -29,7 +28,7 @@ scripts:
         const rawEvents = (json && json.data) ? json.data : [];
 
         const typeCounts = {};
-        const events = rawEvents.map(function(e) {
+        const events = rawEvents.map(function (e) {
           const t = e.type || 'Unknown';
           typeCounts[t] = (typeCounts[t] || 0) + 1;
           const d = new Date(e.timestamp);
@@ -48,8 +47,8 @@ scripts:
         });
 
         const typeLabels = Object.keys(typeCounts);
-        const typeData = typeLabels.map(function(l) { return typeCounts[l]; });
-        const typeColors = typeLabels.map(function(l) { return getColor(l); });
+        const typeData = typeLabels.map(function (l) { return typeCounts[l]; });
+        const typeColors = typeLabels.map(function (l) { return getColor(l); });
 
         return { events: events, typeCounts: typeCounts, typeLabels: typeLabels, typeData: typeData, typeColors: typeColors };
       }
@@ -178,3 +177,4 @@ scripts:
       `;
 
       pm.visualizer.set(template, constructVisualizerPayload());
+    language: text/javascript
