@@ -51,6 +51,23 @@ Claude Code Agent
 - **State**: Tasks and session events in SQLite; tree is built client-side from `parentId` at
   runtime
 
+- `GET /api/tasks` — fetch all tasks (React polls this)
+- `POST /api/tasks` — create a task (pre-tool-agent.sh hook)
+- `PATCH /api/tasks/:id` — update task status (post-tool-agent.sh hook)
+- `DELETE /api/tasks/:id` — delete a task
+
+**Who calls what:**
+
+- **Hooks**: Write via `curl` POSTs to the API when Agent tools fire
+- **Frontend**: Reads via `fetch()` on a 2.5s interval in `useTaskPolling`
+- **SQLite**: The persistent vault — Drizzle ORM manages the schema
+
+The hooks are stateless. They just fire events into the API. The API layer exists so that:
+
+1. **Multiple writers can coexist** (hooks, future CLI tools, manual edits via UI buttons)
+2. **The frontend doesn't need to parse shell scripts** — it has a clean REST interface
+3. **State lives in one place** — SQLite, not scattered across hook logs
+
 ## Key Files
 
 | File                                  | Purpose                                                                               |
