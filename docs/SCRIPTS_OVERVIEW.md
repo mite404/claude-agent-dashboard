@@ -58,6 +58,7 @@ React renders TaskTable + events        │
 WebFetch, WebSearch — everything except Agent/Task tools)
 
 **What it does:**
+
 - Parses stdin JSON: `session_id`, `tool_name`, `tool_use_id`, `tool_input`
 - Looks up the running task in SQLite by `sessionId` or `agentId`
 - Extracts a summary of tool input (first 120 chars of relevant field: command, file path,
@@ -66,12 +67,14 @@ WebFetch, WebSearch — everything except Agent/Task tools)
 - Appends it to the task's `events` array
 
 **API Calls:**
+
 ```
 GET /tasks?sessionId={sessionId}        # Find running task
 PATCH /tasks/{taskId}                   # Append HookEvent
 ```
 
 **Example:** When Claude Code calls `Read src/server.ts`, this script logs:
+
 ```json
 {
   "tool": "Read",
@@ -88,12 +91,14 @@ PATCH /tasks/{taskId}                   # Append HookEvent
 **Trigger:** Claude Code `PostToolUse` or `PostToolUseFailure` hooks
 
 **What it does:**
+
 - Parses stdin: `tool_use_id`, tool response (success/error)
 - Finds the matching `HookEvent` from pre-phase by `tool_use_id`
 - Updates it: `phase='post'`, `status='completed'` or `'failed'`, adds `completedAt` timestamp
 - Writes entire updated `events` array back to the task
 
 **API Calls:**
+
 ```
 GET /tasks?sessionId={sessionId}        # Find running task
 PATCH /tasks/{taskId}                   # Update HookEvent
@@ -108,6 +113,7 @@ PATCH /tasks/{taskId}                   # Update HookEvent
 **Trigger:** Claude Code `PreToolUse` hook with `Agent` tool matcher
 
 **What it does:**
+
 - Parses stdin: `tool_use_id` (becomes `taskId`), `tool_input.description` (task name),
   `tool_input.subagent_type` (e.g., `code-reviewer`, `Explore`)
 - **Metadata extraction:** Parses task description for inline tags:
@@ -120,11 +126,13 @@ PATCH /tasks/{taskId}                   # Update HookEvent
 - **Writes temp file:** `/tmp/cc-agent-task-{sessionId}` for child agents to link to parent
 
 **API Calls:**
+
 ```
 POST /tasks                             # Create task record
 ```
 
 **Temp File Coordination:**
+
 - **Reads:** `/tmp/cc-skill-{sessionId}` (written by session-event.sh on UserPromptSubmit)
 - **Writes:** `/tmp/cc-agent-task-{sessionId}` (read by session-event.sh on SubagentStart)
 
@@ -146,11 +154,13 @@ as completed/failed).
 #### `session-event.sh` — Capture All 14+ Session Lifecycle Events
 
 **Trigger:** Claude Code session-level hooks via `--event-type` parameter:
+
 - `SessionStart`, `UserPromptSubmit`, `SubagentStart`, `SubagentStop`
 - `Notification`, `PermissionRequest`, `PreCompact`, `PostToolUseFailure`
 - (and 6 others)
 
 **What it does:**
+
 - Parses stdin JSON from hook
 - **Event-specific extraction:**
   - `UserPromptSubmit` → detects `/skill-name` pattern, writes to `/tmp/cc-skill-{sessionId}`
@@ -165,6 +175,7 @@ as completed/failed).
 - **Creates SessionEvent:** Merges standard fields + event-specific metadata JSON
 
 **API Calls:**
+
 ```
 POST /sessionEvents                     # Create session event (with retry)
 GET /tasks?sessionId={sessionId}        # Lookup parent task for SubagentStart/Stop
@@ -172,6 +183,7 @@ PATCH /tasks/{parentTaskId}             # Link agentId or mark as completed
 ```
 
 **Race Condition Handling:** Uses dual lookup for SubagentStart:
+
 1. Check `/tmp/cc-agent-task-{sessionId}` (temp file)
 2. Fall back to API query if file doesn't exist yet
 
@@ -184,11 +196,13 @@ PATCH /tasks/{parentTaskId}             # Link agentId or mark as completed
 **Trigger:** Manual invocation from shell or external scripts
 
 **CLI Signature:**
+
 ```bash
 bun scripts/post-task.ts <name> <description> <sessionId> [priority]
 ```
 
 **What it does:**
+
 - Accepts task name, description, sessionId, optional priority (low|normal|high|urgent,
   defaults to 'normal')
 - Falls back to `CLAUDE_SESSION_ID` env var if sessionId not provided
@@ -207,6 +221,7 @@ parse JSON body first)
 **Trigger:** `bun run smoke` (manual test)
 
 **What it does:** Tests 5 critical steps:
+
 1. json-server responding on `:3001`
 2. Vite proxy responding on `:5173`
 3. Pre-hook creates task with status='running' and logs
@@ -222,6 +237,7 @@ parse JSON body first)
 #### `spawn-terminal.ts` — Spawn CLI Session from Dashboard
 
 **What it does:**
+
 - Listens on port 3002
 - Accepts POST `/spawn` requests from dashboard UI
 - Detects terminal type (iTerm2, Warp, Ghostty)
@@ -237,6 +253,7 @@ parse JSON body first)
 #### `migrate-to-sqlite.ts` — One-Time Data Migration
 
 **What it does:**
+
 - Reads `./db.json` (legacy JSON Server format)
 - Migrates all tasks + session events to SQLite via Drizzle ORM
 - Idempotent (checks if already migrated, skips if so)
@@ -248,6 +265,7 @@ parse JSON body first)
 #### `fix-tailwind-vars.ts` — Transpile Tailwind v4 Syntax
 
 **What it does:**
+
 - Recursively walks `src/` directory
 - Converts `[var(--name)]` → `(--name)` (square to round brackets)
 - Converts `data-[attr]` → `data-attr`, `data-[state=open]` → `data-state-open`
@@ -260,6 +278,7 @@ parse JSON body first)
 #### `wrap-md.js` — Markdown Line Wrapping Utility
 
 **What it does:**
+
 - Wraps markdown to 100-byte limit (matches linter behavior)
 - Protects: code blocks, tables (|), headings (#)
 - Reports remaining long lines
@@ -273,17 +292,22 @@ parse JSON body first)
 ## Key Patterns & Design Decisions
 
 ### 1. Dual Lookup Strategy
+
 Scripts prefer `agentId` when available (subagent tasks), fall back to `sessionId` for
 main-session tasks. This handles both parent tasks and independent subagent trees.
 
 ### 2. Temp File Coordination (`/tmp/cc-*`)
+
 Bridges race conditions between async hooks:
+
 - `pre-tool-agent.ts` writes `/tmp/cc-agent-task-{sessionId}` after POST /tasks succeeds
 - `session-event.sh` (SubagentStart) reads this file to link parent task
 - Fallback: API query if file doesn't exist yet (handles slow POST responses)
 
 ### 3. Metadata Embedding in Description
+
 Task metadata (parentId, dependsOn, kind) encoded as bracket tags in task description:
+
 ```
 "Subagent task [parentId:abc123] [dependsOn:xyz,def] [kind:evaluation]"
 ```
@@ -291,22 +315,27 @@ Task metadata (parentId, dependsOn, kind) encoded as bracket tags in task descri
 Parser extracts these at task creation time, enabling hierarchy + dependency tracking.
 
 ### 4. Event Immutability Pattern
+
 - HookEvents are **appended** to task.events array (never deleted)
 - Completion updates **map-transform** the array (replace matching event, preserve others)
 - This creates an immutable audit trail of every tool call
 
 ### 5. Flexible SessionEvent Metadata
+
 SessionEvents store event-specific data in a JSON field (not typed columns), preventing
 schema explosion. Examples:
+
 - `UserPromptSubmit` → includes detected skill name
 - `Notification` → includes message content
 - `PreCompact` → includes token count
 
 ### 6. Retry Logic with Exponential Backoff
+
 `session-event.sh` uses retry logic (100ms → 200ms → 400ms, 3 attempts) for network
 resilience. Important for unreliable conditions or slow API startup.
 
 ### 7. Skill Attribution
+
 `UserPromptSubmit` hook detects `/skill-name` and writes to `/tmp/cc-skill-{sessionId}`.
 Subsequent `pre-tool-agent.ts` reads this, embedding skill origin in task metadata. This
 traces every task back to its originating skill (or main session).

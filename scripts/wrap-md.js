@@ -28,16 +28,37 @@ function byteLen(str) {
 }
 
 // Wrap a single line to under MAX_BYTES, splitting at word boundaries
+// Preserves blockquote (>) and list item (-, *, N.) prefixes on continuation lines
 function wrapLine(line) {
   if (byteLen(line) <= MAX_BYTES) return [line];
 
-  const words = line.split(" ");
+  // Detect blockquote prefix: one or more > followed by optional space
+  const bqMatch = line.match(/^(>+\s*)/);
+  // Detect list item prefix: optional indent, then -/* + space or digits + . + space
+  const listMatch = line.match(/^(\s*)([-*]\s+|\d+\.\s+)/);
+
+  let prefix = "";
+  let content = line;
+  let contPrefix = "";
+
+  if (bqMatch) {
+    prefix = bqMatch[1];
+    content = line.slice(prefix.length);
+    contPrefix = prefix;
+  } else if (listMatch) {
+    prefix = listMatch[1] + listMatch[2];
+    content = line.slice(prefix.length);
+    contPrefix = " ".repeat(prefix.length);
+  }
+
+  const words = content.split(" ");
   const outputLines = [];
   let current = "";
 
   for (const word of words) {
     const candidate = current ? current + " " + word : word;
-    if (byteLen(candidate) <= MAX_BYTES) {
+    const checkPrefix = outputLines.length === 0 ? prefix : contPrefix;
+    if (byteLen(checkPrefix + candidate) <= MAX_BYTES) {
       current = candidate;
     } else {
       if (current) outputLines.push(current);
@@ -46,7 +67,9 @@ function wrapLine(line) {
   }
 
   if (current) outputLines.push(current);
-  return outputLines;
+
+  // Re-add prefixes
+  return outputLines.map((l, i) => (i === 0 ? prefix : contPrefix) + l);
 }
 
 // Process a single file
