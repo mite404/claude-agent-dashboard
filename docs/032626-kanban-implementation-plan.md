@@ -148,7 +148,8 @@ Flow:
 4. `PATCH /tasks/:id` → `{ status: 'running', worktreePath: '<path>', startedAt: now }`
 5. Write `TASK_CONTEXT.md` to worktree root (name, priority, description)
 6. `cd <worktree> && claude --dangerously-skip-permissions -p "$(cat TASK_CONTEXT.md)"`
-7. On exit: `PATCH /tasks/:id` → `{ status: 'completed' | 'failed', completedAt, progressPercentage }`
+7. On exit: `PATCH /tasks/:id` → `{ status: 'completed' | 'failed', completedAt,
+   progressPercentage }`
 
 Branch naming: `agent/<first-8-of-task-id>-<name-slug-max-30-chars>`
 Worktree path: `<project-root>/worktrees/agent/<branch-name>`
@@ -184,7 +185,8 @@ Add `unassigned` and `claimed` to all constant maps:
 Props: `{ tasks: Task[], onRefresh: () => void }`
 Uses flat `tasks` array (not tree — Kanban is status-grouped, not hierarchical).
 
-Four columns: **Unassigned** → **Claimed** → **In Progress** (running/paused/blocked) → **Done** (collapsed by default)
+Four columns: **Unassigned** → **Claimed** → **In Progress** (running/paused/blocked) →
+**Done** (collapsed by default)
 
 Within each column, cards sort by priority (`urgent` first).
 

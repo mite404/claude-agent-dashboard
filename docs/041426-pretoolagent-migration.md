@@ -1,10 +1,11 @@
-Milestone 1 — Create the file scaffold
+# Milestone 1 — Create the file scaffold
 
 - Create `scripts/pre-tool-agent.ts`
 - Add shebang as **line 1**: `#!/opt/homebrew/bin/bun`
 - Add imports: `import type { Task, TaskKind } from '../src/types/task'`
 - Define a local interface for the Claude Code hook payload (stdin shape) — this isn't in
   `task.ts` yet because it's hook-specific:
+
   ```ts
   interface PreToolPayload {
     session_id: string;
@@ -17,6 +18,7 @@ Milestone 1 — Create the file scaffold
     };
   }
   ```
+
 - Define constants for `LOG_FILE` and `API_BASE` (`http://localhost:3001`)
 
 ---
@@ -24,11 +26,14 @@ Milestone 1 — Create the file scaffold
 ## Milestone 2 — Replace stdin parsing
 
 - Replace `INPUT=$(cat)` + four `jq -r` calls with:
+
   ```ts
   const raw = await Bun.stdin.text();
   const payload: PreToolPayload = JSON.parse(raw);
   ```
+
 - Destructure with aliases to convert snake_case → camelCase:
+
   ```ts
   const { 
     session_id: sessionId = '',
@@ -58,7 +63,8 @@ const displayName = rawName.replace(/\s*\[(?:parentId|dependsOn|kind):[^\]]*\]/g
 The regex `/\s*\[(?:parentId|dependsOn|kind):[^\]]*\]/g` handles leading/trailing/inline cases
 in one pass (bash does three separate `sed` calls).
 
-`★ Insight ─────────────────────────────────────`
+`★ Insight
+─────────────────────────────────────`
 Bash runs three separate `sed` passes on `TASK_NAME` for each tag to handle different positions.
 TypeScript's regex with the global flag (`g`) and optional leading whitespace (`\s*`) collapses
 all three cases into one efficient `.replace()` call. The `?` operator on `.match()` safely returns
@@ -95,6 +101,7 @@ Match the bash patterns: `*code-reviewer*`, `*reviewer*`, `*architect*`, `*plann
 ## Milestone 5 — Replace temp file operations
 
 First, sanitize the session ID (remove special chars) to create a safe filename:
+
 ```ts
 const safeSid = sessionId.replace(/[^a-zA-Z0-9_-]/g, '');
 ```
@@ -105,11 +112,13 @@ Two temp files are written:
 - `/tmp/cc-skill-${safeSid}` — read to get the originating skill (written by session-event.sh)
 
 Write the task ID:
+
 ```ts
 await Bun.write(`/tmp/cc-agent-task-${safeSid}`, taskId);
 ```
 
 Read the skill file:
+
 ```ts
 const skillFile = Bun.file(`/tmp/cc-skill-${safeSid}`);
 const originatingSkill = (await skillFile.exists()) ? (await skillFile.text()).trim() : null;
@@ -120,6 +129,7 @@ const originatingSkill = (await skillFile.exists()) ? (await skillFile.text()).t
 ## Milestone 6 — Build the typed task object
 
 Build a plain TypeScript object with these fields:
+
 ```ts
 const newTask = {
   id: taskId,
@@ -150,6 +160,7 @@ separately (logs in logsTable). Don't expect them to come back in the response.
 ## Milestone 7 — Replace `curl` with `fetch`
 
 - Replace the `curl -s -w "\n%{http_code}"` call with:
+
   ```ts
   const res = await fetch(`${API_BASE}/tasks`, {
     method: 'POST',
@@ -157,6 +168,7 @@ separately (logs in logsTable). Don't expect them to come back in the response.
     body: JSON.stringify(newTask),
   });
   ```
+
 - Replace the bash HTTP code extraction (`tail -n1`) with `res.status`
 - Log success/failure the same way as the bash version
 
@@ -170,7 +182,7 @@ The bash version appends to a file with `echo "..." >> $LOG_FILE`. In Bun, use:
 async function log(msg: string) {
   const timeStr = new Date().toISOString().slice(11, 19); // HH:MM:SS
   const line = `[${timeStr}] [pre-hook] ${msg}\n`;
-  
+
   // Append to log file (creates if missing)
   const file = Bun.file(LOG_FILE);
   const existing = (await file.exists()) ? await file.text() : '';
@@ -193,13 +205,16 @@ display depends on the format for visual parsing.
 ## Milestone 10 — Make executable and wire up
 
 Make the file executable with the Bun shebang:
+
 ```bash
 chmod +x scripts/pre-tool-agent.ts
 ```
 
 Update `~/.claude/settings.json`:
+
 - Find the existing `PreToolUse` hook command
-- Change the path from `scripts/pre-tool-agent.sh` to `scripts/pre-tool-agent.ts` (same directory, `.ts` extension)
+- Change the path from `scripts/pre-tool-agent.sh` to `scripts/pre-tool-agent.ts` (same directory,
+  `.ts` extension)
 - The shebang (`#!/opt/homebrew/bin/bun` at line 1) tells the OS to run it with Bun
 
 **Critical:** Confirm the old `.sh` file is **not** also wired in settings.json — both firing
