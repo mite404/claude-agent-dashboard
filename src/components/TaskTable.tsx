@@ -22,6 +22,8 @@ import {
   IconMoon,
   IconPlayerPause,
   IconCircleX,
+  IconPlus,
+  IconArrowBackUp,
 } from '@tabler/icons-react';
 import {
   Table,
@@ -48,6 +50,7 @@ import { StatusBadge } from '@/components/ui/badge';
 import { GlobalEventStrip } from '@/components/GlobalEventStrip';
 import {
   ALL_STATUSES,
+  AGENT_TYPE_OPTIONS,
   STATUS_ORDER,
   STATUS_ICON,
   STATUS_LABEL,
@@ -73,7 +76,7 @@ import {
   type SortCol,
   type SortState,
 } from '@/lib/taskUtils';
-import { patchTask, deleteTask, clearAllSessionEvents } from '@/lib/taskApi';
+import { patchTask, deleteTask, clearAllSessionEvents, createTask } from '@/lib/taskApi';
 import type {
   TaskNode,
   TaskStatus,
@@ -387,7 +390,7 @@ interface TaskRowProps {
   onToggleLogs: () => void;
   onToggleSelect: () => void;
   onFilterByAgent: (agentType: string) => void;
-  onAction: (action: 'cancel' | 'pause' | 'resume' | 'retry') => void;
+  onAction: (action: 'cancel' | 'pause' | 'resume' | 'retry' | 'return-to-pool') => void;
 }
 
 function TaskRow({
@@ -622,6 +625,14 @@ function TaskRow({
               Retry
             </DropdownMenuItem>
 
+            {/* Return to pool */}
+            {(task.status === 'paused' || task.status === 'claimed') && (
+              <DropdownMenuItem onClick={() => onAction('return-to-pool')}>
+                <IconArrowBackUp size={13} />
+                Return to pool
+              </DropdownMenuItem>
+            )}
+
             <DropdownMenuSeparator />
 
             {/* Cancel */}
@@ -717,6 +728,14 @@ export function TaskTable({
   const [sort, setSort] = useState<SortState>({ col: null, dir: 'asc' });
   const [hiddenCols, setHiddenCols] = useState<Set<HideableCol>>(new Set());
   const [busy, setBusy] = useState<Record<string, string>>({});
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
+  const [newTaskForm, setNewTaskForm] = useState({
+    name: '',
+    agentType: '',
+    priority: 'normal',
+    description: '',
+  });
   const [sessionFilter, setSessionFilter] = useState<Set<string>>(new Set());
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const knownIds = useRef<Set<string>>(new Set());
@@ -806,7 +825,10 @@ export function TaskTable({
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  const handleAction = async (taskId: string, action: 'cancel' | 'pause' | 'resume' | 'retry') => {
+  const handleAction = async (
+    taskId: string,
+    action: 'cancel' | 'pause' | 'resume' | 'retry' | 'return-to-pool',
+  ) => {
     setBusy((prev) => ({ ...prev, [taskId]: action }));
     try {
       const patch =
@@ -816,7 +838,9 @@ export function TaskTable({
             ? { status: 'paused' as TaskStatus }
             : action === 'resume'
               ? { status: 'running' as TaskStatus }
-              : { status: 'running' as TaskStatus, progressPercentage: 0 };
+              : action === 'return-to-pool'
+                ? { status: 'unassigned' as TaskStatus, claimedBy: null, claimedAt: null }
+                : { status: 'running' as TaskStatus, progressPercentage: 0 };
       await patchTask(taskId, patch);
       onStatusChange?.(taskId, patch.status);
     } catch (err) {
@@ -827,6 +851,27 @@ export function TaskTable({
         delete n[taskId];
         return n;
       });
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTaskForm.name.trim() || creatingTask) return;
+    setCreatingTask(true);
+    try {
+      await createTask({
+        name: newTaskForm.name.trim(),
+        sessionId: 'dashboard-ui',
+        agentType: newTaskForm.agentType.trim() || 'general-purpose',
+        priority: newTaskForm.priority,
+        description: newTaskForm.description.trim() || undefined,
+      });
+      setNewTaskOpen(false);
+      setNewTaskForm({ name: '', agentType: '', priority: 'normal', description: '' });
+      onRefresh();
+    } catch (err) {
+      console.error('Failed to create task:', err);
+    } finally {
+      setCreatingTask(false);
     }
   };
 
@@ -1089,6 +1134,65 @@ export function TaskTable({
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          {/* New Task */}
+          <Popover open={newTaskOpen} onOpenChange={(open) => { setNewTaskOpen(open); if (!open) setNewTaskForm({ name: '', agentType: '', priority: 'normal', description: '' }); }}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <IconPlus size={13} />
+                New Task
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 space-y-2 p-3">
+              <p className="text-xs font-medium text-stone-400">Create task</p>
+              <Input
+                placeholder="Task name *"
+                value={newTaskForm.name}
+                onChange={(e) => setNewTaskForm((prev) => ({ ...prev, name: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
+                className="h-8"
+                autoFocus
+              />
+              <Input
+                list="new-task-agent-types"
+                placeholder="Agent type"
+                value={newTaskForm.agentType}
+                onChange={(e) => setNewTaskForm((prev) => ({ ...prev, agentType: e.target.value }))}
+                className="h-8"
+              />
+              <datalist id="new-task-agent-types">
+                {AGENT_TYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t} />
+                ))}
+              </datalist>
+              <select
+                value={newTaskForm.priority}
+                onChange={(e) => setNewTaskForm((prev) => ({ ...prev, priority: e.target.value }))}
+                className="h-8 w-full rounded-(--radius) border border-stone-700 bg-stone-900 px-2 text-sm text-stone-300 focus:ring-1 focus:ring-stone-500 focus:outline-none"
+              >
+                <option value="low">Low priority</option>
+                <option value="normal">Normal priority</option>
+                <option value="high">High priority</option>
+                <option value="urgent">Urgent</option>
+              </select>
+              <Input
+                placeholder="Description (optional)"
+                value={newTaskForm.description}
+                onChange={(e) =>
+                  setNewTaskForm((prev) => ({ ...prev, description: e.target.value }))
+                }
+                className="h-8"
+              />
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={handleCreateTask}
+                disabled={creatingTask || !newTaskForm.name.trim()}
+              >
+                Create
+              </Button>
+            </PopoverContent>
+          </Popover>
+
           {hasCompletedTasks && (
             <Button
               variant="ghost"

@@ -915,3 +915,70 @@ return c.json(result[0], 201); // result is an array; [0] is the new row
    initialize. Always set `casing: 'snake_case'` in both `drizzle.config.ts` and `drizzle()` call
 10. **`casing: 'snake_case'` must be set in two places** — `drizzle.config.ts` (schema push) AND
     `src/db/index.ts` (ORM queries). Mismatch causes `SQLITE_CANTOPEN` / column-not-found errors
+
+---
+
+## Orchestrator Patterns
+
+The dashboard REST API is designed to be called from any Claude Code agent session via `curl`.
+This enables an orchestrator pattern: a high-capability agent pre-populates the board with
+planned work, leaner subagents claim and execute tasks, and the human steers via the UI.
+
+### Pre-populate the board with planned work
+
+```bash
+curl -s -X POST http://localhost:3001/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Review auth module",
+    "sessionId": "orchestrator-session",
+    "agentType": "code-reviewer",
+    "priority": "high",
+    "status": "unassigned",
+    "description": "Check for token storage issues in src/auth/"
+  }'
+```
+
+Tasks created this way appear immediately in the dashboard as `unassigned` (inbox icon,
+stone color). No Claude Code session or hook required.
+
+### Claim a task (subagent picks it up)
+
+Use the atomic claim endpoint — returns `409` if another agent already claimed it:
+
+```bash
+curl -s -X POST http://localhost:3001/tasks/<id>/claim \
+  -H "Content-Type: application/json" \
+  -d '{"claimedBy": "<agentId>"}'
+```
+
+On success: task transitions to `claimed` (violet, `◎` checkpoint icon).
+On `409`: another agent got there first — pick a different unassigned task.
+
+### Return a task to the pool
+
+When a task is `paused` or `claimed` but stalled, send it back for any agent to pick up:
+
+```bash
+curl -s -X PATCH http://localhost:3001/tasks/<id> \
+  -H "Content-Type: application/json" \
+  -d '{"status": "unassigned", "claimedBy": null, "claimedAt": null}'
+```
+
+The UI "Return to pool" action in the ⋮ dropdown does the same thing.
+
+### Polling architecture
+
+The PR watcher and similar daemons follow this cost model:
+
+```
+cheap bun/bash script polls for trigger (zero AI cost between checks)
+  ↓ trigger detected (new commit, new task, etc.)
+    → POST /tasks to pre-populate the board
+    → spawn Claude Code agent: "claim task <id> and work on it"
+    → agent executes, updates task status via PATCH
+```
+
+Never use `/loop` (Claude Code skill) as the polling mechanism — each tick burns API credits
+even when nothing changed. Use a dumb script as the sentinel; only invoke Claude when there
+is actual work to do.
