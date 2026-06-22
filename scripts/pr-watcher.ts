@@ -22,20 +22,21 @@ const CLAUDE = process.env.CLAUDE_BIN ?? 'claude';
 
 // These run on every PR review. Pass --skill to add a domain-specific one on top.
 const DEFAULT_SKILLS = [
-  'compound-engineering:ce-correctness-reviewer',   // logic bugs, contract mismatches, edge cases
-  'compound-engineering:ce-api-contract-reviewer',  // type/API contract gaps between layers
-  'compound-engineering:ce-reliability-reviewer',   // failure modes, missing error handling
+  'compound-engineering:ce-correctness-reviewer', // logic bugs, contract mismatches, edge cases
+  'compound-engineering:ce-api-contract-reviewer', // type/API contract gaps between layers
+  'compound-engineering:ce-reliability-reviewer', // failure modes, missing error handling
 ];
 
 function parseArgs() {
   const args = Bun.argv.slice(2);
+  const isValue = (s: string | undefined) => !!s && !s.startsWith('-');
   const get = (flag: string) => {
     const i = args.indexOf(flag);
-    return i >= 0 ? (args[i + 1] ?? null) : null;
+    return i >= 0 && isValue(args[i + 1]) ? args[i + 1] : null;
   };
   // getAll collects every value for a repeatable flag, e.g. --context a --context b → ['a', 'b']
   const getAll = (flag: string) =>
-    args.flatMap((a, i) => (a === flag && args[i + 1] ? [args[i + 1]] : []));
+    args.flatMap((a, i) => (a === flag && isValue(args[i + 1]) ? [args[i + 1]!] : []));
   const pr = get('--pr');
   if (!pr) {
     console.error(
@@ -50,7 +51,7 @@ function parseArgs() {
     process.exit(1);
   }
 
-  const intervalRaw = get('--interval') ?? '300';
+  const intervalRaw = get('--interval') ?? '150';
   const intervalNum = Number(intervalRaw);
   if (isNaN(intervalNum) || intervalNum <= 0) {
     console.error(`Invalid --interval value "${intervalRaw}": must be a positive number`);
@@ -115,7 +116,11 @@ ${contextSection}Complete all steps in order:
 1. Fetch the diff:   gh pr diff ${pr}
 2. Review the diff by invoking each skill below using the Skill tool, then synthesize findings:
 ${skillLines}
-3. Format your findings as a Markdown comment. For each issue use this structure:
+3. Format your findings as a Markdown comment. Start with this header line (fill in the full SHA):
+
+   > From pr-watcher for commit: \`${sha}\`
+
+   Then for each issue use this structure:
 
    ---
    🔴 **Critical** | \`path/to/file.ts\` line N   ← correctness bug, data loss, security
@@ -125,9 +130,8 @@ ${skillLines}
    [1-2 sentence description of the problem]
 
    **Proposed fix:**
-   \`\`\`diff
-   - old line
-   + new line
+   \`\`\`<language matching the file — typescript for .ts/.tsx, python for .py, bash for .sh, etc.>
+   // corrected code only — plain lines, NO bullet points inside the fence
    \`\`\`
    ---
 
@@ -188,14 +192,15 @@ async function createDashboardTask(pr: number, sha: string, skills: string[]): P
   return ((await res.json()) as { id: string }).id;
 }
 
-async function claimDashboardTask(id: string): Promise<void> {
+async function claimDashboardTask(id: string): Promise<boolean> {
   const res = await fetch(`${API}/tasks/${id}/claim`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ claimedBy: 'pr-watcher' }),
   });
-  // 409 = already claimed (shouldn't happen, but not fatal)
-  if (!res.ok && res.status !== 409) throw new Error(`claim failed: ${res.status}`);
+  if (res.status === 409) return false;
+  if (!res.ok) throw new Error(`claim failed: ${res.status}`);
+  return true;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -249,18 +254,20 @@ while (true) {
   console.log(`${green}↑ new commit${rst}  ${sha.slice(0, 7)}`);
 
   const taskId = await createDashboardTask(pr, sha, skills);
-  await claimDashboardTask(taskId);
+  const claimed = await claimDashboardTask(taskId);
+  if (!claimed) {
+    console.log(`  task ${dim}${taskId}${rst} already claimed — skipping`);
+    continue;
+  }
   console.log(`  task ${dim}${taskId}${rst} → spawning review agent`);
 
   const proc = Bun.spawn(
     [
       CLAUDE,
-      '--allowedTools',
-      'Bash,Read,Edit,Skill',
-      '--max-turns',
-      '30',
-      '-p',
-      reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect),
+      '--model', 'claude-sonnet-4-6',
+      '--allowedTools', 'Bash,Read,Edit,Skill',
+      '--max-turns', '30',
+      '-p', reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect),
     ],
     {
       stdout: 'inherit',
@@ -270,7 +277,9 @@ while (true) {
   const exitCode = await proc.exited;
 
   if (exitCode !== 0) {
-    console.log(`  ${yellow}⚠${rst} review agent exited with code ${exitCode} — skipping state update, will retry next poll`);
+    console.log(
+      `  ${yellow}⚠${rst} review agent exited with code ${exitCode} — skipping state update, will retry next poll`,
+    );
     continue;
   }
 

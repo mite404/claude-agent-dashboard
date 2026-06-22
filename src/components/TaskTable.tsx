@@ -729,6 +729,7 @@ export function TaskTable({
   const [hiddenCols, setHiddenCols] = useState<Set<HideableCol>>(new Set());
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
   const [newTaskForm, setNewTaskForm] = useState({
     name: '',
     agentType: '',
@@ -854,7 +855,8 @@ export function TaskTable({
   };
 
   const handleCreateTask = async () => {
-    if (!newTaskForm.name.trim()) return;
+    if (!newTaskForm.name.trim() || creatingTask) return;
+    setCreatingTask(true);
     try {
       await createTask({
         name: newTaskForm.name.trim(),
@@ -868,6 +870,8 @@ export function TaskTable({
       onRefresh();
     } catch (err) {
       console.error('Failed to create task:', err);
+    } finally {
+      setCreatingTask(false);
     }
   };
 
@@ -1131,7 +1135,7 @@ export function TaskTable({
 
         <div className="ml-auto flex items-center gap-1">
           {/* New Task */}
-          <Popover open={newTaskOpen} onOpenChange={setNewTaskOpen}>
+          <Popover open={newTaskOpen} onOpenChange={(open) => { setNewTaskOpen(open); if (!open) setNewTaskForm({ name: '', agentType: '', priority: 'normal', description: '' }); }}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
                 <IconPlus size={13} />
@@ -1182,7 +1186,7 @@ export function TaskTable({
                 size="sm"
                 className="w-full"
                 onClick={handleCreateTask}
-                disabled={!newTaskForm.name.trim()}
+                disabled={creatingTask || !newTaskForm.name.trim()}
               >
                 Create
               </Button>
