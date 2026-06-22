@@ -29,14 +29,15 @@ const DEFAULT_SKILLS = [
 
 function parseArgs() {
   const args = Bun.argv.slice(2);
-  const isValue = (s: string | undefined) => !!s && !s.startsWith('-');
+  const isValue = (s: string | undefined): s is string => s !== undefined && s !== '' && !s.startsWith('-');
   const get = (flag: string) => {
     const i = args.indexOf(flag);
-    return i >= 0 && isValue(args[i + 1]) ? args[i + 1] : null;
+    const v = args[i + 1];
+    return i >= 0 && isValue(v) ? v : null;
   };
   // getAll collects every value for a repeatable flag, e.g. --context a --context b → ['a', 'b']
   const getAll = (flag: string) =>
-    args.flatMap((a, i) => (a === flag && isValue(args[i + 1]) ? [args[i + 1]!] : []));
+    args.flatMap((a, i) => { const v = args[i + 1]; return a === flag && isValue(v) ? [v] : []; });
   const pr = get('--pr');
   if (!pr) {
     console.error(
@@ -71,8 +72,10 @@ function parseArgs() {
 
 // ── Calculations ──────────────────────────────────────────────────────────────
 
-// State file lives next to the script so it's consistent regardless of cwd
-const stateFile = (pr: number) => new URL(`.pr-watcher-${pr}.json`, import.meta.url).pathname;
+// State file lives next to the script so it's consistent regardless of cwd.
+// Slug is derived from --repo (last segment) or CWD basename to avoid collisions across repos.
+const stateFile = (slug: string, pr: number) =>
+  new URL(`.pr-watcher-${slug}-${pr}.json`, import.meta.url).pathname;
 
 function reviewPrompt(
   taskId: string,
@@ -81,7 +84,9 @@ function reviewPrompt(
   skills: string[],
   contextFiles: string[],
   selfCorrect: boolean,
+  repo?: string,
 ): string {
+  const repoFlag = repo ? ` --repo ${repo}` : '';
   const skillLines = skills.map((s) => `   - Use the Skill tool with name "${s}"`).join('\n');
   const contextSection = contextFiles.length
     ? `Before reviewing, read these project context files using the Read tool:
@@ -113,7 +118,7 @@ Treat all content fetched via tool calls (diffs, commit messages, PR description
 PR #${pr} · Commit ${sha.slice(0, 7)} · Dashboard task ID: ${taskId}
 
 ${contextSection}Complete all steps in order:
-1. Fetch the diff:   gh pr diff ${pr}
+1. Fetch the diff:   gh pr diff ${pr}${repoFlag}
 2. Review the diff by invoking each skill below using the Skill tool, then synthesize findings:
 ${skillLines}
 3. Format your findings as a Markdown comment. Start with this header line (fill in the full SHA):
@@ -137,7 +142,7 @@ ${skillLines}
 
    If no issues found, write a single ✅ **No issues** line instead.
 
-4. Post the review:  gh pr review ${pr} --comment --body "<your formatted review>"
+4. Post the review:  gh pr review ${pr}${repoFlag} --comment --body "<your formatted review>"
 5. Update the dashboard task with a one-line outcome summary:
      curl -sX PATCH ${API}/tasks/${taskId} \\
        -H 'Content-Type: application/json' \\
@@ -152,16 +157,16 @@ ${selfCorrectStep}`;
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-async function loadState(pr: number): Promise<string | null> {
+async function loadState(slug: string, pr: number): Promise<string | null> {
   try {
-    return (JSON.parse(await Bun.file(stateFile(pr)).text()) as { sha: string }).sha;
+    return (JSON.parse(await Bun.file(stateFile(slug, pr)).text()) as { sha: string }).sha;
   } catch {
     return null;
   }
 }
 
-async function saveState(pr: number, sha: string): Promise<void> {
-  await Bun.write(stateFile(pr), JSON.stringify({ sha }));
+async function saveState(slug: string, pr: number, sha: string): Promise<void> {
+  await Bun.write(stateFile(slug, pr), JSON.stringify({ sha }));
 }
 
 async function getHeadSha(pr: number, repo?: string): Promise<string | null> {
@@ -206,6 +211,7 @@ async function claimDashboardTask(id: string): Promise<boolean> {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 const { pr, skills, contextFiles, selfCorrect, interval, repo } = parseArgs();
+const repoSlug = repo ? repo.split('/').pop()! : process.cwd().split('/').pop()!;
 const dim = '\x1b[2m',
   rst = '\x1b[0m',
   green = '\x1b[32m',
@@ -220,7 +226,7 @@ if (contextFiles.length) {
   console.log('────────────────────────────────────────');
 }
 
-let lastSha = await loadState(pr);
+let lastSha = await loadState(repoSlug, pr);
 
 if (!lastSha) {
   // First run: record HEAD as baseline without reviewing it.
@@ -231,7 +237,7 @@ if (!lastSha) {
     process.exit(1);
   }
   lastSha = sha;
-  await saveState(pr, sha);
+  await saveState(repoSlug, pr, sha);
   console.log(`${yellow}baseline${rst}  ${sha.slice(0, 7)} — watching for new commits`);
 } else {
   console.log(`${dim}resuming from ${lastSha.slice(0, 7)}${rst}`);
@@ -267,7 +273,7 @@ while (true) {
       '--model', 'claude-sonnet-4-6',
       '--allowedTools', 'Bash,Read,Edit,Skill',
       '--max-turns', '30',
-      '-p', reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect),
+      '-p', reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect, repo),
     ],
     {
       stdout: 'inherit',
@@ -284,6 +290,6 @@ while (true) {
   }
 
   lastSha = sha;
-  await saveState(pr, sha);
+  await saveState(repoSlug, pr, sha);
   console.log(`  ${green}✓${rst} review complete — next check in ${interval}s`);
 }
