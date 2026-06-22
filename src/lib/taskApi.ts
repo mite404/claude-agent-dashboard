@@ -39,7 +39,7 @@ export async function deleteTask(taskId: string): Promise<void> {
  */
 export async function createTask(fields: {
   name: string;
-  sessionId?: string;
+  sessionId: string;
   agentType?: string;
   status?: string;
   priority?: string;

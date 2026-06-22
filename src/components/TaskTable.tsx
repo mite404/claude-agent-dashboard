@@ -858,6 +858,7 @@ export function TaskTable({
     try {
       await createTask({
         name: newTaskForm.name.trim(),
+        sessionId: 'dashboard-ui',
         agentType: newTaskForm.agentType.trim() || 'general-purpose',
         priority: newTaskForm.priority,
         description: newTaskForm.description.trim() || undefined,

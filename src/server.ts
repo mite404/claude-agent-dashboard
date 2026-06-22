@@ -263,6 +263,7 @@ async function handleTaskUpdate(c: any) {
       'startedAt',
       'completedAt',
       'claimedAt',
+      'claimedBy',
       'agentId',
       'agentType',
       'originatingSkill',
