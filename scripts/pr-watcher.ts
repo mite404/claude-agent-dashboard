@@ -29,10 +29,12 @@ const DEFAULT_SKILLS = [
 function parseArgs() {
   const args = Bun.argv.slice(2);
   const get = (flag: string) => { const i = args.indexOf(flag); return i >= 0 ? (args[i + 1] ?? null) : null; };
+  // getAll collects every value for a repeatable flag, e.g. --context a --context b → ['a', 'b']
+  const getAll = (flag: string) => args.flatMap((a, i) => a === flag && args[i + 1] ? [args[i + 1]] : []);
   const pr = get('--pr');
   if (!pr) {
     console.error(
-      'Usage: bun scripts/pr-watcher.ts --pr <num> [--skill <name>] [--interval <secs>] [--repo <owner/repo>]',
+      'Usage: bun scripts/pr-watcher.ts --pr <num> [--skill <name>] [--context <file>] [--self-correct] [--interval <secs>] [--repo <owner/repo>]',
     );
     process.exit(1);
   }
@@ -40,6 +42,8 @@ function parseArgs() {
   return {
     pr: Number(pr),
     skills: extra ? [...DEFAULT_SKILLS, extra] : DEFAULT_SKILLS,
+    contextFiles: getAll('--context'),
+    selfCorrect: args.includes('--self-correct'),
     interval: Number(get('--interval') ?? 300),
     repo: get('--repo') ?? undefined,
   };
@@ -48,23 +52,70 @@ function parseArgs() {
 // ── Calculations ──────────────────────────────────────────────────────────────
 
 // State file lives next to the script so it's consistent regardless of cwd
-const stateFile = (pr: number) => new URL(`../.pr-watcher-${pr}.json`, import.meta.url).pathname;
+const stateFile = (pr: number) => new URL(`.pr-watcher-${pr}.json`, import.meta.url).pathname;
 
-function reviewPrompt(taskId: string, pr: number, sha: string, skills: string[]): string {
+function reviewPrompt(
+  taskId: string,
+  pr: number,
+  sha: string,
+  skills: string[],
+  contextFiles: string[],
+  selfCorrect: boolean,
+): string {
   const skillLines = skills.map((s) => `   - Use the Skill tool with name "${s}"`).join('\n');
-  return `You are an automated code reviewer. Use Bash for all shell commands.
+  const contextSection = contextFiles.length
+    ? `Before reviewing, read these project context files using the Read tool:
+${contextFiles.map((f) => `   - ${f}`).join('\n')}
+   Use them to understand the intended architecture and flag deviations.\n\n`
+    : '';
+  const selfCorrectStep = selfCorrect
+    ? `
+5. Invoke the Ponytail skill before touching any files:
+   Use the Skill tool with name "ponytail"
+   This enforces minimal changes — no new abstractions, shortest diff wins.
+6. Apply the proposed fixes to the local files using the Edit tool.
+   Match exactly what you described in the comment — nothing more.
+   Then commit and push to the PR branch:
+   git add -A && git commit -m "auto-fix: <brief summary of what changed>"
+   git push
+   (The comment already records your reasoning — this commit is the applied fix.)
+
+7. Mark task done:   curl -sX PATCH ${API}/tasks/${taskId} \\
+                       -H 'Content-Type: application/json' \\
+                       -d '{"status":"completed","progressPercentage":100}'`
+    : `
+5. Mark task done:   curl -sX PATCH ${API}/tasks/${taskId} \\
+                       -H 'Content-Type: application/json' \\
+                       -d '{"status":"completed","progressPercentage":100}'`;
+
+  return `You are an automated code reviewer. Use Bash for shell commands, Read/Edit for files.
 
 PR #${pr} · Commit ${sha.slice(0, 7)} · Dashboard task ID: ${taskId}
 
-Complete all steps in order — do not skip any:
+${contextSection}Complete all steps in order:
 1. Fetch the diff:   gh pr diff ${pr}
 2. Review the diff by invoking each skill below using the Skill tool, then synthesize findings:
 ${skillLines}
-   Cite file:line for each finding.
-3. Post your review: gh pr review ${pr} --comment --body "<your synthesized review here>"
-4. Mark task done:   curl -sX PATCH ${API}/tasks/${taskId} \\
-                       -H 'Content-Type: application/json' \\
-                       -d '{"status":"completed","progressPercentage":100}'`;
+3. Format your findings as a Markdown comment. For each issue use this structure:
+
+   ---
+   🔴 **Critical** | \`path/to/file.ts\` line N   ← correctness bug, data loss, security
+   🟠 **Major**    | \`path/to/file.ts\` line N   ← wrong behavior, broken feature
+   🟡 **Minor**    | \`path/to/file.ts\` line N   ← style, naming, minor inefficiency
+
+   [1-2 sentence description of the problem]
+
+   **Proposed fix:**
+   \`\`\`diff
+   - old line
+   + new line
+   \`\`\`
+   ---
+
+   If no issues found, write a single ✅ **No issues** line instead.
+
+4. Post the review:  gh pr review ${pr} --comment --body "<your formatted review>"
+${selfCorrectStep}`;
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -98,6 +149,7 @@ async function createDashboardTask(pr: number, sha: string, skills: string[]): P
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: `Review PR #${pr} @ ${sha.slice(0, 7)}`,
+      sessionId: 'pr-watcher',
       agentType: skills.join(', '),
       priority: 'normal',
       status: 'unassigned',
@@ -120,12 +172,17 @@ async function claimDashboardTask(id: string): Promise<void> {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const { pr, skills, interval, repo } = parseArgs();
+const { pr, skills, contextFiles, selfCorrect, interval, repo } = parseArgs();
 const dim = '\x1b[2m', rst = '\x1b[0m', green = '\x1b[32m', yellow = '\x1b[33m';
 
 console.log(`\nPR Watcher  #${pr}  every ${interval}s${repo ? `  [${repo}]` : ''}`);
-console.log(`Skills: ${skills.map((s) => `/${s}`).join(', ')}`);
+console.log(`Skills:  ${skills.map((s) => `/${s}`).join(', ')}`);
+if (selfCorrect) console.log(`Mode:    self-correct (will apply fixes and push)`);
 console.log('────────────────────────────────────────');
+if (contextFiles.length) {
+  contextFiles.forEach((f) => console.log(`context added: ${f.split('/').pop() ?? f}`));
+  console.log('────────────────────────────────────────');
+}
 
 let lastSha = await loadState(pr);
 
@@ -158,7 +215,7 @@ while (true) {
   await claimDashboardTask(taskId);
   console.log(`  task ${dim}${taskId}${rst} → spawning review agent`);
 
-  const proc = Bun.spawn([CLAUDE, '--max-turns', '20', '-p', reviewPrompt(taskId, pr, sha, skills)], {
+  const proc = Bun.spawn([CLAUDE, '--max-turns', '30', '-p', reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect)], {
     stdout: 'inherit',
     stderr: 'inherit',
   });

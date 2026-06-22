@@ -927,10 +927,11 @@ planned work, leaner subagents claim and execute tasks, and the human steers via
 ### Pre-populate the board with planned work
 
 ```bash
-curl -s -X POST http://localhost:3001/api/tasks \
+curl -s -X POST http://localhost:3001/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Review auth module",
+    "sessionId": "orchestrator-session",
     "agentType": "code-reviewer",
     "priority": "high",
     "status": "unassigned",
@@ -946,7 +947,7 @@ stone color). No Claude Code session or hook required.
 Use the atomic claim endpoint — returns `409` if another agent already claimed it:
 
 ```bash
-curl -s -X POST http://localhost:3001/api/tasks/<id>/claim \
+curl -s -X POST http://localhost:3001/tasks/<id>/claim \
   -H "Content-Type: application/json" \
   -d '{"claimedBy": "<agentId>"}'
 ```
@@ -959,7 +960,7 @@ On `409`: another agent got there first — pick a different unassigned task.
 When a task is `paused` or `claimed` but stalled, send it back for any agent to pick up:
 
 ```bash
-curl -s -X PATCH http://localhost:3001/api/tasks/<id> \
+curl -s -X PATCH http://localhost:3001/tasks/<id> \
   -H "Content-Type: application/json" \
   -d '{"status": "unassigned", "claimedBy": null, "claimedAt": null}'
 ```
@@ -973,7 +974,7 @@ The PR watcher and similar daemons follow this cost model:
 ```
 cheap bun/bash script polls for trigger (zero AI cost between checks)
   ↓ trigger detected (new commit, new task, etc.)
-    → POST /api/tasks to pre-populate the board
+    → POST /tasks to pre-populate the board
     → spawn Claude Code agent: "claim task <id> and work on it"
     → agent executes, updates task status via PATCH
 ```
