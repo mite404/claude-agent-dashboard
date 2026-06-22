@@ -1,24 +1,24 @@
-import { Terminal } from 'lucide-react'
-import { StatusBadge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { LogViewer } from '@/components/LogViewer'
-import { ControlButtons } from '@/components/ControlButtons'
-import { formatElapsed } from '@/lib/utils'
-import type { Task, TaskStatus } from '@/types/task'
+import { Terminal } from 'lucide-react';
+import { StatusBadge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { LogViewer } from '@/components/LogViewer';
+import { ControlButtons } from '@/components/ControlButtons';
+import { formatElapsed } from '@/lib/utils';
+import type { Task, TaskStatus } from '@/types/task';
 
 interface TaskCardProps {
-  task: Task
-  depth?: number
-  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void
+  task: Task;
+  depth?: number;
+  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
 export function TaskCard({ task, depth = 0, onStatusChange }: TaskCardProps) {
-  const isActive = task.status === 'running' || task.status === 'paused'
-  const elapsed = formatElapsed(task.startedAt, task.completedAt)
+  const isActive = task.status === 'running' || task.status === 'paused';
+  const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
   return (
     <div
-      className="rounded-lg border border-white/8 bg-white/4 overflow-hidden"
+      className="overflow-hidden rounded-lg border border-white/8 bg-white/4"
       style={{ marginLeft: depth > 0 ? `${depth * 1.5}rem` : undefined }}
     >
       {/* Left accent bar by status */}
@@ -28,9 +28,9 @@ export function TaskCard({ task, depth = 0, onStatusChange }: TaskCardProps) {
           style={{
             backgroundColor:
               task.status === 'running'
-                ? 'rgb(96 165 250)'     // blue-400
+                ? 'rgb(96 165 250)' // blue-400
                 : task.status === 'completed'
-                  ? 'rgb(74 222 128)'   // green-400
+                  ? 'rgb(74 222 128)' // green-400
                   : task.status === 'failed'
                     ? 'rgb(248 113 113)' // red-400
                     : task.status === 'paused'
@@ -39,14 +39,14 @@ export function TaskCard({ task, depth = 0, onStatusChange }: TaskCardProps) {
           }}
         />
 
-        <div className="flex-1 min-w-0 p-3 space-y-2.5">
+        <div className="min-w-0 flex-1 space-y-2.5 p-3">
           {/* Header row */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-mono text-white/30 mb-0.5">{task.id}</p>
-              <h3 className="text-sm font-medium text-white leading-tight truncate">{task.name}</h3>
+              <p className="mb-0.5 font-mono text-[10px] text-white/30">{task.id}</p>
+              <h3 className="truncate text-sm leading-tight font-medium text-white">{task.name}</h3>
             </div>
-            <StatusBadge status={task.status} className="shrink-0 mt-0.5" />
+            <StatusBadge status={task.status} className="mt-0.5 shrink-0" />
           </div>
 
           {/* Progress bar */}
@@ -77,14 +77,10 @@ export function TaskCard({ task, depth = 0, onStatusChange }: TaskCardProps) {
 
           {/* Controls */}
           <div className="flex justify-end pt-0.5">
-            <ControlButtons
-              taskId={task.id}
-              status={task.status}
-              onStatusChange={onStatusChange}
-            />
+            <ControlButtons taskId={task.id} status={task.status} onStatusChange={onStatusChange} />
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

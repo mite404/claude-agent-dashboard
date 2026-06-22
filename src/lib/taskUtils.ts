@@ -1,5 +1,5 @@
-import type { TaskNode } from "@/types/task";
-import { STATUS_ORDER } from "./taskConfig";
+import type { TaskNode } from '@/types/task';
+import { STATUS_ORDER } from './taskConfig';
 
 // ─── Internal Types ───────────────────────────────────────────────────────────
 
@@ -9,11 +9,11 @@ export interface FlatTask {
   hasChildren: boolean;
 }
 
-export type SortCol = "task" | "status" | "agent" | "id" | "subtasks" | "progress" | "duration";
+export type SortCol = 'task' | 'status' | 'agent' | 'id' | 'subtasks' | 'progress' | 'duration';
 
 export interface SortState {
   col: SortCol | null;
-  dir: "asc" | "desc";
+  dir: 'asc' | 'desc';
 }
 
 // ─── Sorting ───────────────────────────────────────────────────────────────────
@@ -29,19 +29,19 @@ export function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
   const sorted = [...nodes].sort((a, b) => {
     let cmp = 0;
 
-    if (sort.col === "status") {
+    if (sort.col === 'status') {
       cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-    } else if (sort.col === "task") {
+    } else if (sort.col === 'task') {
       cmp = a.name.localeCompare(b.name);
-    } else if (sort.col === "agent") {
+    } else if (sort.col === 'agent') {
       cmp = a.agentType.localeCompare(b.agentType);
-    } else if (sort.col === "id") {
-      cmp = (a.agentId ?? "").localeCompare(b.agentId ?? "");
-    } else if (sort.col === "subtasks") {
+    } else if (sort.col === 'id') {
+      cmp = (a.agentId ?? '').localeCompare(b.agentId ?? '');
+    } else if (sort.col === 'subtasks') {
       cmp = a.children.length - b.children.length;
-    } else if (sort.col === "progress") {
+    } else if (sort.col === 'progress') {
       cmp = a.progressPercentage - b.progressPercentage;
-    } else if (sort.col === "duration") {
+    } else if (sort.col === 'duration') {
       const aDur = a.startedAt
         ? new Date(a.completedAt ?? now).getTime() - new Date(a.startedAt).getTime()
         : 0;
@@ -51,7 +51,7 @@ export function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
       cmp = aDur - bDur;
     }
 
-    return sort.dir === "asc" ? cmp : -cmp;
+    return sort.dir === 'asc' ? cmp : -cmp;
   });
 
   return sorted.map((n) => ({ ...n, children: sortNodes(n.children, sort) }));

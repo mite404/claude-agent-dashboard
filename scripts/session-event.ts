@@ -20,16 +20,16 @@
 //   .token_count        → PreCompact
 //   .error              → PostToolUseFailure
 
-import { buildSessionEvent, type ClaudeSessionEventPayload } from "@/lib/SessionEventUtils";
+import { buildSessionEvent, type ClaudeSessionEventPayload } from '../src/lib/SessionEventUtils';
 
-const DASHBOARD_DIR = process.cwd();
+const DASHBOARD_DIR = new URL('..', import.meta.url).pathname;
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
-const API_BASE = "http://localhost:3001";
+const API_BASE = 'http://localhost:3001';
 
 // TODO parse
 const raw = await Bun.stdin.text();
 const payload: ClaudeSessionEventPayload = JSON.parse(raw);
-const sessionId = (payload.session_id ?? "").replace(/[^a-zA-Z0-9_-]/g, "");
+const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
 
 // log fn
 async function log(msg: string) {
@@ -38,11 +38,11 @@ async function log(msg: string) {
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
-  const existing = (await file.exists()) ? await file.text() : "";
+  const existing = (await file.exists()) ? await file.text() : '';
   await Bun.write(file, existing + line);
 }
 
-const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: "HEAD" })
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
   .then((res) => res.ok)
   .catch(() => false);
 
@@ -58,8 +58,8 @@ async function retryPost(url: string, data: Record<string, any>): Promise<number
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
@@ -83,11 +83,11 @@ async function retryPost(url: string, data: Record<string, any>): Promise<number
   return 0; // unreachable, but statisfies return type
 }
 
-let eventType = "";
+let eventType = '';
 const args = process.argv.slice(2); // skip bun and script path
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--event-type") {
+  if (args[i] === '--event-type') {
     eventType = args[i + 1];
     i++;
   }

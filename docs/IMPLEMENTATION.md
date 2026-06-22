@@ -18,11 +18,11 @@ relationships, logs, and control buttons (cancel/pause/retry).
 ### P1 — Silent Data Loss (Fix Before Adding Features)
 
 - [ ] **`HookEvent` table is missing from the SQLite schema.**
-  `pre-tool-all.sh` and `post-tool-all.sh` PATCH tasks with an `events: [HookEvent]` array, but
-  `server.ts` destructures that field out before every Drizzle UPDATE
-  (`const { logs, events, ... } = body`). The scripts were written against the old json-server
-  API that stored events as embedded arrays in `db.json`. With SQLite there is no `hook_events`
-  table — the data is silently dropped on every write. Fix:
+      `pre-tool-all.sh` and `post-tool-all.sh` PATCH tasks with an `events: [HookEvent]` array, but
+      `server.ts` destructures that field out before every Drizzle UPDATE
+      (`const { logs, events, ... } = body`). The scripts were written against the old json-server
+      API that stored events as embedded arrays in `db.json`. With SQLite there is no `hook_events`
+      table — the data is silently dropped on every write. Fix:
 
   1. Add `hookEventsTable` to `src/db/schema.ts` (columns: `id`, `taskId`, `toolName`, `phase`,
      `status`, `summary`, `timestamp`, `completedAt`)
@@ -31,17 +31,17 @@ relationships, logs, and control buttons (cancel/pause/retry).
   4. Update `GET /tasks` (or add `GET /tasks/:id/events`) to join hook events into the response
 
 - [ ] **`EventTrailRow` always renders empty — depends on the above fix.**
-  `EventTrailRow` in `TaskTable.tsx` reads `task.events` to show the Bash/Read/Write call
-  timeline. Because events are stripped before reaching SQLite, `task.events` is always
-  `undefined`. This todo closes automatically once the `hookEventsTable` fix lands and `GET
-  /tasks` includes the events array.
+      `EventTrailRow` in `TaskTable.tsx` reads `task.events` to show the Bash/Read/Write call
+      timeline. Because events are stripped before reaching SQLite, `task.events` is always
+      `undefined`. This todo closes automatically once the `hookEventsTable` fix lands and `GET
+/tasks` includes the events array.
 
 ### P2 — Data Accuracy
 
 - [ ] **Hook scripts don't capture the current Claude Code session ID.**
-  Tasks are being tagged with a stale session ID from a prior session. The hook scripts need to
-  read the session-start ID (the one Claude Code uses to resume a conversation) from the
-  environment or a state file written at `SessionStart`. Fix requires:
+      Tasks are being tagged with a stale session ID from a prior session. The hook scripts need to
+      read the session-start ID (the one Claude Code uses to resume a conversation) from the
+      environment or a state file written at `SessionStart`. Fix requires:
 
   1. Confirm which env var or file Claude Code exposes the persistent session ID in
      (check `session-event.sh` — `SessionStart` handler receives `.session_id` from stdin)
@@ -55,16 +55,16 @@ relationships, logs, and control buttons (cancel/pause/retry).
 ### P3 — Developer Experience
 
 - [ ] **Migrate bash hook scripts to TypeScript.**
-  All 5 scripts (`pre-tool-agent.sh`, `post-tool-agent.sh`, `pre-tool-all.sh`,
-  `post-tool-all.sh`, `session-event.sh`) can be ported to TypeScript and run directly with
-  `bun`. Benefits: shared types from `src/types/task.ts`, native `fetch()` instead of `curl`,
-  readable regex instead of `grep -oE`/`sed`, and real error objects instead of exit codes.
-  Steps:
+      All 5 scripts (`pre-tool-agent.sh`, `post-tool-agent.sh`, `pre-tool-all.sh`,
+      `post-tool-all.sh`, `session-event.sh`) can be ported to TypeScript and run directly with
+      `bun`. Benefits: shared types from `src/types/task.ts`, native `fetch()` instead of `curl`,
+      readable regex instead of `grep -oE`/`sed`, and real error objects instead of exit codes.
+      Steps:
 
   1. Add `#!/opt/homebrew/bin/bun` shebang (absolute path — hooks run outside your login shell,
      so `PATH` may not include `/opt/homebrew/bin`)
   2. Replace `INPUT=$(cat)` + `jq -r '.field'` calls with `JSON.parse(await
-     Bun.stdin.text())`
+Bun.stdin.text())`
   3. Replace `curl -X POST` calls with `fetch()`
   4. Replace tag-parsing `sed`/`grep` chains with `name.match(/\[parentId:([^\]]+)\]/)`
   5. Import shared types: `import type { Task, HookEvent } from '../src/types/task'`
@@ -76,13 +76,13 @@ relationships, logs, and control buttons (cancel/pause/retry).
 ### P4 — Future Features
 
 - [ ] **Skill attribution v2** (from Phase 12 notes). Current v1 captures `/skill-name` string
-  only. Future enhancements: source classification (anthropic | vercel | custom | community),
-  skill source UI filter (checkbox popover), author + experimental flag tracking.
+      only. Future enhancements: source classification (anthropic | vercel | custom | community),
+      skill source UI filter (checkbox popover), author + experimental flag tracking.
 
 - [ ] **Confirm `parentId` tree renders correctly with live hook data.** Checked items in
-  Phase 8 Testing only confirmed cancel/pause/retry and polling. Child task rendering via live
-  hooks was not formally exercised. Verify with a real parallel agent session dispatching
-  sub-agents that set `[parentId:XXX]` in their description tags.
+      Phase 8 Testing only confirmed cancel/pause/retry and polling. Child task rendering via live
+      hooks was not formally exercised. Verify with a real parallel agent session dispatching
+      sub-agents that set `[parentId:XXX]` in their description tags.
 
 ---
 
@@ -164,10 +164,10 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 Two bash scripts in `scripts/` handle the full task lifecycle:
 
-| Script | Hook type | What it does |
-|--------|-----------|--------------|
-| `scripts/pre-tool-agent.sh` | `PreToolUse` | Creates a `running` task record via POST to Hono API when an Agent tool call starts |
-| `scripts/post-tool-agent.sh` | `PostToolUse` | Updates the task via PATCH when the call ends (status, logs, elapsed time) |
+| Script                       | Hook type     | What it does                                                                        |
+| ---------------------------- | ------------- | ----------------------------------------------------------------------------------- |
+| `scripts/pre-tool-agent.sh`  | `PreToolUse`  | Creates a `running` task record via POST to Hono API when an Agent tool call starts |
+| `scripts/post-tool-agent.sh` | `PostToolUse` | Updates the task via PATCH when the call ends (status, logs, elapsed time)          |
 
 Both scripts:
 
@@ -191,14 +191,16 @@ GET → mutate → PUT and matches REST semantics.
 {
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Agent", "hooks": [
-        { "type": "command", "command": "…/scripts/pre-tool-agent.sh" }
-      ]}
+      {
+        "matcher": "Agent",
+        "hooks": [{ "type": "command", "command": "…/scripts/pre-tool-agent.sh" }]
+      }
     ],
     "PostToolUse": [
-      { "matcher": "Agent", "hooks": [
-        { "type": "command", "command": "…/scripts/post-tool-agent.sh" }
-      ]}
+      {
+        "matcher": "Agent",
+        "hooks": [{ "type": "command", "command": "…/scripts/post-tool-agent.sh" }]
+      }
     ]
   }
 }
@@ -215,11 +217,11 @@ A comprehensive WCAG 2.1 accessibility review using the RAMS design review proce
 
 ### 6.1 Audit Findings
 
-| Severity | Count | Examples |
-|----------|-------|----------|
-| Critical | 4 | Icon-only buttons without `aria-label`, inputs without accessible names |
-| Serious | 4 | Clickable rows without keyboard handlers, touch targets <44px, missing focus rings |
-| Moderate | 4 | Decorative icons not `aria-hidden`, contrast ratios <4.5:1, missing live regions |
+| Severity | Count | Examples                                                                           |
+| -------- | ----- | ---------------------------------------------------------------------------------- |
+| Critical | 4     | Icon-only buttons without `aria-label`, inputs without accessible names            |
+| Serious  | 4     | Clickable rows without keyboard handlers, touch targets <44px, missing focus rings |
+| Moderate | 4     | Decorative icons not `aria-hidden`, contrast ratios <4.5:1, missing live regions   |
 
 **Score: 57/100 → 95/100** after fixes.
 
@@ -287,8 +289,8 @@ columns for project-management clarity rather than debugging convenience.
 
 ### 7.1 Column Changes
 
-| Before | After |
-|--------|-------|
+| Before                                                                | After                                                                       |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Checkbox · ID · Task · Status · Agent · Progress · Duration · Actions | Checkbox · Task · Agent · Status · Subtasks · Progress · Duration · Actions |
 
 - **ID column removed** from display (field still exists in data for backend use)
@@ -327,11 +329,11 @@ The checkpoint view simply renders that existing array — no new API fields, no
 
 ### 7.4 Files Changed
 
-| File | Change |
-|------|--------|
+| File                           | Change                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | `src/components/TaskTable.tsx` | Added `CheckpointRow`, updated column order/types, removed ID cell and LOGS pill, updated `hasDetail` guard |
-| `docs/FOR_ETHAN.md` | Learning log entry added |
-| `status-rail-mockup.html` | Deleted (was a concept prototype, now obsolete) |
+| `docs/FOR_ETHAN.md`            | Learning log entry added                                                                                    |
+| `status-rail-mockup.html`      | Deleted (was a concept prototype, now obsolete)                                                             |
 
 ---
 
@@ -342,7 +344,7 @@ The checkpoint view simply renders that existing array — no new API fields, no
 - [x] Confirm polling updates status without full reload
 - [x] Wire up hook and run a real parallel agent task to confirm live data flows through
 - [ ] Confirm `parentId` relationships render correctly in TaskTree (child task support not yet
-  exercised with live hook data)
+      exercised with live hook data)
 - [x] Run RAMS accessibility audit and verify all critical/serious issues are fixed
 
 ---
@@ -360,9 +362,9 @@ Confirmed with: `curl -s http://localhost:3001/tasks | jq 'length'` → `0` (des
 
 ### Fix: REST API instead of file writes
 
-| Hook | Old approach | New approach |
-|------|-------------|-------------|
-| `pre-tool-agent.sh` | `jq ... > db.json.tmp && mv` | `curl -X POST /tasks` |
+| Hook                 | Old approach                 | New approach                        |
+| -------------------- | ---------------------------- | ----------------------------------- |
+| `pre-tool-agent.sh`  | `jq ... > db.json.tmp && mv` | `curl -X POST /tasks`               |
 | `post-tool-agent.sh` | `jq ... > db.json.tmp && mv` | `curl GET` + mutate + `curl -X PUT` |
 
 POST for pre-hook (create). GET→mutate→PUT for post-hook because json-server `PATCH` is shallow
@@ -403,34 +405,34 @@ output streams live in the same terminal as Vite and json-server logs.
 
 ### Files Changed
 
-| File | Change |
-|------|--------|
-| `scripts/pre-tool-agent.sh` | Rewrote to use `curl POST`; added `log()` function |
-| `scripts/post-tool-agent.sh` | Rewrote to use `curl GET/PUT`; added `log()` function |
-| `src/hooks/useTaskPolling.ts` | `Array.isArray` guard before `buildTree` |
-| `package.json` | Added `--names` + `tail -F logs/hooks.log` to `dev` script |
-| `logs/.gitkeep` | New — tracks `logs/` directory without committing log contents |
-| `.gitignore` | Changed `logs` → `logs/*.log` (keep dir, ignore contents) |
+| File                          | Change                                                         |
+| ----------------------------- | -------------------------------------------------------------- |
+| `scripts/pre-tool-agent.sh`   | Rewrote to use `curl POST`; added `log()` function             |
+| `scripts/post-tool-agent.sh`  | Rewrote to use `curl GET/PUT`; added `log()` function          |
+| `src/hooks/useTaskPolling.ts` | `Array.isArray` guard before `buildTree`                       |
+| `package.json`                | Added `--names` + `tail -F logs/hooks.log` to `dev` script     |
+| `logs/.gitkeep`               | New — tracks `logs/` directory without committing log contents |
+| `.gitignore`                  | Changed `logs` → `logs/*.log` (keep dir, ignore contents)      |
 
 ---
 
 ## Phase 8: Polish & Iteration (✅ Completed 2026-03-08)
 
 - [x] Add a "Clear completed" button — deletes completed/cancelled tasks via parallel
-  `Promise.all(ids.map(deleteTask))`. Button styled `bg-rose-500 hover:bg-rose-400` (rose, not
-  red) for good contrast on both dark and light backgrounds.
+      `Promise.all(ids.map(deleteTask))`. Button styled `bg-rose-500 hover:bg-rose-400` (rose, not
+      red) for good contrast on both dark and light backgrounds.
 - [x] **Session filter** — redesigned as a multi-select popover (matching Status/Agent filter
-  style). Each option is labeled by the name of the earliest root-level task for that `sessionId`.
-  Filter drives `Set<string>` of selected IDs; tasks without `sessionId` pass through unaffected.
+      style). Each option is labeled by the name of the earliest root-level task for that `sessionId`.
+      Filter drives `Set<string>` of selected IDs; tasks without `sessionId` pass through unaffected.
 - [x] Duration column — already existed from the table redesign (skipped)
 - [x] Auto-scroll logs to bottom — smart scroll: only auto-follows when the viewport is within
-  60px of the bottom. Manually scrolling up to read earlier entries is never interrupted.
+      60px of the bottom. Manually scrolling up to read earlier entries is never interrupted.
 - [x] Animate new tasks appearing — 220ms `rowFadeIn` slide-down keyframe. `knownIds` ref
-  tracks all seen IDs (no re-renders); `newIds` state drives the animation class for 250ms.
+      tracks all seen IDs (no re-renders); `newIds` state drives the animation class for 250ms.
 - [x] Dark/light mode toggle — **full stone scale inversion** via `:root.light` in
-  `src/index.css`. All `--color-stone-X` CSS variables are overridden (stone-950 → white,
-  stone-50 → near-black warm). Because Tailwind v4 generates stone utility classes as
-  `var(--color-stone-X)` references, this flips the entire UI with zero component changes.
+      `src/index.css`. All `--color-stone-X` CSS variables are overridden (stone-950 → white,
+      stone-50 → near-black warm). Because Tailwind v4 generates stone utility classes as
+      `var(--color-stone-X)` references, this flips the entire UI with zero component changes.
   - shadcn/ui orange accent: `oklch(0.702 0.185 48)` as `--color-accent`; warm cream surfaces
     (`oklch(0.963 0.008 92)`) matching the shadcn Tasks example page.
   - Orange focus ring in light mode via `--tw-ring-color: var(--color-accent)` on
@@ -447,11 +449,11 @@ output streams live in the same terminal as Vite and json-server logs.
   ```typescript
   // src/types/task.ts
   export interface SessionEvent {
-    originatingSkill?: string // e.g. "/review-pr"
+    originatingSkill?: string; // e.g. "/review-pr"
   }
 
   export interface Task {
-    originatingSkill?: string // skill that spawned this task's session
+    originatingSkill?: string; // skill that spawned this task's session
   }
   ```
 
@@ -495,11 +497,11 @@ SessionEventType // 9-value union (UserPromptSubmit | SessionStart | Stop | ...)
 
 ### 10.2 New Hook Scripts
 
-| Script | Trigger | What it does |
-|--------|---------|--------------|
-| `scripts/pre-tool-all.sh` | `PreToolUse` (empty matcher) | Finds running task by `sessionId`, appends `HookEvent` (phase: "pre") |
-| `scripts/post-tool-all.sh` | `PostToolUse` + `PostToolUseFailure` | Updates matching event to completed/failed |
-| `scripts/session-event.sh` | 9 session-level event types | POSTs to `/api/sessionEvents` |
+| Script                     | Trigger                              | What it does                                                          |
+| -------------------------- | ------------------------------------ | --------------------------------------------------------------------- |
+| `scripts/pre-tool-all.sh`  | `PreToolUse` (empty matcher)         | Finds running task by `sessionId`, appends `HookEvent` (phase: "pre") |
+| `scripts/post-tool-all.sh` | `PostToolUse` + `PostToolUseFailure` | Updates matching event to completed/failed                            |
+| `scripts/session-event.sh` | 9 session-level event types          | POSTs to `/api/sessionEvents`                                         |
 
 All three skip `Agent`/`Task` tool calls (handled by the existing Agent-matched hooks).
 `SESSION_ID` is sanitized with `tr -cd 'a-zA-Z0-9_-'` before URL interpolation.
@@ -508,7 +510,7 @@ All three skip `Agent`/`Task` tool calls (handled by the existing Agent-matched 
 
 ```typescript
 // computeBlockedState runs BEFORE buildTree so tree inherits updated statuses
-computeBlockedState(data);   // mutates status → "blocked" on tasks with incomplete deps
+computeBlockedState(data); // mutates status → "blocked" on tasks with incomplete deps
 setTasks(data);
 setTree(buildTree(data));
 ```
@@ -556,20 +558,20 @@ to derive `blockedBy` and override `status` to `"blocked"`.
 
 ### 10.6 Files Changed
 
-| File | Change |
-|------|--------|
-| `src/types/task.ts` | Added `HookEvent`, `SessionEvent`, `SessionEventType`; `blocked` status; new Task fields |
-| `src/hooks/useTaskPolling.ts` | `computeBlockedState()`, `sessionEvents` state + fetch |
-| `src/components/TaskTable.tsx` | `EventTrailRow`, `GlobalEventStrip`, blocked status UI, session filter popover |
-| `src/components/Dashboard.tsx` | `sessionEvents` prop passed to `TaskTable`; `lightMode` state moved here |
-| `src/components/ui/badge.tsx` | `blocked` variant (orange) |
-| `scripts/pre-tool-agent.sh` | `sessionId` extraction; `[dependsOn:...]` tag parsing |
-| `scripts/post-tool-agent.sh` | `sessionId` carry-through to PUT |
-| `scripts/pre-tool-all.sh` | **New** |
-| `scripts/post-tool-all.sh` | **New** |
-| `scripts/session-event.sh` | **New** |
-| `db.json` | Added `"sessionEvents": []` top-level collection |
-| `~/.claude/settings.json` | 11 hook event types registered |
+| File                           | Change                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| `src/types/task.ts`            | Added `HookEvent`, `SessionEvent`, `SessionEventType`; `blocked` status; new Task fields |
+| `src/hooks/useTaskPolling.ts`  | `computeBlockedState()`, `sessionEvents` state + fetch                                   |
+| `src/components/TaskTable.tsx` | `EventTrailRow`, `GlobalEventStrip`, blocked status UI, session filter popover           |
+| `src/components/Dashboard.tsx` | `sessionEvents` prop passed to `TaskTable`; `lightMode` state moved here                 |
+| `src/components/ui/badge.tsx`  | `blocked` variant (orange)                                                               |
+| `scripts/pre-tool-agent.sh`    | `sessionId` extraction; `[dependsOn:...]` tag parsing                                    |
+| `scripts/post-tool-agent.sh`   | `sessionId` carry-through to PUT                                                         |
+| `scripts/pre-tool-all.sh`      | **New**                                                                                  |
+| `scripts/post-tool-all.sh`     | **New**                                                                                  |
+| `scripts/session-event.sh`     | **New**                                                                                  |
+| `db.json`                      | Added `"sessionEvents": []` top-level collection                                         |
+| `~/.claude/settings.json`      | 11 hook event types registered                                                           |
 
 ---
 
@@ -588,15 +590,15 @@ attribution tracking (v1), fixed agent ID cross-referencing, and added component
 
 Extended `session-event.sh` with 7 new case branches:
 
-| Event | Summary | Fields captured |
-|-------|---------|-----------------|
-| `SessionEnd` | Session exit | `.reason` |
-| `TeammateIdle` | Agent went idle | `.agent_id` |
-| `TaskCompleted` | Task finished | `.task_title`, `.task_id` |
-| `InstructionsLoaded` | CLAUDE.md loaded | `.file_path`, `.source` |
-| `ConfigChange` | settings.json changed | `.file_path`, `.source` |
-| `WorktreeCreate` | Worktree created | `.branch` |
-| `WorktreeRemove` | Worktree cleaned | `.branch` |
+| Event                | Summary               | Fields captured           |
+| -------------------- | --------------------- | ------------------------- |
+| `SessionEnd`         | Session exit          | `.reason`                 |
+| `TeammateIdle`       | Agent went idle       | `.agent_id`               |
+| `TaskCompleted`      | Task finished         | `.task_title`, `.task_id` |
+| `InstructionsLoaded` | CLAUDE.md loaded      | `.file_path`, `.source`   |
+| `ConfigChange`       | settings.json changed | `.file_path`, `.source`   |
+| `WorktreeCreate`     | Worktree created      | `.branch`                 |
+| `WorktreeRemove`     | Worktree cleaned      | `.branch`                 |
 
 All 18 events now post to `sessionEvents` collection with proper payload parsing.
 
@@ -625,13 +627,13 @@ in both `SessionEvent` and task records. Enables filtering/tracking of skill-dri
 
 ### 12.5 Files Changed
 
-| File | Change |
-|------|--------|
-| `scripts/session-event.sh` | 7 new `case` branches; SubagentStart temp-file + PATCH logic |
-| `src/types/task.ts` | SessionEventType union extended; 5 new optional fields on SessionEvent |
-| `src/components/TaskTable.tsx` | SESSION_EVENT_EMOJI exhaustive Record; 7 new emoji entries |
-| `~/.claude/settings.json` | 7 new hook registrations (all routed to `session-event.sh --event-type <EventName>`) |
-| `src/hooks/useTaskPolling.ts` | (no changes — existing poll loop picks up new sessionEvents automatically) |
+| File                           | Change                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `scripts/session-event.sh`     | 7 new `case` branches; SubagentStart temp-file + PATCH logic                         |
+| `src/types/task.ts`            | SessionEventType union extended; 5 new optional fields on SessionEvent               |
+| `src/components/TaskTable.tsx` | SESSION_EVENT_EMOJI exhaustive Record; 7 new emoji entries                           |
+| `~/.claude/settings.json`      | 7 new hook registrations (all routed to `session-event.sh --event-type <EventName>`) |
+| `src/hooks/useTaskPolling.ts`  | (no changes — existing poll loop picks up new sessionEvents automatically)           |
 
 ---
 
@@ -639,15 +641,15 @@ in both `SessionEvent` and task records. Enables filtering/tracking of skill-dri
 
 ### 11.1 Security & Quality Fixes
 
-| Issue | Fix |
-|-------|-----|
-| `$SESSION_ID` bare in curl URL | `tr -cd 'a-zA-Z0-9_-'` sanitization in all hook scripts |
-| Raw fetch array mutated before `setState` | `rawTasks.map(t => ({ ...t }))` — clone first |
-| `handleBulkDelete` swallowed errors silently | Added `catch (err) { console.error(...) }` |
-| Log row `key={i}` on append-only list | Changed to `` key={`${entry.timestamp}-${i}`} `` |
-| `new Date()` in sort comparator (non-deterministic) | `const now = Date.now()` before sort |
-| `lightMode` state + DOM mutation in `TaskTable` | Lifted to `Dashboard.tsx` |
-| `db.json` missing `sessionEvents` key | Added directly; both bootstrap scripts aligned |
+| Issue                                               | Fix                                                     |
+| --------------------------------------------------- | ------------------------------------------------------- |
+| `$SESSION_ID` bare in curl URL                      | `tr -cd 'a-zA-Z0-9_-'` sanitization in all hook scripts |
+| Raw fetch array mutated before `setState`           | `rawTasks.map(t => ({ ...t }))` — clone first           |
+| `handleBulkDelete` swallowed errors silently        | Added `catch (err) { console.error(...) }`              |
+| Log row `key={i}` on append-only list               | Changed to ``key={`${entry.timestamp}-${i}`}``          |
+| `new Date()` in sort comparator (non-deterministic) | `const now = Date.now()` before sort                    |
+| `lightMode` state + DOM mutation in `TaskTable`     | Lifted to `Dashboard.tsx`                               |
+| `db.json` missing `sessionEvents` key               | Added directly; both bootstrap scripts aligned          |
 
 ### 11.2 Session Filter Upgrade
 
@@ -701,30 +703,30 @@ Replaced the dark-blue card tree view with a shadcn-style Tasks table using the 
 
 ### Files Changed
 
-| File | Change |
-|---|---|
-| `index.html` | Figtree Google Font (preconnect + stylesheet) |
-| `src/index.css` | Stone dark OKLCH palette, Figtree as `--font-sans`, keyframe animations |
-| `ui/table.tsx` | shadcn-style table primitives (`Table`, `TableRow`, `TableHead`, `TableCell`, etc.) |
-| `ui/input.tsx` | Search input with stone border/focus ring |
-| `ui/checkbox.tsx` | Radix checkbox with indeterminate state (for "select all") |
-| `ui/separator.tsx` | Thin stone-800 divider |
-| `ui/popover.tsx` | Radix popover wrapper (used by filter dropdowns) |
-| `ui/dropdown-menu.tsx` | Radix dropdown wrapper (used by row action ⋮ menu) |
-| `ui/badge.tsx` | Stone-themed status badges with colored borders |
-| `ui/button.tsx` | Stone-themed buttons (default, secondary, ghost, outline, destructive) |
-| `TaskTable.tsx` | The entire new table: toolbar + sortable headers + inline log detail rows |
-| `Dashboard.tsx` | Thin shell — now just mounts `<TaskTable>` |
+| File                   | Change                                                                              |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `index.html`           | Figtree Google Font (preconnect + stylesheet)                                       |
+| `src/index.css`        | Stone dark OKLCH palette, Figtree as `--font-sans`, keyframe animations             |
+| `ui/table.tsx`         | shadcn-style table primitives (`Table`, `TableRow`, `TableHead`, `TableCell`, etc.) |
+| `ui/input.tsx`         | Search input with stone border/focus ring                                           |
+| `ui/checkbox.tsx`      | Radix checkbox with indeterminate state (for "select all")                          |
+| `ui/separator.tsx`     | Thin stone-800 divider                                                              |
+| `ui/popover.tsx`       | Radix popover wrapper (used by filter dropdowns)                                    |
+| `ui/dropdown-menu.tsx` | Radix dropdown wrapper (used by row action ⋮ menu)                                  |
+| `ui/badge.tsx`         | Stone-themed status badges with colored borders                                     |
+| `ui/button.tsx`        | Stone-themed buttons (default, secondary, ghost, outline, destructive)              |
+| `TaskTable.tsx`        | The entire new table: toolbar + sortable headers + inline log detail rows           |
+| `Dashboard.tsx`        | Thin shell — now just mounts `<TaskTable>`                                          |
 
 ### New Packages
 
-| Package | Purpose |
-|---|---|
-| `@tabler/icons-react` | Tabler icon set (replaces lucide-react) |
-| `@radix-ui/react-dropdown-menu` | Row action ⋮ menu |
-| `@radix-ui/react-checkbox` | Row selection with indeterminate state |
-| `@radix-ui/react-popover` | Filter dropdown panels |
-| `@radix-ui/react-separator` | Divider primitive |
+| Package                         | Purpose                                 |
+| ------------------------------- | --------------------------------------- |
+| `@tabler/icons-react`           | Tabler icon set (replaces lucide-react) |
+| `@radix-ui/react-dropdown-menu` | Row action ⋮ menu                       |
+| `@radix-ui/react-checkbox`      | Row selection with indeterminate state  |
+| `@radix-ui/react-popover`       | Filter dropdown panels                  |
+| `@radix-ui/react-separator`     | Divider primitive                       |
 
 ### Key Interactions in TaskTable
 
@@ -807,20 +809,20 @@ used for polling must support unfiltered requests.
 
 ### Endpoint Map
 
-| Method | Route | Caller | Purpose |
-|--------|-------|--------|---------|
-| GET | `/tasks` | Frontend poll | All tasks; optional `?status=` `?sessionId=` `?agentId=` |
-| GET | `/tasks/pool` | Kanban board | Unassigned tasks ordered by priority; returns `{ data: rows }` |
-| GET | `/tasks/:id` | Frontend detail | Single task by ID |
-| POST | `/tasks` | `pre-tool-agent.ts` | Create task when Agent tool fires |
-| POST | `/tasks/:id/claim` | `claim-task.sh` | Atomic claim; 409 if already claimed |
-| PATCH | `/tasks/:id` | `post-tool-agent.ts` | Update status/logs after tool completes |
-| PUT | `/tasks/:id` | Backward compat | Alias for PATCH |
-| DELETE | `/tasks/:id` | Frontend actions | Remove a task |
-| GET | `/sessionEvents` | Frontend poll | All events; optional `?sessionId=`; returns `{ data: rows }` |
-| POST | `/sessionEvents` | `session-event.ts` | Record a Claude Code lifecycle event |
-| DELETE | `/sessionEvents` | Frontend "Clear all" | Remove events; optional `?sessionId=` |
-| GET | `/debug/sessions` | Dev only | Inspect sessions table |
+| Method | Route              | Caller               | Purpose                                                        |
+| ------ | ------------------ | -------------------- | -------------------------------------------------------------- |
+| GET    | `/tasks`           | Frontend poll        | All tasks; optional `?status=` `?sessionId=` `?agentId=`       |
+| GET    | `/tasks/pool`      | Kanban board         | Unassigned tasks ordered by priority; returns `{ data: rows }` |
+| GET    | `/tasks/:id`       | Frontend detail      | Single task by ID                                              |
+| POST   | `/tasks`           | `pre-tool-agent.ts`  | Create task when Agent tool fires                              |
+| POST   | `/tasks/:id/claim` | `claim-task.sh`      | Atomic claim; 409 if already claimed                           |
+| PATCH  | `/tasks/:id`       | `post-tool-agent.ts` | Update status/logs after tool completes                        |
+| PUT    | `/tasks/:id`       | Backward compat      | Alias for PATCH                                                |
+| DELETE | `/tasks/:id`       | Frontend actions     | Remove a task                                                  |
+| GET    | `/sessionEvents`   | Frontend poll        | All events; optional `?sessionId=`; returns `{ data: rows }`   |
+| POST   | `/sessionEvents`   | `session-event.ts`   | Record a Claude Code lifecycle event                           |
+| DELETE | `/sessionEvents`   | Frontend "Clear all" | Remove events; optional `?sessionId=`                          |
+| GET    | `/debug/sessions`  | Dev only             | Inspect sessions table                                         |
 
 ### Pattern 1 — Optional Filter with Dynamic Conditions
 
@@ -871,14 +873,14 @@ tokenCount, etc.) are stored as a JSON string and parsed back on GET:
 
 ```typescript
 // POST: stored as stringified JSON
-metadata: body.metadata || null
+metadata: body.metadata || null;
 
 // GET: parsed back to object before returning to frontend
 return c.json(
   rows.map((e) => ({
     ...e,
     metadata: e.metadata ? JSON.parse(e.metadata as string) : undefined,
-  }))
+  })),
 );
 ```
 

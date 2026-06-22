@@ -211,17 +211,17 @@ renders. Save the easiest thing for when everything else is proven to work.
 
 ## Complete Sequence
 
-| # | Phase | What | Dependency |
-|---|-------|------|------------|
-| 1 | A | Fix session ID plumbing | None — fix before any new data is created |
-| 2 | B | Batch migration: `worktree_path` + `hookEventsTable` | Session ID fixed |
-| 3 | B | Wire HookEvents into server + EventTrailRow | Migration applied |
-| 4 | C | Types: `unassigned`, `claimed`, `TaskPriority` | Migration done |
-| 5 | C | Server: `GET /tasks/pool` + `POST /tasks/:id/claim` | Types defined |
-| 6 | C | Shell scripts + `.gitignore` | Server endpoints verified via curl |
-| 7 | D | Badge variants + status constants | Scripts verified |
-| 8 | D | `KanbanBoard.tsx` | Constants ready |
-| 9 | D | View toggle in Dashboard | KanbanBoard complete |
+| #   | Phase | What                                                 | Dependency                                |
+| --- | ----- | ---------------------------------------------------- | ----------------------------------------- |
+| 1   | A     | Fix session ID plumbing                              | None — fix before any new data is created |
+| 2   | B     | Batch migration: `worktree_path` + `hookEventsTable` | Session ID fixed                          |
+| 3   | B     | Wire HookEvents into server + EventTrailRow          | Migration applied                         |
+| 4   | C     | Types: `unassigned`, `claimed`, `TaskPriority`       | Migration done                            |
+| 5   | C     | Server: `GET /tasks/pool` + `POST /tasks/:id/claim`  | Types defined                             |
+| 6   | C     | Shell scripts + `.gitignore`                         | Server endpoints verified via curl        |
+| 7   | D     | Badge variants + status constants                    | Scripts verified                          |
+| 8   | D     | `KanbanBoard.tsx`                                    | Constants ready                           |
+| 9   | D     | View toggle in Dashboard                             | KanbanBoard complete                      |
 
 ---
 

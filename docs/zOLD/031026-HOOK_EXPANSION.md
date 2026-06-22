@@ -14,24 +14,24 @@ This document records the full hook expansion to all 18, plus the AgentId PATCH 
 
 ## Complete Hook Inventory
 
-| Event | Emoji | Key Payload Fields | Status |
-|-------|-------|-------------------|--------|
-| `UserPromptSubmit` | 💬 | `.prompt` | ✅ pre-existing |
-| `SessionStart` | 🚀 | `.model` | ✅ pre-existing |
-| `Stop` | 🛑 | — | ✅ pre-existing |
-| `SubagentStart` | 🟢 | `.agent_id`, `.agent_type` | ✅ pre-existing |
-| `SubagentStop` | 👥 | `.agent_id`, `.agent_type` | ✅ pre-existing |
-| `Notification` | 🔔 | `.message`, `.notification_type` | ✅ pre-existing |
-| `PermissionRequest` | 🔐 | `.tool_name` | ✅ pre-existing |
-| `PreCompact` | 📦 | `.token_count` | ✅ pre-existing |
-| `PostToolUseFailure` | ❌ | `.tool_name`, `.error` | ✅ pre-existing |
-| `SessionEnd` | 🏁 | `.reason` | ✅ added 2026-03-10 |
-| `TeammateIdle` | 😴 | `.agent_id`, `.agent_type` | ✅ added 2026-03-10 |
-| `TaskCompleted` | ✅ | `.task_title`, `.task_id` | ✅ added 2026-03-10 |
-| `InstructionsLoaded` | 📋 | `.file_path`, `.source` | ✅ added 2026-03-10 |
-| `ConfigChange` | ⚙️ | `.file_path`, `.source` | ✅ added 2026-03-10 |
-| `WorktreeCreate` | 🌿 | `.branch`, `.path` | ✅ added 2026-03-10 |
-| `WorktreeRemove` | 🍂 | `.branch`, `.path` | ✅ added 2026-03-10 |
+| Event                | Emoji | Key Payload Fields               | Status              |
+| -------------------- | ----- | -------------------------------- | ------------------- |
+| `UserPromptSubmit`   | 💬    | `.prompt`                        | ✅ pre-existing     |
+| `SessionStart`       | 🚀    | `.model`                         | ✅ pre-existing     |
+| `Stop`               | 🛑    | —                                | ✅ pre-existing     |
+| `SubagentStart`      | 🟢    | `.agent_id`, `.agent_type`       | ✅ pre-existing     |
+| `SubagentStop`       | 👥    | `.agent_id`, `.agent_type`       | ✅ pre-existing     |
+| `Notification`       | 🔔    | `.message`, `.notification_type` | ✅ pre-existing     |
+| `PermissionRequest`  | 🔐    | `.tool_name`                     | ✅ pre-existing     |
+| `PreCompact`         | 📦    | `.token_count`                   | ✅ pre-existing     |
+| `PostToolUseFailure` | ❌    | `.tool_name`, `.error`           | ✅ pre-existing     |
+| `SessionEnd`         | 🏁    | `.reason`                        | ✅ added 2026-03-10 |
+| `TeammateIdle`       | 😴    | `.agent_id`, `.agent_type`       | ✅ added 2026-03-10 |
+| `TaskCompleted`      | ✅    | `.task_title`, `.task_id`        | ✅ added 2026-03-10 |
+| `InstructionsLoaded` | 📋    | `.file_path`, `.source`          | ✅ added 2026-03-10 |
+| `ConfigChange`       | ⚙️    | `.file_path`, `.source`          | ✅ added 2026-03-10 |
+| `WorktreeCreate`     | 🌿    | `.branch`, `.path`               | ✅ added 2026-03-10 |
+| `WorktreeRemove`     | 🍂    | `.branch`, `.path`               | ✅ added 2026-03-10 |
 
 > **Notes on agent team events**: `TeammateIdle` and `TaskCompleted` require
 > `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `~/.claude/settings.json` env block.
@@ -111,12 +111,12 @@ the GlobalEventStrip session events, enabling accurate pause/stop targeting.
 
 ## Triggering the New Events
 
-| Event | How to trigger |
-|-------|---------------|
-| `SessionEnd` | Exit a Claude Code session (`/exit` or close terminal) |
-| `InstructionsLoaded` | Start a fresh session — CLAUDE.md loads on startup |
-| `ConfigChange` | Edit `~/.claude/settings.json` mid-session |
-| `WorktreeCreate` | Use `isolation: "worktree"` in an Agent tool call |
-| `WorktreeRemove` | After a worktree Agent call completes with no changes |
-| `TeammateIdle` | Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` |
-| `TaskCompleted` | Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` |
+| Event                | How to trigger                                         |
+| -------------------- | ------------------------------------------------------ |
+| `SessionEnd`         | Exit a Claude Code session (`/exit` or close terminal) |
+| `InstructionsLoaded` | Start a fresh session — CLAUDE.md loads on startup     |
+| `ConfigChange`       | Edit `~/.claude/settings.json` mid-session             |
+| `WorktreeCreate`     | Use `isolation: "worktree"` in an Agent tool call      |
+| `WorktreeRemove`     | After a worktree Agent call completes with no changes  |
+| `TeammateIdle`       | Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`      |
+| `TaskCompleted`      | Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`      |

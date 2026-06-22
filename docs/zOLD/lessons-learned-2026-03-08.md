@@ -30,21 +30,21 @@ observability via `logs/hooks.log` + `tail -F` in `bun run dev`. Added `Array.is
 > **Sources:** Pre-fix steps reconstructed from conversation context (hooks.log didn't exist yet).
 > Post-fix steps confirmed by `logs/hooks.log` (first entry: `[03:59:01]`).
 
-| Time | Source | Action | Actor | Outcome |
-|------|--------|--------|-------|---------|
-| Session start | Conversation | User reports: "I'm not seeing the web app update the table with agents" | User | Trigger |
-| ~03:45 | Conversation | Checked `lsof` — both json-server (:3001) and Vite (:5173) confirmed running | Claude | Servers up |
-| ~03:45 | Conversation | Read `db.json` — 4 tasks present with correct structure | Claude | Data exists on disk |
-| ~03:45 | Conversation | Read `post-tool-agent.sh` — uses `jq ... > db.json.tmp && mv` | Claude | File write pattern identified |
-| ~03:46 | Conversation | `curl -s http://localhost:3001/tasks` → `[]` | Claude | **Root cause confirmed** |
-| ~03:47 | Conversation | Rewrote both hooks to use `curl POST/GET/PUT` | Claude | Fix applied |
-| ~03:51 | Conversation | Manual pre/post-hook simulation — task appears as `running` then `completed` | Claude | Fix verified |
-| ~03:56 | Conversation | Added `Array.isArray` guard in `useTaskPolling.ts` | Claude | Defensive layer 1 |
-| 03:59:01 | hooks.log | First hook log entry: `OK: created task test-log-001` | Claude | **Observability live** |
-| ~04:07 | hooks.log | `bun run smoke` — all 8 checks pass (smoke-test entries visible in log) | Claude | Smoke test passes |
-| ~04:09 | hooks.log | Background agents: pre/post both fire at `04:09:42` — 0s duration | User/hooks.log | New issue discovered |
-| 04:13:40–04:15:13 | hooks.log | Foreground explore agent: 93s elapsed, result in log | Claude | Full lifecycle confirmed |
-| 04:15:22–04:16:30 | hooks.log | Foreground code review agent: 68s elapsed, result in log | Claude | Full lifecycle confirmed |
+| Time              | Source       | Action                                                                       | Actor          | Outcome                       |
+| ----------------- | ------------ | ---------------------------------------------------------------------------- | -------------- | ----------------------------- |
+| Session start     | Conversation | User reports: "I'm not seeing the web app update the table with agents"      | User           | Trigger                       |
+| ~03:45            | Conversation | Checked `lsof` — both json-server (:3001) and Vite (:5173) confirmed running | Claude         | Servers up                    |
+| ~03:45            | Conversation | Read `db.json` — 4 tasks present with correct structure                      | Claude         | Data exists on disk           |
+| ~03:45            | Conversation | Read `post-tool-agent.sh` — uses `jq ... > db.json.tmp && mv`                | Claude         | File write pattern identified |
+| ~03:46            | Conversation | `curl -s http://localhost:3001/tasks` → `[]`                                 | Claude         | **Root cause confirmed**      |
+| ~03:47            | Conversation | Rewrote both hooks to use `curl POST/GET/PUT`                                | Claude         | Fix applied                   |
+| ~03:51            | Conversation | Manual pre/post-hook simulation — task appears as `running` then `completed` | Claude         | Fix verified                  |
+| ~03:56            | Conversation | Added `Array.isArray` guard in `useTaskPolling.ts`                           | Claude         | Defensive layer 1             |
+| 03:59:01          | hooks.log    | First hook log entry: `OK: created task test-log-001`                        | Claude         | **Observability live**        |
+| ~04:07            | hooks.log    | `bun run smoke` — all 8 checks pass (smoke-test entries visible in log)      | Claude         | Smoke test passes             |
+| ~04:09            | hooks.log    | Background agents: pre/post both fire at `04:09:42` — 0s duration            | User/hooks.log | New issue discovered          |
+| 04:13:40–04:15:13 | hooks.log    | Foreground explore agent: 93s elapsed, result in log                         | Claude         | Full lifecycle confirmed      |
+| 04:15:22–04:16:30 | hooks.log    | Foreground code review agent: 68s elapsed, result in log                     | Claude         | Full lifecycle confirmed      |
 
 ---
 
@@ -74,13 +74,13 @@ in-process cache with disk persistence than a file-backed server that re-reads o
 
 ## Contributing Factors
 
-| Category | Factor | Contribution |
-|----------|--------|--------------|
-| **Technical** | json-server's two-layer architecture is non-obvious | File mutations look identical to API mutations from the outside |
-| **Process** | No end-to-end verification step existed | Could deploy hooks that silently don't work |
-| **Observability** | Hook scripts had no logging — all output was `/dev/null` | Silent failures looked identical to successes |
-| **Testing** | No smoke test to verify full signal chain | Broken state undiscoverable without manual curl inspection |
-| **Mental model** | "File = truth" assumption about json-server | Led to direct file writes instead of API calls |
+| Category          | Factor                                                   | Contribution                                                    |
+| ----------------- | -------------------------------------------------------- | --------------------------------------------------------------- |
+| **Technical**     | json-server's two-layer architecture is non-obvious      | File mutations look identical to API mutations from the outside |
+| **Process**       | No end-to-end verification step existed                  | Could deploy hooks that silently don't work                     |
+| **Observability** | Hook scripts had no logging — all output was `/dev/null` | Silent failures looked identical to successes                   |
+| **Testing**       | No smoke test to verify full signal chain                | Broken state undiscoverable without manual curl inspection      |
+| **Mental model**  | "File = truth" assumption about json-server              | Led to direct file writes instead of API calls                  |
 
 ---
 
@@ -101,15 +101,15 @@ full lifecycle tracking (running → completed, real duration, result in logs).
 
 ## Fixes Implemented
 
-| Fix | Type | Location | Status |
-|-----|------|----------|--------|
-| Hook scripts use `curl` REST API instead of `jq` file writes | Rewrite | `scripts/pre-tool-agent.sh`, `scripts/post-tool-agent.sh` | Done |
-| `Array.isArray` guard before `buildTree()` | Defensive code | `src/hooks/useTaskPolling.ts:49` | Done |
-| `logs/hooks.log` with timestamped OK/ERROR entries | Observability | `scripts/pre-tool-agent.sh`, `scripts/post-tool-agent.sh` | Done |
-| `tail -F logs/hooks.log` as 4th `concurrently` process | Observability | `package.json` dev script | Done |
-| `bun run smoke` end-to-end verification script | Testing | `scripts/smoke-test.sh` | Done |
-| db.json bootstrap retained as pre-flight check | Defensive code | Both hook scripts | Done |
-| Foreground vs background agents treated as separate cases | Documentation | `FOR_ETHAN.md`, conversation | Done |
+| Fix                                                          | Type           | Location                                                  | Status |
+| ------------------------------------------------------------ | -------------- | --------------------------------------------------------- | ------ |
+| Hook scripts use `curl` REST API instead of `jq` file writes | Rewrite        | `scripts/pre-tool-agent.sh`, `scripts/post-tool-agent.sh` | Done   |
+| `Array.isArray` guard before `buildTree()`                   | Defensive code | `src/hooks/useTaskPolling.ts:49`                          | Done   |
+| `logs/hooks.log` with timestamped OK/ERROR entries           | Observability  | `scripts/pre-tool-agent.sh`, `scripts/post-tool-agent.sh` | Done   |
+| `tail -F logs/hooks.log` as 4th `concurrently` process       | Observability  | `package.json` dev script                                 | Done   |
+| `bun run smoke` end-to-end verification script               | Testing        | `scripts/smoke-test.sh`                                   | Done   |
+| db.json bootstrap retained as pre-flight check               | Defensive code | Both hook scripts                                         | Done   |
+| Foreground vs background agents treated as separate cases    | Documentation  | `FOR_ETHAN.md`, conversation                              | Done   |
 
 ---
 
@@ -139,7 +139,7 @@ real durations (93s explore, 68s code review).
 
 Any server that maintains in-memory state — json-server, Redis, most databases — has a gap
 between its memory and the backing store. Writing directly to the backing store bypasses the
-memory layer entirely. Always ask: *who owns this data?* If a server owns it, write through
+memory layer entirely. Always ask: _who owns this data?_ If a server owns it, write through
 the server, not around it.
 
 **Encoded in:** `FOR_ETHAN.md` Blooper 16 — "The Ghost Writer Bug"

@@ -3,13 +3,7 @@
 # Global configuration options
 [global]
 # List of rules to disable (uncomment and modify as needed)
-disable = [
-  "MD024",
-  "MD033",
-  "MD036",
-  "MD040",
-  "MD057",
-]
+disable = ["MD024", "MD033", "MD036", "MD040", "MD057"]
 # List of rules to enable exclusively (if provided, only these rules will run)
 # enable = ["MD001", "MD003", "MD004"]
 # List of file/directory patterns to include for linting (if provided, only these will be linted)
@@ -41,9 +35,9 @@ respect-gitignore = true
 # [MD007]
 # indent = 4  # Unordered list indentation
 [MD013]
-line-length = 100  # Line length
-code-blocks = false  # Exclude code blocks from line length check
-tables = false  # Exclude tables from line length check
+line-length = 100 # Line length
+code-blocks = false # Exclude code blocks from line length check
+tables = false # Exclude tables from line length check
 
 # [MD044]
 # names = ["rumdl", "Markdown", "GitHub"]  # Proper names that should be capitalized correctly

@@ -69,17 +69,20 @@ async function migrate() {
       ...rest // ← everything else in the SessionEvent type (tokenCount, toolName, error, etc.)
     } = event;
 
-    await db.insert(sessionEventsTable).values({
-      id,
-      sessionId: sessionId ?? null,
-      type,
-      summary: summary ?? null,
-      timestamp: timestamp ?? null,
-      agentId: agentId ?? null,
-      agentType: agentType ?? null,
-      model: model ?? null,
-      metadata: JSON.stringify(rest),
-    }).onConflictDoNothing();
+    await db
+      .insert(sessionEventsTable)
+      .values({
+        id,
+        sessionId: sessionId ?? null,
+        type,
+        summary: summary ?? null,
+        timestamp: timestamp ?? null,
+        agentId: agentId ?? null,
+        agentType: agentType ?? null,
+        model: model ?? null,
+        metadata: JSON.stringify(rest),
+      })
+      .onConflictDoNothing();
   }
 }
 

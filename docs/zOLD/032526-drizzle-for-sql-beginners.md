@@ -38,22 +38,16 @@ This says: "Give me tasks where BOTH conditions are true: status is 'running' AN
 Drizzle has operators that do the same thing:
 
 ```typescript
-import { eq, and } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm';
 
 // Single condition
-const rows = await db
-  .select()
-  .from(tasksTable)
-  .where(eq(tasksTable.status, 'running'))
+const rows = await db.select().from(tasksTable).where(eq(tasksTable.status, 'running'));
 
 // Multiple conditions
 const rows = await db
   .select()
   .from(tasksTable)
-  .where(and(
-    eq(tasksTable.status, 'running'),
-    eq(tasksTable.sessionId, 'sess-123')
-  ))
+  .where(and(eq(tasksTable.status, 'running'), eq(tasksTable.sessionId, 'sess-123')));
 ```
 
 **Translation:**
@@ -63,16 +57,16 @@ const rows = await db
 
 ### Common Comparison Operators
 
-| Drizzle | SQL | Meaning |
-|---------|-----|---------|
-| `eq(col, val)` | `col = val` | Equals |
-| `ne(col, val)` | `col != val` | Not equals |
-| `gt(col, val)` | `col > val` | Greater than |
-| `gte(col, val)` | `col >= val` | Greater than or equal |
-| `lt(col, val)` | `col < val` | Less than |
-| `lte(col, val)` | `col <= val` | Less than or equal |
-| `like(col, val)` | `col LIKE val` | Pattern match (% wildcards) |
-| `inArray(col, [vals])` | `col IN (vals)` | Column is in this list |
+| Drizzle                | SQL             | Meaning                     |
+| ---------------------- | --------------- | --------------------------- |
+| `eq(col, val)`         | `col = val`     | Equals                      |
+| `ne(col, val)`         | `col != val`    | Not equals                  |
+| `gt(col, val)`         | `col > val`     | Greater than                |
+| `gte(col, val)`        | `col >= val`    | Greater than or equal       |
+| `lt(col, val)`         | `col < val`     | Less than                   |
+| `lte(col, val)`        | `col <= val`    | Less than or equal          |
+| `like(col, val)`       | `col LIKE val`  | Pattern match (% wildcards) |
+| `inArray(col, [vals])` | `col IN (vals)` | Column is in this list      |
 
 ### Combining Conditions: AND vs. OR
 
@@ -80,20 +74,14 @@ const rows = await db
 
 ```typescript
 // SQL: WHERE status = 'running' AND priority = 'high'
-where(and(
-  eq(tasksTable.status, 'running'),
-  eq(tasksTable.priority, 'high')
-))
+where(and(eq(tasksTable.status, 'running'), eq(tasksTable.priority, 'high')));
 ```
 
 **OR** — any condition can be true:
 
 ```typescript
 // SQL: WHERE status = 'running' OR status = 'paused'
-where(or(
-  eq(tasksTable.status, 'running'),
-  eq(tasksTable.status, 'paused')
-))
+where(or(eq(tasksTable.status, 'running'), eq(tasksTable.status, 'paused')));
 ```
 
 ## Part 2: Handling Optional Filters
@@ -109,8 +97,8 @@ GET /api/tasks?sessionId=sess-123       ← only sessionId provided
 **The problem:** You can't use `eq()` with `undefined`:
 
 ```typescript
-const status = c.req.query('status')  // Could be undefined!
-eq(tasksTable.status, status)         // ❌ Error: status might be undefined
+const status = c.req.query('status'); // Could be undefined!
+eq(tasksTable.status, status); // ❌ Error: status might be undefined
 ```
 
 **The solution:** Check if the param exists before building the condition:
@@ -150,10 +138,7 @@ if (!status || !sessionId) {
 const rows = await db
   .select()
   .from(tasksTable)
-  .where(and(
-    eq(tasksTable.status, status),
-    eq(tasksTable.sessionId, sessionId)
-  ));
+  .where(and(eq(tasksTable.status, status), eq(tasksTable.sessionId, sessionId)));
 ```
 
 **When to use which:**
@@ -198,10 +183,10 @@ app.post('/tasks', async (c) => {
 
   // Insert
   const result = await db.insert(tasksTable).values({
-    id: crypto.randomUUID(),  // Generate ID if needed
+    id: crypto.randomUUID(), // Generate ID if needed
     name: body.name,
     sessionId: body.sessionId,
-    status: body.status || 'unassigned',  // Use default if not provided
+    status: body.status || 'unassigned', // Use default if not provided
   });
 
   return c.json({ id: result.lastInsertRowid }, 201);
@@ -264,9 +249,7 @@ DELETE FROM tasks WHERE id = 'task-123';
 ### The Drizzle Version
 
 ```typescript
-const result = await db
-  .delete(tasksTable)
-  .where(eq(tasksTable.id, 'task-123'));
+const result = await db.delete(tasksTable).where(eq(tasksTable.id, 'task-123'));
 ```
 
 ## Part 6: Your Dashboard Schema in Action
@@ -280,10 +263,7 @@ Here's how these patterns apply to your actual tables:
 // SELECT * FROM tasks WHERE sessionId = 'sess-123';
 
 const sessionId = 'sess-123';
-const tasks = await db
-  .select()
-  .from(tasksTable)
-  .where(eq(tasksTable.sessionId, sessionId));
+const tasks = await db.select().from(tasksTable).where(eq(tasksTable.sessionId, sessionId));
 ```
 
 ### Example 2: Get running tasks that aren't blocked
@@ -298,11 +278,13 @@ const tasks = await db
 const tasks = await db
   .select()
   .from(tasksTable)
-  .where(and(
-    eq(tasksTable.sessionId, 'sess-123'),
-    eq(tasksTable.status, 'running'),
-    ne(tasksTable.status, 'blocked')
-  ));
+  .where(
+    and(
+      eq(tasksTable.sessionId, 'sess-123'),
+      eq(tasksTable.status, 'running'),
+      ne(tasksTable.status, 'blocked'),
+    ),
+  );
 ```
 
 ### Example 3: Get session events for a specific session

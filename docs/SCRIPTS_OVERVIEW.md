@@ -344,13 +344,13 @@ traces every task back to its originating skill (or main session).
 
 ## Known Issues
 
-| Issue | File | Impact |
-|-------|------|--------|
-| Truncated file (1 line) | `post-tool-agent.ts` | Subagent completion not logged; tasks stay 'running' |
-| Undefined `rawName` variable | `post-tool-agent.ts` | Script will crash if run |
-| taskId extracted as ReadableStream | `post-task.ts` | CLI tool doesn't return valid taskId |
-| Type mismatch: POST response parsing | `post-task.ts` | Caller can't capture taskId from stdout |
-| Incomplete type narrowing | `post-task.ts` | CLI args not validated for correct types |
+| Issue                                | File                 | Impact                                               |
+| ------------------------------------ | -------------------- | ---------------------------------------------------- |
+| Truncated file (1 line)              | `post-tool-agent.ts` | Subagent completion not logged; tasks stay 'running' |
+| Undefined `rawName` variable         | `post-tool-agent.ts` | Script will crash if run                             |
+| taskId extracted as ReadableStream   | `post-task.ts`       | CLI tool doesn't return valid taskId                 |
+| Type mismatch: POST response parsing | `post-task.ts`       | Caller can't capture taskId from stdout              |
+| Incomplete type narrowing            | `post-task.ts`       | CLI args not validated for correct types             |
 
 ---
 
@@ -370,15 +370,15 @@ To enable the full signal chain:
 
 ## Related Files
 
-| File | Purpose |
-|------|---------|
-| `src/types/task.ts` | Task, TaskNode, HookEvent, SessionEvent type definitions |
-| `src/server.ts` | Hono API endpoints (GET/POST/PATCH /tasks, /sessionEvents) |
-| `src/db/schema.ts` | Drizzle schema (tasksTable, sessionEventsTable) |
-| `src/hooks/useTaskPolling.ts` | Frontend polling loop + client-side tree building |
-| `src/components/TaskTable.tsx` | Task UI rendering |
-| `docs/FOR_ETHAN.md` | High-level project narrative + decision log |
-| `.claude/settings.json` | Claude Code hook configuration |
+| File                           | Purpose                                                    |
+| ------------------------------ | ---------------------------------------------------------- |
+| `src/types/task.ts`            | Task, TaskNode, HookEvent, SessionEvent type definitions   |
+| `src/server.ts`                | Hono API endpoints (GET/POST/PATCH /tasks, /sessionEvents) |
+| `src/db/schema.ts`             | Drizzle schema (tasksTable, sessionEventsTable)            |
+| `src/hooks/useTaskPolling.ts`  | Frontend polling loop + client-side tree building          |
+| `src/components/TaskTable.tsx` | Task UI rendering                                          |
+| `docs/FOR_ETHAN.md`            | High-level project narrative + decision log                |
+| `.claude/settings.json`        | Claude Code hook configuration                             |
 
 ---
 

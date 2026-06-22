@@ -47,10 +47,10 @@ The new stack is like upgrading to a **proper recording studio**:
 One thing that confuses people about Drizzle: there are **two separate files** and they serve
 totally different purposes at totally different times.
 
-| File | Used By | When | Purpose |
-|------|---------|------|---------|
+| File                | Used By           | When       | Purpose                      |
+| ------------------- | ----------------- | ---------- | ---------------------------- |
 | `drizzle.config.ts` | `drizzle-kit` CLI | Build time | Generate migration SQL files |
-| `src/db/index.ts` | `server.ts` | Runtime | Connect to the database |
+| `src/db/index.ts`   | `server.ts`       | Runtime    | Connect to the database      |
 
 Think of `drizzle-kit` as the **construction crew** that builds the studio (creates tables).
 Your `server.ts` is the **studio staff** that operates it every day.
@@ -128,16 +128,16 @@ This file is **never imported by your server**. It's only for the CLI tool.
 
 ```typescript
 // drizzle.config.ts
-import { defineConfig } from 'drizzle-kit'
+import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
   out: './drizzle',
-  schema: '___________',   // TODO: path to your schema file
-  dialect: '___________',  // TODO: what type of database?
+  schema: '___________', // TODO: path to your schema file
+  dialect: '___________', // TODO: what type of database?
   dbCredentials: {
-    url: '___________',    // TODO: path to your .db file
+    url: '___________', // TODO: path to your .db file
   },
-})
+});
 ```
 
 **Questions to answer before looking at the solution:**
@@ -160,11 +160,11 @@ interfaces also describe the actual database structure.
 
 SQLite is simpler than PostgreSQL — it only has three core types:
 
-| Drizzle Function | SQL Type | Use For |
-|-----------------|---------|---------|
-| `text('name')` | `TEXT` | strings, ISO date strings, and JSON |
+| Drizzle Function  | SQL Type  | Use For                                  |
+| ----------------- | --------- | ---------------------------------------- |
+| `text('name')`    | `TEXT`    | strings, ISO date strings, and JSON      |
 | `integer('name')` | `INTEGER` | numbers, and booleans (stored as 0 or 1) |
-| `real('name')` | `REAL` | floating point numbers |
+| `real('name')`    | `REAL`    | floating point numbers                   |
 
 Notice: no `Date` type, no `Array` type, no `Boolean` type. SQLite stores everything as one
 of these three primitives.
@@ -188,13 +188,13 @@ columns as `text`.
 Drizzle has separate packages for different databases. For **schema definition**, use:
 
 ```typescript
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 ```
 
 For **client initialization** (Challenge 3), you'll use a different path:
 
 ```typescript
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 ```
 
 Same package (`drizzle-orm`), different sub-paths. One provides the schema helpers, the other
@@ -205,89 +205,89 @@ provides the database connector.
 Column modifiers chain after the type:
 
 ```typescript
-text('id').primaryKey()           // marks as primary key
-text('name').notNull()            // required field (can't be null)
-integer('progress').default(0)    // optional with fallback
-text('logs').default('[]')        // JSON array default
-text('parent_id')                 // nullable — no modifier needed
+text('id').primaryKey(); // marks as primary key
+text('name').notNull(); // required field (can't be null)
+integer('progress').default(0); // optional with fallback
+text('logs').default('[]'); // JSON array default
+text('parent_id'); // nullable — no modifier needed
 ```
 
 ### Starting Code
 
 ```typescript
 // src/db/schema.ts
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // Sessions table: tracks orchestrator and agent sessions
 export const sessionsTable = sqliteTable('sessions', {
-  id:              text('id').___________,                  // TODO: primary key
-  type:            text('type').___________,                // TODO: required, CHECK constraint
-  parentSessionId: text('parent_session_id'),               // nullable: only agents have parents
-  model:           text('model'),
-  agentType:       text('agent_type'),
-  status:          text('status').___________,              // TODO: required, CHECK constraint
-  createdAt:       text('created_at'),
-  stoppedAt:       text('stopped_at'),
-})
+  id: text('id').___________, // TODO: primary key
+  type: text('type').___________, // TODO: required, CHECK constraint
+  parentSessionId: text('parent_session_id'), // nullable: only agents have parents
+  model: text('model'),
+  agentType: text('agent_type'),
+  status: text('status').___________, // TODO: required, CHECK constraint
+  createdAt: text('created_at'),
+  stoppedAt: text('stopped_at'),
+});
 
 // Tasks table: work units assigned to agents or orchestrator
 export const tasksTable = sqliteTable('tasks', {
-  id:                 text('id').___________,               // TODO: primary key
-  sessionId:          text('session_id').___________,       // TODO: required, foreign key to sessions
-  parentId:           text('parent_id'),                    // nullable: references tasks(id)
-  name:               text('name').___________,             // TODO: required
-  description:        text('description'),
-  status:             text('status').___________,           // TODO: required, CHECK constraint
-  kind:               text('kind'),                         // TODO: CHECK constraint
-  priority:           text('priority'),                     // TODO: CHECK constraint
-  createdBy:          text('created_by'),                   // 'orchestrator' or agent_id
-  claimedBy:          text('claimed_by'),                   // agent_id that claimed this task
+  id: text('id').___________, // TODO: primary key
+  sessionId: text('session_id').___________, // TODO: required, foreign key to sessions
+  parentId: text('parent_id'), // nullable: references tasks(id)
+  name: text('name').___________, // TODO: required
+  description: text('description'),
+  status: text('status').___________, // TODO: required, CHECK constraint
+  kind: text('kind'), // TODO: CHECK constraint
+  priority: text('priority'), // TODO: CHECK constraint
+  createdBy: text('created_by'), // 'orchestrator' or agent_id
+  claimedBy: text('claimed_by'), // agent_id that claimed this task
   progressPercentage: integer('progress_percentage').___________, // TODO: default 0
-  createdAt:          text('created_at'),
-  startedAt:          text('started_at'),
-  claimedAt:          text('claimed_at'),
-  completedAt:        text('completed_at'),
-})
+  createdAt: text('created_at'),
+  startedAt: text('started_at'),
+  claimedAt: text('claimed_at'),
+  completedAt: text('completed_at'),
+});
 
 // Task dependencies: tracks which tasks block others
 export const taskDependenciesTable = sqliteTable(
   'task_dependencies',
   {
-    taskId:       text('task_id').___________,              // TODO: required, foreign key to tasks
-    dependsOnId:  text('depends_on_id').___________,        // TODO: required, foreign key to tasks
+    taskId: text('task_id').___________, // TODO: required, foreign key to tasks
+    dependsOnId: text('depends_on_id').___________, // TODO: required, foreign key to tasks
   },
   (table) => ({
     pk: primaryKey({ columns: [table.taskId, table.dependsOnId] }), // TODO: composite primary key
   }),
-)
+);
 
 // Logs table: task execution logs
 export const logsTable = sqliteTable('logs', {
-  id:        text('id').___________,                        // TODO: primary key
-  taskId:    text('task_id').___________,                   // TODO: required, foreign key to tasks
+  id: text('id').___________, // TODO: primary key
+  taskId: text('task_id').___________, // TODO: required, foreign key to tasks
   timestamp: text('timestamp'),
-  level:     text('level').___________,                     // TODO: default 'info'
-  message:   text('message'),
-})
+  level: text('level').___________, // TODO: default 'info'
+  message: text('message'),
+});
 
 // Session events table: tracks all session lifecycle events
 export const sessionEventsTable = sqliteTable('session_events', {
-  id:        text('id').___________,                        // TODO: primary key
-  sessionId: text('session_id').___________,                // TODO: required, foreign key to sessions
-  type:      text('type').___________,                      // TODO: required
-  summary:   text('summary'),
+  id: text('id').___________, // TODO: primary key
+  sessionId: text('session_id').___________, // TODO: required, foreign key to sessions
+  type: text('type').___________, // TODO: required
+  summary: text('summary'),
   timestamp: text('timestamp'),
-  agentId:   text('agent_id'),
+  agentId: text('agent_id'),
   agentType: text('agent_type'),
-  model:     text('model'),
-  data:      text('data'),                                  // JSON blob: event-specific fields
-})
+  model: text('model'),
+  data: text('data'), // JSON blob: event-specific fields
+});
 
 // Schema version table: tracks which migrations have been applied
 export const schemaVersionTable = sqliteTable('schema_version', {
-  version:   integer('version').___________,                // TODO: primary key
-  appliedAt: text('applied_at').___________,                // TODO: required, unique
-})
+  version: integer('version').___________, // TODO: primary key
+  appliedAt: text('applied_at').___________, // TODO: required, unique
+});
 ```
 
 **Key differences from a simplified tutorial schema:**
@@ -346,18 +346,18 @@ is safe for this use case and faster than the default `FULL` mode.
 
 ```typescript
 // src/db/index.ts
-import Database from '___________'       // TODO: the better-sqlite3 package name
-import { drizzle } from '___________'   // TODO: the drizzle adapter for better-sqlite3
+import Database from '___________'; // TODO: the better-sqlite3 package name
+import { drizzle } from '___________'; // TODO: the drizzle adapter for better-sqlite3
 
 // Open (or create) the SQLite file on disk
-const sqlite = new Database('___________')  // TODO: path to .db file
+const sqlite = new Database('___________'); // TODO: path to .db file
 
 // Configure SQLite for concurrent access
-sqlite.pragma('___________')              // TODO: set journal_mode to WAL
-sqlite.pragma('synchronous = NORMAL')
+sqlite.pragma('___________'); // TODO: set journal_mode to WAL
+sqlite.pragma('synchronous = NORMAL');
 
 // Wrap with Drizzle to get the TypeScript query API
-export const db = drizzle(___________)   // TODO: pass the sqlite connection
+export const db = drizzle(___________); // TODO: pass the sqlite connection
 ```
 
 **Questions to answer before looking at the solution:**
@@ -381,14 +381,14 @@ write the routes yourself — with full control over what each endpoint does.
 
 Hono is intentionally Express-like. If you know Express, you already know 95% of Hono.
 
-| Express | Hono | Notes |
-|---------|------|-------|
-| `(req, res) =>` | `(c) =>` | Single context object instead of two params |
-| `req.params.id` | `c.req.param('id')` | Route parameters |
-| `req.query.status` | `c.req.query('status')` | Query string |
-| `await req.json()` | `await c.req.json()` | Request body |
-| `res.json(data)` | `return c.json(data)` | Must `return` in Hono |
-| `res.status(404).json({})` | `return c.json({}, 404)` | Status as second arg |
+| Express                    | Hono                     | Notes                                       |
+| -------------------------- | ------------------------ | ------------------------------------------- |
+| `(req, res) =>`            | `(c) =>`                 | Single context object instead of two params |
+| `req.params.id`            | `c.req.param('id')`      | Route parameters                            |
+| `req.query.status`         | `c.req.query('status')`  | Query string                                |
+| `await req.json()`         | `await c.req.json()`     | Request body                                |
+| `res.json(data)`           | `return c.json(data)`    | Must `return` in Hono                       |
+| `res.status(404).json({})` | `return c.json({}, 404)` | Status as second arg                        |
 
 Everything else is identical: `app.get()`, `app.post()`, `app.patch()`, `app.delete()`.
 
@@ -401,7 +401,7 @@ as the default export:
 export default {
   port: 3001,
   fetch: app.fetch,
-}
+};
 ```
 
 Bun reads this and starts the server. The `fetch` property is Hono's internal request
@@ -426,14 +426,14 @@ conversion needed.
 
 Drizzle reads like SQL. Each method maps directly:
 
-| What you want | Drizzle |
-|--------------|---------|
-| `SELECT * FROM tasks` | `db.select().from(tasksTable)` |
-| `SELECT * WHERE id = x` | `.where(eq(tasksTable.id, id))` |
-| Multiple WHERE conditions | `.where(and(eq(...), eq(...)))` |
-| `INSERT INTO ... RETURNING *` | `db.insert(tasksTable).values(body).returning()` |
+| What you want                    | Drizzle                                                  |
+| -------------------------------- | -------------------------------------------------------- |
+| `SELECT * FROM tasks`            | `db.select().from(tasksTable)`                           |
+| `SELECT * WHERE id = x`          | `.where(eq(tasksTable.id, id))`                          |
+| Multiple WHERE conditions        | `.where(and(eq(...), eq(...)))`                          |
+| `INSERT INTO ... RETURNING *`    | `db.insert(tasksTable).values(body).returning()`         |
 | `UPDATE ... SET ... RETURNING *` | `db.update(tasksTable).set(body).where(...).returning()` |
-| `DELETE FROM ... WHERE` | `db.delete(tasksTable).where(...)` |
+| `DELETE FROM ... WHERE`          | `db.delete(tasksTable).where(...)`                       |
 
 `eq` and `and` come from `drizzle-orm`. The `.returning()` at the end of insert/update is
 important — without it, Drizzle doesn't return the saved record, just the count of changes.
@@ -442,60 +442,60 @@ important — without it, Drizzle doesn't return the saved record, just the coun
 
 ```typescript
 // src/server.ts
-import { Hono } from 'hono'
-import { eq, and } from 'drizzle-orm'
-import { db } from './db/index'
-import { tasksTable, sessionEventsTable } from './db/schema'
+import { Hono } from 'hono';
+import { eq, and } from 'drizzle-orm';
+import { db } from './db/index';
+import { tasksTable, sessionEventsTable } from './db/schema';
 
-const app = new Hono()
+const app = new Hono();
 
 // ─── TASKS ───────────────────────────────────────────────────────────────────
 
 // GET /tasks  — list all, optionally filtered by ?status= or ?sessionId=
 app.get('/tasks', async (c) => {
-  const status    = c.req.query('___________')  // TODO: query param name
-  const sessionId = c.req.query('___________')  // TODO: query param name
+  const status = c.req.query('___________'); // TODO: query param name
+  const sessionId = c.req.query('___________'); // TODO: query param name
 
   // TODO: build conditions array and query
   // If both params are empty, return all tasks
   // If one or both params exist, add eq() conditions and use and()
 
-  const rows = [] // TODO: replace with real query
-  return c.json(rows)
-})
+  const rows = []; // TODO: replace with real query
+  return c.json(rows);
+});
 
 // GET /tasks/:id
 app.get('/tasks/:id', async (c) => {
-  const id = c.req.param('id')
+  const id = c.req.param('id');
   // TODO: select from tasksTable where id matches
   // TODO: if rows is empty, return c.json({ error: 'Not found' }, 404)
   // TODO: return rows[0]
-  return c.json({})
-})
+  return c.json({});
+});
 
 // POST /tasks — called by pre-tool-agent.sh
 app.post('/tasks', async (c) => {
-  const body = await c.req.json()
+  const body = await c.req.json();
   // TODO: db.insert(tasksTable).values({ id, name, sessionId, status, createdAt }).returning()
   // TODO: return result[0] with status 201
-  return c.json({}, 201)
-})
+  return c.json({}, 201);
+});
 
 // PATCH /tasks/:id — called by post-tool-agent.sh
 app.patch('/tasks/:id', async (c) => {
-  const id   = c.req.param('id')
-  const body = await c.req.json()
+  const id = c.req.param('id');
+  const body = await c.req.json();
   // TODO: db.update(tasksTable).set(body).where(eq(...)).returning()
   // TODO: if result is empty, return 404
-  return c.json({})
-})
+  return c.json({});
+});
 
 // DELETE /tasks/:id
 app.delete('/tasks/:id', async (c) => {
-  const id = c.req.param('id')
+  const id = c.req.param('id');
   // TODO: db.delete(tasksTable).where(eq(...))
-  return c.json({ ok: true })
-})
+  return c.json({ ok: true });
+});
 
 // ─── SESSION EVENTS ───────────────────────────────────────────────────────────
 
@@ -503,23 +503,23 @@ app.delete('/tasks/:id', async (c) => {
 app.get('/sessionEvents', async (c) => {
   // TODO: select all from sessionEventsTable
   // TODO: map rows — parse the `data` JSON field back to an object
-  return c.json([])
-})
+  return c.json([]);
+});
 
 // POST /sessionEvents — called by session-event.sh
 app.post('/sessionEvents', async (c) => {
-  const body = await c.req.json()
+  const body = await c.req.json();
   // TODO: insert — stringify body.data before storing (it's the only JSON field)
   // TODO: return result[0] with status 201
-  return c.json({}, 201)
-})
+  return c.json({}, 201);
+});
 
 // ─── Bun runtime adapter ──────────────────────────────────────────────────────
 // This replaces app.listen(3001) from Express
 export default {
   port: 3001,
   fetch: app.fetch,
-}
+};
 ```
 
 **Questions to answer before looking at the solution:**
@@ -565,13 +565,13 @@ Some fields in `db.json` might also be `null` or missing entirely. Use `?? null`
 
 ```typescript
 // scripts/migrate-to-sqlite.ts
-import { db } from '../src/db/index'
-import { tasksTable, sessionEventsTable } from '../src/db/schema'
+import { db } from '../src/db/index';
+import { tasksTable, sessionEventsTable } from '../src/db/schema';
 
 async function migrate() {
-  const data = await Bun.file('./db.json').json()
+  const data = await Bun.file('./db.json').json();
 
-  console.log(`Migrating ${data.tasks.length} tasks...`)
+  console.log(`Migrating ${data.tasks.length} tasks...`);
 
   for (const task of data.tasks) {
     await db.insert(tasksTable).values({
@@ -581,10 +581,10 @@ async function migrate() {
       // TODO: fill in remaining fields from the schema
       // TODO: stringify logs, events, dependencies with JSON.stringify(task.x ?? [])
       // TODO: handle nullable fields with ?? null
-    })
+    });
   }
 
-  console.log(`Migrating ${data.sessionEvents.length} session events...`)
+  console.log(`Migrating ${data.sessionEvents.length} session events...`);
 
   for (const event of data.sessionEvents) {
     // TODO: destructure the known fields, capture the rest
@@ -593,10 +593,10 @@ async function migrate() {
     // TODO: insert with data: JSON.stringify(rest) for the extra fields
   }
 
-  console.log('✅ Migration complete!')
+  console.log('✅ Migration complete!');
 }
 
-migrate().catch(console.error)
+migrate().catch(console.error);
 ```
 
 **Questions to answer before looking at the solution:**
@@ -665,7 +665,7 @@ bun run dev
 ### ✓ Challenge 1: drizzle.config.ts
 
 ```typescript
-import { defineConfig } from 'drizzle-kit'
+import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
   out: './drizzle',
@@ -674,7 +674,7 @@ export default defineConfig({
   dbCredentials: {
     url: './data/dashboard.db',
   },
-})
+});
 ```
 
 **Key points:**
@@ -690,83 +690,88 @@ export default defineConfig({
 ### ✓ Challenge 2: Database Schema
 
 ```typescript
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
 // Sessions table
 export const sessionsTable = sqliteTable('sessions', {
-  id:              text('id').primaryKey(),
-  type:            text('type').notNull(),
+  id: text('id').primaryKey(),
+  type: text('type').notNull(),
   parentSessionId: text('parent_session_id').references((): any => sessionsTable.id),
-  model:           text('model'),
-  agentType:       text('agent_type'),
-  status:          text('status').notNull(),
-  createdAt:       text('created_at'),
-  stoppedAt:       text('stopped_at'),
-})
+  model: text('model'),
+  agentType: text('agent_type'),
+  status: text('status').notNull(),
+  createdAt: text('created_at'),
+  stoppedAt: text('stopped_at'),
+});
 
 // Tasks table
 export const tasksTable = sqliteTable('tasks', {
-  id:                 text('id').primaryKey(),
-  sessionId:          text('session_id').notNull()
+  id: text('id').primaryKey(),
+  sessionId: text('session_id')
+    .notNull()
     .references((): any => sessionsTable.id),
-  parentId:           text('parent_id').references((): any => tasksTable.id),
-  name:               text('name').notNull(),
-  description:        text('description'),
-  status:             text('status').notNull(),
-  kind:               text('kind'),
-  priority:           text('priority'),
-  createdBy:          text('created_by'),
-  claimedBy:          text('claimed_by'),
+  parentId: text('parent_id').references((): any => tasksTable.id),
+  name: text('name').notNull(),
+  description: text('description'),
+  status: text('status').notNull(),
+  kind: text('kind'),
+  priority: text('priority'),
+  createdBy: text('created_by'),
+  claimedBy: text('claimed_by'),
   progressPercentage: integer('progress_percentage').default(0),
-  createdAt:          text('created_at'),
-  startedAt:          text('started_at'),
-  claimedAt:          text('claimed_at'),
-  completedAt:        text('completed_at'),
-})
+  createdAt: text('created_at'),
+  startedAt: text('started_at'),
+  claimedAt: text('claimed_at'),
+  completedAt: text('completed_at'),
+});
 
 // Task dependencies
 export const taskDependenciesTable = sqliteTable(
   'task_dependencies',
   {
-    taskId:       text('task_id').notNull()
+    taskId: text('task_id')
+      .notNull()
       .references((): any => tasksTable.id),
-    dependsOnId:  text('depends_on_id').notNull()
+    dependsOnId: text('depends_on_id')
+      .notNull()
       .references((): any => tasksTable.id),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.taskId, table.dependsOnId] }),
   }),
-)
+);
 
 // Logs table
 export const logsTable = sqliteTable('logs', {
-  id:        text('id').primaryKey(),
-  taskId:    text('task_id').notNull()
+  id: text('id').primaryKey(),
+  taskId: text('task_id')
+    .notNull()
     .references((): any => tasksTable.id),
   timestamp: text('timestamp'),
-  level:     text('level').default('info'),
-  message:   text('message'),
-})
+  level: text('level').default('info'),
+  message: text('message'),
+});
 
 // Session events table
 export const sessionEventsTable = sqliteTable('session_events', {
-  id:        text('id').primaryKey(),
-  sessionId: text('session_id').notNull()
+  id: text('id').primaryKey(),
+  sessionId: text('session_id')
+    .notNull()
     .references((): any => sessionsTable.id),
-  type:      text('type').notNull(),
-  summary:   text('summary'),
+  type: text('type').notNull(),
+  summary: text('summary'),
   timestamp: text('timestamp'),
-  agentId:   text('agent_id'),
+  agentId: text('agent_id'),
   agentType: text('agent_type'),
-  model:     text('model'),
-  data:      text('data'),
-})
+  model: text('model'),
+  data: text('data'),
+});
 
 // Schema version
 export const schemaVersionTable = sqliteTable('schema_version', {
-  version:   integer('version').primaryKey(),
+  version: integer('version').primaryKey(),
   appliedAt: text('applied_at').notNull().unique(),
-})
+});
 ```
 
 **Key points:**
@@ -786,15 +791,15 @@ export const schemaVersionTable = sqliteTable('schema_version', {
 ### ✓ Challenge 3: Database Client
 
 ```typescript
-import Database from 'better-sqlite3'
-import { drizzle } from 'drizzle-orm/better-sqlite3'
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 
-const sqlite = new Database('./data/dashboard.db')
+const sqlite = new Database('./data/dashboard.db');
 
-sqlite.pragma('journal_mode = WAL')
-sqlite.pragma('synchronous = NORMAL')
+sqlite.pragma('journal_mode = WAL');
+sqlite.pragma('synchronous = NORMAL');
 
-export const db = drizzle(sqlite)
+export const db = drizzle(sqlite);
 ```
 
 **Key points:**
@@ -812,93 +817,101 @@ export const db = drizzle(sqlite)
 ### ✓ Challenge 4: REST API Server
 
 ```typescript
-import { Hono } from 'hono'
-import { eq, and } from 'drizzle-orm'
-import { db } from './db/index'
-import { tasksTable, sessionEventsTable } from './db/schema'
+import { Hono } from 'hono';
+import { eq, and } from 'drizzle-orm';
+import { db } from './db/index';
+import { tasksTable, sessionEventsTable } from './db/schema';
 
-const app = new Hono()
+const app = new Hono();
 
 // ─── TASKS ────────────────────────────────────────────────────────────────────
 // tasksTable has no JSON columns — plain insert/select/update/delete
 
 app.get('/tasks', async (c) => {
-  const status    = c.req.query('status')
-  const sessionId = c.req.query('sessionId')
+  const status = c.req.query('status');
+  const sessionId = c.req.query('sessionId');
 
-  const conditions = []
-  if (status)    conditions.push(eq(tasksTable.status, status))
-  if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId))
+  const conditions = [];
+  if (status) conditions.push(eq(tasksTable.status, status));
+  if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
 
-  const rows = conditions.length > 0
-    ? await db.select().from(tasksTable).where(and(...conditions))
-    : await db.select().from(tasksTable)
+  const rows =
+    conditions.length > 0
+      ? await db
+          .select()
+          .from(tasksTable)
+          .where(and(...conditions))
+      : await db.select().from(tasksTable);
 
-  return c.json(rows)
-})
+  return c.json(rows);
+});
 
 app.get('/tasks/:id', async (c) => {
-  const id   = c.req.param('id')
-  const rows = await db.select().from(tasksTable).where(eq(tasksTable.id, id))
-  if (!rows.length) return c.json({ error: 'Not found' }, 404)
-  return c.json(rows[0])
-})
+  const id = c.req.param('id');
+  const rows = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+  if (!rows.length) return c.json({ error: 'Not found' }, 404);
+  return c.json(rows[0]);
+});
 
 app.post('/tasks', async (c) => {
-  const body   = await c.req.json()
-  const result = await db.insert(tasksTable).values({
-    id:        crypto.randomUUID(),
-    name:      body.name,
-    sessionId: body.sessionId,
-    status:    body.status ?? 'unassigned',
-    createdAt: new Date().toISOString(),
-  }).returning()
-  return c.json(result[0], 201)
-})
+  const body = await c.req.json();
+  const result = await db
+    .insert(tasksTable)
+    .values({
+      id: crypto.randomUUID(),
+      name: body.name,
+      sessionId: body.sessionId,
+      status: body.status ?? 'unassigned',
+      createdAt: new Date().toISOString(),
+    })
+    .returning();
+  return c.json(result[0], 201);
+});
 
 app.patch('/tasks/:id', async (c) => {
-  const id     = c.req.param('id')
-  const body   = await c.req.json()
-  const result = await db
-    .update(tasksTable)
-    .set(body)
-    .where(eq(tasksTable.id, id))
-    .returning()
-  if (!result.length) return c.json({ error: 'Not found' }, 404)
-  return c.json(result[0])
-})
+  const id = c.req.param('id');
+  const body = await c.req.json();
+  const result = await db.update(tasksTable).set(body).where(eq(tasksTable.id, id)).returning();
+  if (!result.length) return c.json({ error: 'Not found' }, 404);
+  return c.json(result[0]);
+});
 
 app.delete('/tasks/:id', async (c) => {
-  const id = c.req.param('id')
-  await db.delete(tasksTable).where(eq(tasksTable.id, id))
-  return c.json({ ok: true })
-})
+  const id = c.req.param('id');
+  await db.delete(tasksTable).where(eq(tasksTable.id, id));
+  return c.json({ ok: true });
+});
 
 // ─── SESSION EVENTS ───────────────────────────────────────────────────────────
 // sessionEventsTable.data IS a JSON blob — the only field that needs serialize/parse
 
 app.get('/sessionEvents', async (c) => {
-  const rows = await db.select().from(sessionEventsTable)
-  return c.json(rows.map(e => ({
-    ...e,
-    data: e.data ? JSON.parse(e.data) : undefined,
-  })))
-})
+  const rows = await db.select().from(sessionEventsTable);
+  return c.json(
+    rows.map((e) => ({
+      ...e,
+      data: e.data ? JSON.parse(e.data) : undefined,
+    })),
+  );
+});
 
 app.post('/sessionEvents', async (c) => {
-  const body   = await c.req.json()
-  const result = await db.insert(sessionEventsTable).values({
-    ...body,
-    data: body.data ? JSON.stringify(body.data) : null,
-  }).returning()
-  return c.json(result[0], 201)
-})
+  const body = await c.req.json();
+  const result = await db
+    .insert(sessionEventsTable)
+    .values({
+      ...body,
+      data: body.data ? JSON.stringify(body.data) : null,
+    })
+    .returning();
+  return c.json(result[0], 201);
+});
 
 // ─── Bun runtime adapter ──────────────────────────────────────────────────────
 export default {
   port: 3001,
   fetch: app.fetch,
-}
+};
 ```
 
 **Key points:**
@@ -920,59 +933,58 @@ export default {
 ### ✓ Challenge 5: Data Migration Script
 
 ```typescript
-import { db } from '../src/db/index'
-import { tasksTable, sessionEventsTable } from '../src/db/schema'
+import { db } from '../src/db/index';
+import { tasksTable, sessionEventsTable } from '../src/db/schema';
 
 async function migrate() {
-  const data = await Bun.file('./db.json').json()
+  const data = await Bun.file('./db.json').json();
 
-  console.log(`Migrating ${data.tasks.length} tasks...`)
+  console.log(`Migrating ${data.tasks.length} tasks...`);
 
   for (const task of data.tasks) {
     await db.insert(tasksTable).values({
-      id:                   task.id,
-      name:                 task.name,
-      status:               task.status,
-      agentType:            task.agentType            ?? 'unknown',
-      parentId:             task.parentId             ?? null,
-      sessionId:            task.sessionId            ?? null,
-      createdAt:            task.createdAt,
-      startedAt:            task.startedAt            ?? null,
-      completedAt:          task.completedAt          ?? null,
-      progressPercentage:   task.progressPercentage   ?? 0,
-      agentId:              task.agentId              ?? null,
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      agentType: task.agentType ?? 'unknown',
+      parentId: task.parentId ?? null,
+      sessionId: task.sessionId ?? null,
+      createdAt: task.createdAt,
+      startedAt: task.startedAt ?? null,
+      completedAt: task.completedAt ?? null,
+      progressPercentage: task.progressPercentage ?? 0,
+      agentId: task.agentId ?? null,
       lastAssistantMessage: task.lastAssistantMessage ?? null,
-      originatingSkill:     task.originatingSkill     ?? null,
-      taskKind:             task.taskKind             ?? 'work',
-      logs:                 JSON.stringify(task.logs         ?? []),
-      events:               JSON.stringify(task.events       ?? []),
-      dependencies:         JSON.stringify(task.dependencies ?? []),
-    })
+      originatingSkill: task.originatingSkill ?? null,
+      taskKind: task.taskKind ?? 'work',
+      logs: JSON.stringify(task.logs ?? []),
+      events: JSON.stringify(task.events ?? []),
+      dependencies: JSON.stringify(task.dependencies ?? []),
+    });
   }
 
-  console.log(`Migrating ${data.sessionEvents.length} session events...`)
+  console.log(`Migrating ${data.sessionEvents.length} session events...`);
 
   for (const event of data.sessionEvents) {
-    const {
-      id, type, timestamp, sessionId,
-      summary, agentId, agentType, model,
-      ...rest
-    } = event
+    const { id, type, timestamp, sessionId, summary, agentId, agentType, model, ...rest } = event;
 
     await db.insert(sessionEventsTable).values({
-      id, type, timestamp, sessionId,
-      summary:   summary   ?? null,
-      agentId:   agentId   ?? null,
+      id,
+      type,
+      timestamp,
+      sessionId,
+      summary: summary ?? null,
+      agentId: agentId ?? null,
       agentType: agentType ?? null,
-      model:     model     ?? null,
+      model: model ?? null,
       data: Object.keys(rest).length > 0 ? JSON.stringify(rest) : null,
-    })
+    });
   }
 
-  console.log('✅ Migration complete!')
+  console.log('✅ Migration complete!');
 }
 
-migrate().catch(console.error)
+migrate().catch(console.error);
 ```
 
 **Key points:**

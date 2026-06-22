@@ -1,11 +1,11 @@
 $kind: http-request
 name: List Session Events
 method: GET
-url: "{{baseUrl}}/sessionEvents"
+url: '{{baseUrl}}/sessionEvents'
 order: 1000
 queryParams:
   - key: sessionId
-    value: ""
+    value: ''
     disabled: true
     description: Filter by session ID
 scripts:

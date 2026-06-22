@@ -117,9 +117,9 @@ to be `jsdom` for DOM testing. Path aliases must match your `vite.config.ts` or 
 
 ```typescript
 // vitest.config.ts
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
@@ -129,7 +129,7 @@ export default defineConfig({
     // Optional: UI dashboard for test results
     ui: true,
   },
-})
+});
 ```
 
 **Questions to answer:**
@@ -162,9 +162,9 @@ other tasks. For example:
 
 ```typescript
 const mockTasks = [
-  { id: '1', name: 'Parent', parentId: null, /* ...other fields */ },
-  { id: '2', name: 'Child', parentId: '1', /* ...other fields */ },
-]
+  { id: '1', name: 'Parent', parentId: null /* ...other fields */ },
+  { id: '2', name: 'Child', parentId: '1' /* ...other fields */ },
+];
 ```
 
 buildTree should produce:
@@ -186,9 +186,9 @@ export function buildTree(tasks: Task[]): TaskNode[] {
 **`src/hooks/useTaskPolling.test.ts`:**
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { buildTree } from './useTaskPolling'
-import type { Task } from '@/types/task'
+import { describe, it, expect } from 'vitest';
+import { buildTree } from './useTaskPolling';
+import type { Task } from '@/types/task';
 
 // ❌ Create a factory function to build mock tasks
 function createMockTask(overrides: Partial<Task> = {}): Task {
@@ -202,7 +202,7 @@ function createMockTask(overrides: Partial<Task> = {}): Task {
     progressPercentage: 0,
     logs: [],
     ...overrides,
-  }
+  };
 }
 
 describe('buildTree', () => {
@@ -211,7 +211,7 @@ describe('buildTree', () => {
     // TODO: Call buildTree([mockTask])
     // TODO: Assert tree.length === 1
     // TODO: Assert tree[0].id === mockTask.id
-  })
+  });
 
   it('creates parent-child relationships based on parentId', () => {
     // TODO: Create parent task (id='parent-1', parentId: null)
@@ -221,14 +221,14 @@ describe('buildTree', () => {
     // TODO: Assert tree[0] is the parent (tree.length === 1)
     // TODO: Assert tree[0].children[0] is the child
     // TODO: Assert tree[0].children[0].children[0] is the grandchild
-  })
+  });
 
   it('treats orphaned children as roots', () => {
     // TODO: Create a task with parentId: 'non-existent-parent'
     // TODO: Call buildTree([orphanedTask])
     // TODO: Assert it's treated as a root (tree.length === 1)
-  })
-})
+  });
+});
 ```
 
 **Questions to answer:**
@@ -265,10 +265,10 @@ check classes for indentation (`pl-6`).
 **`src/components/TaskTree.test.tsx`:**
 
 ```typescript
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
-import { TaskTree } from './TaskTree'
-import type { TaskNode } from '@/types/task'
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { TaskTree } from './TaskTree';
+import type { TaskNode } from '@/types/task';
 
 // ❌ Create a factory for mock TaskNodes
 function createMockNode(overrides: Partial<TaskNode> = {}): TaskNode {
@@ -283,7 +283,7 @@ function createMockNode(overrides: Partial<TaskNode> = {}): TaskNode {
     logs: [],
     children: [],
     ...overrides,
-  }
+  };
 }
 
 describe('TaskTree', () => {
@@ -292,7 +292,7 @@ describe('TaskTree', () => {
     // TODO: Render <TaskTree nodes={[mockNode]} />
     // TODO: Assert the node's name appears in the document
     // TODO: Assert TaskCard is rendered (check for class or role)
-  })
+  });
 
   it('renders parent and child tasks with indentation', () => {
     // TODO: Create a parent node
@@ -302,14 +302,14 @@ describe('TaskTree', () => {
     // TODO: Assert parent name appears first
     // TODO: Assert child name appears after parent
     // TODO: Assert child is inside a div with class "pl-6" (indentation)
-  })
+  });
 
   it('renders connector line between parent and children', () => {
     // TODO: Create parent with one child
     // TODO: Render <TaskTree nodes={[parent]} />
     // TODO: Query for the connector line (div with class containing "bg-white/10")
     // TODO: Assert it exists
-  })
+  });
 
   it('calls onStatusChange when child status is updated', () => {
     // TODO: Create a mock callback using vi.fn()
@@ -317,7 +317,7 @@ describe('TaskTree', () => {
     // TODO: Render <TaskTree nodes={[parent]} onStatusChange={mockCallback} />
     // TODO: Within the child's TaskCard, find and click a status button
     // TODO: Assert mockCallback was called with correct taskId and status
-  })
+  });
 
   it('renders multiple levels of nesting (grandchildren)', () => {
     // TODO: Create grandparent, parent, child nodes
@@ -326,8 +326,8 @@ describe('TaskTree', () => {
     // TODO: Render <TaskTree nodes={[grandparent]} />
     // TODO: Assert all three appear in the document
     // TODO: Assert nesting depth increases (use data-testid or check pl-6, pl-12, etc.)
-  })
-})
+  });
+});
 ```
 
 **Questions to answer:**
@@ -374,9 +374,9 @@ bun add --save-dev vitest @testing-library/react @testing-library/dom jsdom @vit
 **Create `vitest.config.ts`:**
 
 ```typescript
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
@@ -385,7 +385,7 @@ export default defineConfig({
     globals: true,
     ui: true,
   },
-})
+});
 ```
 
 **Key points:**
@@ -404,36 +404,36 @@ export default defineConfig({
 
 ```typescript
 export function buildTree(tasks: Task[]): TaskNode[] {
-  const map = new Map<string, TaskNode>()
-  const roots: TaskNode[] = []
+  const map = new Map<string, TaskNode>();
+  const roots: TaskNode[] = [];
 
   for (const task of tasks) {
-    map.set(task.id, { ...task, children: [] })
+    map.set(task.id, { ...task, children: [] });
   }
 
   for (const node of map.values()) {
     if (node.parentId) {
-      const parent = map.get(node.parentId)
+      const parent = map.get(node.parentId);
       if (parent) {
-        parent.children.push(node)
+        parent.children.push(node);
       } else {
-        roots.push(node)
+        roots.push(node);
       }
     } else {
-      roots.push(node)
+      roots.push(node);
     }
   }
 
-  return roots
+  return roots;
 }
 ```
 
 **Create `src/hooks/useTaskPolling.test.ts`:**
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { buildTree } from './useTaskPolling'
-import type { Task } from '@/types/task'
+import { describe, it, expect } from 'vitest';
+import { buildTree } from './useTaskPolling';
+import type { Task } from '@/types/task';
 
 function createMockTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -446,56 +446,56 @@ function createMockTask(overrides: Partial<Task> = {}): Task {
     progressPercentage: 0,
     logs: [],
     ...overrides,
-  }
+  };
 }
 
 describe('buildTree', () => {
   it('creates a single root for a task with no parentId', () => {
-    const parent = createMockTask({ id: 'parent-1' })
-    const tree = buildTree([parent])
+    const parent = createMockTask({ id: 'parent-1' });
+    const tree = buildTree([parent]);
 
-    expect(tree).toHaveLength(1)
-    expect(tree[0].id).toBe('parent-1')
-    expect(tree[0].children).toHaveLength(0)
-  })
+    expect(tree).toHaveLength(1);
+    expect(tree[0].id).toBe('parent-1');
+    expect(tree[0].children).toHaveLength(0);
+  });
 
   it('creates parent-child relationships based on parentId', () => {
-    const parent = createMockTask({ id: 'parent-1', parentId: null })
-    const child = createMockTask({ id: 'child-1', parentId: 'parent-1' })
-    const grandchild = createMockTask({ id: 'grandchild-1', parentId: 'child-1' })
+    const parent = createMockTask({ id: 'parent-1', parentId: null });
+    const child = createMockTask({ id: 'child-1', parentId: 'parent-1' });
+    const grandchild = createMockTask({ id: 'grandchild-1', parentId: 'child-1' });
 
-    const tree = buildTree([parent, child, grandchild])
+    const tree = buildTree([parent, child, grandchild]);
 
-    expect(tree).toHaveLength(1)
-    expect(tree[0].id).toBe('parent-1')
-    expect(tree[0].children).toHaveLength(1)
-    expect(tree[0].children[0].id).toBe('child-1')
-    expect(tree[0].children[0].children).toHaveLength(1)
-    expect(tree[0].children[0].children[0].id).toBe('grandchild-1')
-  })
+    expect(tree).toHaveLength(1);
+    expect(tree[0].id).toBe('parent-1');
+    expect(tree[0].children).toHaveLength(1);
+    expect(tree[0].children[0].id).toBe('child-1');
+    expect(tree[0].children[0].children).toHaveLength(1);
+    expect(tree[0].children[0].children[0].id).toBe('grandchild-1');
+  });
 
   it('treats orphaned children as roots', () => {
-    const orphan = createMockTask({ id: 'orphan-1', parentId: 'non-existent-parent' })
-    const tree = buildTree([orphan])
+    const orphan = createMockTask({ id: 'orphan-1', parentId: 'non-existent-parent' });
+    const tree = buildTree([orphan]);
 
-    expect(tree).toHaveLength(1)
-    expect(tree[0].id).toBe('orphan-1')
-  })
+    expect(tree).toHaveLength(1);
+    expect(tree[0].id).toBe('orphan-1');
+  });
 
   it('handles multiple independent trees', () => {
-    const tree1Parent = createMockTask({ id: 'tree1-parent', parentId: null })
-    const tree1Child = createMockTask({ id: 'tree1-child', parentId: 'tree1-parent' })
-    const tree2Parent = createMockTask({ id: 'tree2-parent', parentId: null })
+    const tree1Parent = createMockTask({ id: 'tree1-parent', parentId: null });
+    const tree1Child = createMockTask({ id: 'tree1-child', parentId: 'tree1-parent' });
+    const tree2Parent = createMockTask({ id: 'tree2-parent', parentId: null });
 
-    const tree = buildTree([tree1Parent, tree1Child, tree2Parent])
+    const tree = buildTree([tree1Parent, tree1Child, tree2Parent]);
 
-    expect(tree).toHaveLength(2)
-    expect(tree[0].id).toBe('tree1-parent')
-    expect(tree[0].children).toHaveLength(1)
-    expect(tree[1].id).toBe('tree2-parent')
-    expect(tree[1].children).toHaveLength(0)
-  })
-})
+    expect(tree).toHaveLength(2);
+    expect(tree[0].id).toBe('tree1-parent');
+    expect(tree[0].children).toHaveLength(1);
+    expect(tree[1].id).toBe('tree2-parent');
+    expect(tree[1].children).toHaveLength(0);
+  });
+});
 ```
 
 **Key points:**
@@ -716,6 +716,6 @@ Arrange (create mock data) → Act (render component) → Assert (check output)
 ```
 
 Remember: tests are documentation. They tell future you (and your team) how the code
-is *supposed* to work.
+is _supposed_ to work.
 
 Good luck! 🎬

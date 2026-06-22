@@ -50,12 +50,8 @@
           "name": "logs_taskId_tasks_id_fk",
           "tableFrom": "logs",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "taskId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["taskId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -85,9 +81,7 @@
       "indexes": {
         "schema_version_appliedAt_unique": {
           "name": "schema_version_appliedAt_unique",
-          "columns": [
-            "appliedAt"
-          ],
+          "columns": ["appliedAt"],
           "isUnique": true
         }
       },
@@ -166,16 +160,12 @@
       "indexes": {
         "session_events_agentId_unique": {
           "name": "session_events_agentId_unique",
-          "columns": [
-            "agentId"
-          ],
+          "columns": ["agentId"],
           "isUnique": true
         },
         "session_events_agentType_unique": {
           "name": "session_events_agentType_unique",
-          "columns": [
-            "agentType"
-          ],
+          "columns": ["agentType"],
           "isUnique": true
         }
       },
@@ -184,12 +174,8 @@
           "name": "session_events_sessionId_sessions_id_fk",
           "tableFrom": "session_events",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "sessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sessionId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -264,12 +250,8 @@
           "name": "sessions_parentSessionId_sessions_id_fk",
           "tableFrom": "sessions",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "parentSessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parentSessionId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -302,12 +284,8 @@
           "name": "task_dependencies_taskId_tasks_id_fk",
           "tableFrom": "task_dependencies",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "taskId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["taskId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -315,22 +293,15 @@
           "name": "task_dependencies_dependsOnId_tasks_id_fk",
           "tableFrom": "task_dependencies",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "dependsOnId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["dependsOnId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
         "task_dependencies_taskId_dependsOnId_pk": {
-          "columns": [
-            "taskId",
-            "dependsOnId"
-          ],
+          "columns": ["taskId", "dependsOnId"],
           "name": "task_dependencies_taskId_dependsOnId_pk"
         }
       },
@@ -456,12 +427,8 @@
           "name": "tasks_sessionId_sessions_id_fk",
           "tableFrom": "tasks",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "sessionId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["sessionId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -469,12 +436,8 @@
           "name": "tasks_parentId_tasks_id_fk",
           "tableFrom": "tasks",
           "tableTo": "tasks",
-          "columnsFrom": [
-            "parentId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parentId"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

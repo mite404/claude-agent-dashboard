@@ -1,32 +1,30 @@
-import * as Accordion from '@radix-ui/react-accordion'
-import { ChevronDown } from 'lucide-react'
-import { cn, formatTimestamp } from '@/lib/utils'
-import type { LogEntry } from '@/types/task'
+import * as Accordion from '@radix-ui/react-accordion';
+import { ChevronDown } from 'lucide-react';
+import { cn, formatTimestamp } from '@/lib/utils';
+import type { LogEntry } from '@/types/task';
 
 const levelStyle: Record<LogEntry['level'], string> = {
-  info:  'text-white/70',
+  info: 'text-white/70',
   debug: 'text-white/40',
-  warn:  'text-yellow-400',
+  warn: 'text-yellow-400',
   error: 'text-red-400',
-}
+};
 
 const levelLabel: Record<LogEntry['level'], string> = {
-  info:  'INFO ',
+  info: 'INFO ',
   debug: 'DEBUG',
-  warn:  'WARN ',
+  warn: 'WARN ',
   error: 'ERROR',
-}
+};
 
 interface LogViewerProps {
-  logs: LogEntry[]
-  taskId: string
+  logs: LogEntry[];
+  taskId: string;
 }
 
 export function LogViewer({ logs, taskId }: LogViewerProps) {
   if (logs.length === 0) {
-    return (
-      <p className="px-3 py-2 text-xs text-white/30 italic">No logs yet.</p>
-    )
+    return <p className="px-3 py-2 text-xs text-white/30 italic">No logs yet.</p>;
   }
 
   return (
@@ -47,12 +45,12 @@ export function LogViewer({ logs, taskId }: LogViewerProps) {
           </span>
         </Accordion.Trigger>
 
-        <Accordion.Content className="overflow-hidden data-state-closed:animate-accordion-up data-state-open:animate-accordion-down">
-          <div className="mx-3 mb-3 overflow-auto rounded-md bg-black/40 font-mono text-xs leading-relaxed max-h-64">
+        <Accordion.Content className="data-state-closed:animate-accordion-up data-state-open:animate-accordion-down overflow-hidden">
+          <div className="mx-3 mb-3 max-h-64 overflow-auto rounded-md bg-black/40 font-mono text-xs leading-relaxed">
             {/* Header bar like GitHub Actions */}
             <div className="sticky top-0 flex items-center gap-2 border-b border-white/5 bg-black/60 px-3 py-1.5">
-              <span className="text-white/30 uppercase tracking-widest text-[10px]">Logs</span>
-              <span className="ml-auto text-white/20 text-[10px]">{logs.length} lines</span>
+              <span className="text-[10px] tracking-widest text-white/30 uppercase">Logs</span>
+              <span className="ml-auto text-[10px] text-white/20">{logs.length} lines</span>
             </div>
 
             <table className="w-full border-collapse">
@@ -67,11 +65,11 @@ export function LogViewer({ logs, taskId }: LogViewerProps) {
                     )}
                   >
                     {/* Line number */}
-                    <td className="select-none px-2 py-0.5 text-right text-[10px] text-white/20 w-8">
+                    <td className="w-8 px-2 py-0.5 text-right text-[10px] text-white/20 select-none">
                       {i + 1}
                     </td>
                     {/* Timestamp */}
-                    <td className="px-2 py-0.5 text-white/30 whitespace-nowrap w-24">
+                    <td className="w-24 px-2 py-0.5 whitespace-nowrap text-white/30">
                       {formatTimestamp(entry.timestamp)}
                     </td>
                     {/* Level */}
@@ -90,5 +88,5 @@ export function LogViewer({ logs, taskId }: LogViewerProps) {
         </Accordion.Content>
       </Accordion.Item>
     </Accordion.Root>
-  )
+  );
 }

@@ -13,9 +13,7 @@ beforeEach(() => {
 describe('patchTask', () => {
   it('calls fetch with PATCH method and correct URL', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
 
     await patchTask('task-123', { status: 'completed' });
 
@@ -29,9 +27,7 @@ describe('patchTask', () => {
 
   it('sends JSON body with patch content', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
 
     const patch = { status: 'completed', progressPercentage: 100 };
     await patchTask('task-456', patch);
@@ -46,9 +42,7 @@ describe('patchTask', () => {
 
   it('sets Content-Type header to application/json', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
 
     await patchTask('task-789', { status: 'running' });
 
@@ -62,9 +56,7 @@ describe('patchTask', () => {
 
   it('throws when fetch returns a non-ok status', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 500 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 500 }));
 
     await expect(patchTask('task-fail', { status: 'failed' })).rejects.toThrow(
       /PATCH \/tasks\/task-fail failed: HTTP 500/,
@@ -73,27 +65,21 @@ describe('patchTask', () => {
 
   it('throws with specific error message including status code', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 404 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 404 }));
 
     await expect(patchTask('missing-task', {})).rejects.toThrow('404');
   });
 
   it('succeeds with status 200', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 200 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
 
     await expect(patchTask('task-ok', { status: 'pending' })).resolves.not.toThrow();
   });
 
   it('succeeds with status 204 (No Content)', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(null, { status: 204 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await expect(patchTask('task-updated', {})).resolves.not.toThrow();
   });
@@ -104,9 +90,7 @@ describe('patchTask', () => {
 describe('deleteTask', () => {
   it('calls fetch with DELETE method and correct URL', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(null, { status: 204 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await deleteTask('task-to-delete');
 
@@ -120,9 +104,7 @@ describe('deleteTask', () => {
 
   it('throws when fetch returns a non-ok status', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({}), { status: 404 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 404 }));
 
     await expect(deleteTask('missing-task')).rejects.toThrow(
       /DELETE \/api\/tasks\/missing-task failed: HTTP 404/,
@@ -131,18 +113,14 @@ describe('deleteTask', () => {
 
   it('throws with specific error message including task ID and status', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(null, { status: 500 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 500 }));
 
     await expect(deleteTask('task-abc')).rejects.toThrow('500');
   });
 
   it('succeeds with status 204', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(null, { status: 204 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     await expect(deleteTask('task-removed')).resolves.not.toThrow();
   });
@@ -158,16 +136,11 @@ describe('deleteTask', () => {
 
   it('properly encodes task ID in URL (with special characters)', async () => {
     const mockFetch = vi.mocked(global.fetch);
-    mockFetch.mockResolvedValueOnce(
-      new Response(null, { status: 204 }),
-    );
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
 
     const taskId = 'task-with-special-chars-123';
     await deleteTask(taskId);
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      `/api/tasks/${taskId}`,
-      expect.any(Object),
-    );
+    expect(mockFetch).toHaveBeenCalledWith(`/api/tasks/${taskId}`, expect.any(Object));
   });
 });
