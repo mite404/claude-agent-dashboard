@@ -1,8 +1,9 @@
 # Claude Code Hook Integration
 
-The dashboard reads task data from `db.json` via json-server. Two shell scripts act as
-Claude Code hooks — they fire automatically whenever the Agent tool is used and write task
-state to `db.json`, which the dashboard polls every 2.5 seconds.
+The dashboard tracks Claude Code agent activity through TypeScript hook scripts.
+These scripts fire automatically via Claude Code's hook system and write task state to SQLite
+through the Hono REST API.
+The frontend polls `/api/tasks` every 2.5 seconds and re-renders.
 
 ---
 
@@ -10,27 +11,29 @@ state to `db.json`, which the dashboard polls every 2.5 seconds.
 
 ```
 User invokes Agent tool
-  → PreToolUse hook → scripts/pre-tool-agent.sh
-      → upserts { status: "running", progressPercentage: 0 } into db.json
+  → PreToolUse hook → scripts/pre-tool-agent.ts
+      → POST /tasks { status: "running", progressPercentage: 0 }
 
   → Agent executes (seconds to minutes)
 
-  → PostToolUse hook → scripts/post-tool-agent.sh
-      → updates { status: "completed" | "failed", progressPercentage: 100 } in db.json
+  → PostToolUse hook → scripts/post-tool-agent.ts
+      → PATCH /tasks/:id { status: "completed" | "failed", progressPercentage: 100 }
+
+  → Session lifecycle events → scripts/session-event.ts
+      → POST /sessionEvents
 
 Dashboard polls /api/tasks every 2.5s → React table updates
 ```
 
-`tool_use_id` is the stable identifier that links both hook calls for the same agent
-invocation. The pre-hook creates a task record under that ID; the post-hook finds and
-updates it by the same ID.
+`tool_use_id` is the stable identifier linking both hook calls for the same agent invocation.
+The pre-hook creates a task record under that ID; the post-hook finds and updates it.
 
 ---
 
 ## Hook configuration (`~/.claude/settings.json`)
 
-Wired **globally** so the dashboard tracks all Claude Code sessions, not just sessions
-inside this project directory.
+Wired **globally** so the dashboard tracks all Claude Code sessions, not just sessions inside
+this project.
 
 ```json
 {
@@ -41,7 +44,16 @@ inside this project directory.
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.sh"
+            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-agent.ts"
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/pre-tool-all.ts"
           }
         ]
       }
@@ -52,7 +64,16 @@ inside this project directory.
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.sh"
+            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-agent.ts"
+          }
+        ]
+      },
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/ea/Programming/web/fractal/claude-agent-dashboard/scripts/post-tool-all.ts"
           }
         ]
       }
@@ -63,9 +84,9 @@ inside this project directory.
 
 ---
 
-## `scripts/pre-tool-agent.sh` — PreToolUse hook
+## `scripts/pre-tool-agent.ts` — PreToolUse hook (Agent matcher)
 
-Fires when an Agent tool call **starts**. Creates a `running` task in `db.json`.
+Fires when an Agent tool call **starts**. Creates a `running` task record via the REST API.
 
 **Stdin fields used:**
 
@@ -74,6 +95,7 @@ Fires when an Agent tool call **starts**. Creates a `running` task in `db.json`.
 | `.tool_use_id`              | task `id`        |
 | `.tool_input.description`   | task `name`      |
 | `.tool_input.subagent_type` | task `agentType` |
+| `.session_id`               | task `sessionId` |
 
 **Task record created:**
 
@@ -83,22 +105,31 @@ Fires when an Agent tool call **starts**. Creates a `running` task in `db.json`.
   "name": "<description or 'Unnamed task'>",
   "status": "running",
   "agentType": "<subagent_type or 'general-purpose'>",
+  "sessionId": "<session_id>",
   "parentId": null,
+  "originatingSkill": "<skill name if applicable>",
   "createdAt": "<now>",
   "startedAt": "<now>",
-  "completedAt": null,
-  "progressPercentage": 0,
-  "logs": [{ "timestamp": "<now>", "level": "info", "message": "Task started: <name>" }]
+  "progressPercentage": 0
 }
 ```
 
-Upsert logic: replaces the task if the ID already exists, appends if new.
+**Metadata tags:** Task description can embed bracket-encoded metadata that is parsed out:
+
+- `[parentId:abc123]` — links to a parent task
+- `[dependsOn:xyz,def]` — array of blocking task IDs
+- `[kind:work|evaluation|planning]` — shapes the visual badge in the dashboard
+
+**Temp file coordination:**
+
+- Reads `/tmp/cc-skill-{sessionId}` to capture the originating skill name
+- Writes `/tmp/cc-agent-task-{sessionId}` for child agents to link back to this parent
 
 ---
 
-## `scripts/post-tool-agent.sh` — PostToolUse hook
+## `scripts/post-tool-agent.ts` — PostToolUse hook (Agent matcher)
 
-Fires when an Agent tool call **ends**. Updates the existing task in `db.json`.
+Fires when an Agent tool call **ends**. Updates the task's status via PATCH.
 
 **Stdin fields used:**
 
@@ -117,31 +148,49 @@ Fires when an Agent tool call **ends**. Updates the existing task in `db.json`.
 | `is_error == true`          | `failed`    | 0         |
 | otherwise                   | `completed` | 100       |
 
-**Fields updated on the existing record:**
+**Background tasks:** PostToolUse fires when the Agent tool returns, not when the background
+agent actually finishes. The hook detects `run_in_background: true` and leaves status as
+`running`. `session-event.ts` marks it complete when `SubagentStop` fires.
 
-```json
-{
-  "status":             "completed | failed | running",
-  "completedAt":        "<now>",   // only if not background
-  "progressPercentage": 100 | 0,
-  "logs":               "<existing logs> + [new entry]"
-}
-```
+---
 
-If the task doesn't exist yet (pre-hook didn't fire), a fallback record is created with
-best-effort data so the dashboard still shows something.
+## `scripts/pre-tool-all.ts` and `scripts/post-tool-all.ts`
+
+These hooks fire for every non-Agent tool call (Bash, Read, Write, Edit, Grep, etc.).
+They create and update `HookEvent` records in the `hook_events` table, building a per-task
+tool-call timeline visible in the dashboard's event trail.
+
+**Pre-phase:** Creates a `HookEvent` with `phase='pre'`, `status='running'`.
+
+**Post-phase:** Updates the matching `HookEvent` to `phase='post'`, `status='completed'`
+or `'failed'`.
+
+---
+
+## `scripts/session-event.ts` — Session Lifecycle Events
+
+Fires for all 18 Claude Code session lifecycle events.
+Creates `SessionEvent` records and handles subagent task linkage.
+
+**Key event handlers:**
+
+| Event              | Action                                                      |
+| ------------------ | ----------------------------------------------------------- |
+| `SessionStart`     | Captures model name, creates session record                 |
+| `UserPromptSubmit` | Detects `/skill-name`, writes `/tmp/cc-skill-{sessionId}`  |
+| `SubagentStart`    | Reads temp file to link child agent back to parent task     |
+| `SubagentStop`     | Marks parent task `completed`, `progressPercentage: 100`    |
+| `Notification`     | Captures tool name and message                              |
+| `PreCompact`       | Captures token count for context compression events         |
 
 ---
 
 ## Notes
 
-- **Background tasks** — PostToolUse fires when the task is _dispatched_, not when it
-  finishes. The post-hook detects `run_in_background: true` and leaves status as `running`.
-  Phase 7 will add completion tracking for background tasks.
-- **Atomic writes** — scripts always write to `db.json.tmp` then `mv` it into place.
-  This prevents json-server from reading a half-written file.
-- **Bootstrap guard** — both scripts recreate `db.json` as `{"tasks":[]}` if the file
-  doesn't exist or if the `.tasks` key is missing/null (e.g., after manual edits).
-- **Why bash** — hooks must run in any shell environment. Bash + `jq` is universally
-  available on macOS; `bun` may not be in the hook runner's `$PATH`.
-- **`jq` required** — install via `brew install jq` if not present.
+- **Why TypeScript** — hooks run via Bun's absolute shebang (`#!/opt/homebrew/bin/bun`).
+  This gives shared types from `src/types/task.ts`, native `fetch()`, and real error objects.
+  The absolute path ensures Bun is found even when hooks run outside the login shell.
+- **Server must be running** — each hook script checks `GET /tasks` (HEAD) on startup.
+  If the Hono server is down, the script exits cleanly with code `0` so Claude Code is not
+  blocked.
+- **No `jq` required** — all JSON parsing is done in TypeScript via `JSON.parse()`.
