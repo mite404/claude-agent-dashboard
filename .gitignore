@@ -41,3 +41,6 @@ data/dashboard.db-wal
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# PR watcher state (one file per PR number)
+.pr-watcher-*.json

@@ -9,6 +9,7 @@ import {
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { toast } from 'sonner';
 import { IconGripVertical, IconPlus, IconX } from '@tabler/icons-react';
+import { AGENT_TYPE_OPTIONS } from '@/lib/taskConfig';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -200,7 +201,7 @@ interface NewTaskCardProps {
 
 function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const [form, setForm] = useState({ name: '', agentType: '', priority: 'normal', description: '' });
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -210,12 +211,19 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
   };
 
   const handleSubmit = async () => {
-    const trimmed = name.trim();
+    const trimmed = form.name.trim();
     if (!trimmed) return;
     setBusy(true);
     try {
-      await createTask({ name: trimmed, sessionId, status: 'unassigned' });
-      setName('');
+      await createTask({
+        name: trimmed,
+        sessionId,
+        agentType: form.agentType.trim() || 'general-purpose',
+        priority: form.priority,
+        description: form.description.trim() || undefined,
+        status: 'unassigned',
+      });
+      setForm({ name: '', agentType: '', priority: 'normal', description: '' });
       setOpen(false);
       onCreated();
     } catch {
@@ -224,6 +232,9 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
       setBusy(false);
     }
   };
+
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   if (!open) {
     return (
@@ -245,23 +256,48 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
     <div className="space-y-2 rounded-md border border-stone-700 bg-stone-900 p-3">
       <Input
         ref={inputRef}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
+        value={form.name}
+        onChange={set('name')}
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleSubmit();
-          if (e.key === 'Escape') {
-            setOpen(false);
-            setName('');
-          }
+          if (e.key === 'Escape') { setOpen(false); setForm({ name: '', agentType: '', priority: 'normal', description: '' }); }
         }}
-        placeholder="Task name…"
+        placeholder="Task name *"
+        className="h-7 text-xs"
+      />
+      <Input
+        list="kanban-agent-types"
+        value={form.agentType}
+        onChange={set('agentType')}
+        placeholder="Agent type"
+        className="h-7 text-xs"
+      />
+      <datalist id="kanban-agent-types">
+        {AGENT_TYPE_OPTIONS.map((t) => (
+          <option key={t} value={t} />
+        ))}
+      </datalist>
+      <select
+        value={form.priority}
+        onChange={set('priority')}
+        className="h-7 w-full rounded-(--radius) border border-stone-700 bg-stone-900 px-2 text-xs text-stone-300 focus:ring-1 focus:ring-stone-500 focus:outline-none"
+      >
+        <option value="low">Low</option>
+        <option value="normal">Normal</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+      <Input
+        value={form.description}
+        onChange={set('description')}
+        placeholder="Description (optional)"
         className="h-7 text-xs"
       />
       <div className="flex gap-2">
         <Button
           size="sm"
           className="h-6 flex-1 text-xs"
-          disabled={busy || !name.trim()}
+          disabled={busy || !form.name.trim()}
           onClick={handleSubmit}
         >
           Add
@@ -270,10 +306,7 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
           size="sm"
           variant="ghost"
           className="h-6 px-2"
-          onClick={() => {
-            setOpen(false);
-            setName('');
-          }}
+          onClick={() => { setOpen(false); setForm({ name: '', agentType: '', priority: 'normal', description: '' }); }}
         >
           <IconX size={12} />
         </Button>

@@ -14,6 +14,28 @@ import {
 } from '@tabler/icons-react';
 import type { TaskStatus, LogEntry, HookEvent, SessionEventType, TaskKind } from '@/types/task';
 
+// ─── Agent Types ──────────────────────────────────────────────────────────────
+
+export const AGENT_TYPE_OPTIONS = [
+  // General
+  'general-purpose',
+  'Explore',
+  'Plan',
+  // Code review
+  'pr-review-toolkit:code-reviewer',
+  'pr-review-toolkit:code-simplifier',
+  'compound-engineering:ce-correctness-reviewer',
+  'compound-engineering:ce-security-reviewer',
+  'compound-engineering:ce-maintainability-reviewer',
+  'compound-engineering:ce-performance-oracle',
+  // Feature dev
+  'feature-dev:code-architect',
+  'feature-dev:code-explorer',
+  'feature-dev:code-reviewer',
+  // Design
+  'compound-engineering:ce-frontend-design',
+];
+
 // ─── Task Status ──────────────────────────────────────────────────────────────
 
 export const ALL_STATUSES: TaskStatus[] = [
