@@ -1,109 +1,171 @@
-# Data Format Specification
+# API Reference
 
-The dashboard reads from json-server at `http://localhost:3001/tasks`.
-The source of truth is `db.json` in the project root.
+The dashboard backend is a **Hono REST API** (`src/server.ts`) running on port `3001`,
+backed by SQLite via Drizzle ORM.
+The Vite dev server proxies `/api/*` → `http://localhost:3001/*` (stripping the prefix)
+so the React frontend calls `/api/tasks` and Hono receives `/tasks`.
 
----
-
-## db.json schema
-
-```json
-{
-  "tasks": [Task]
-}
-```
-
-json-server automatically exposes:
-
-- `GET /tasks` — list all tasks
-- `GET /tasks/:id` — get single task
-- `POST /tasks` — create task
-- `PATCH /tasks/:id` — partial update (used by Cancel/Pause/Retry buttons)
-- `DELETE /tasks/:id` — remove task
+Hook scripts call `http://localhost:3001` directly (no `/api` prefix).
 
 ---
 
-## Task object
+## Endpoint Map
+
+| Method   | Path                    | Called by              | Purpose                         |
+| -------- | ----------------------- | ---------------------- | ------------------------------- |
+| `GET`    | `/tasks`                | Frontend (polling)     | List all tasks                  |
+| `GET`    | `/tasks/pool`           | Agents                 | List `unassigned` tasks by priority |
+| `GET`    | `/tasks/:id`            | Agents / hooks         | Get single task                 |
+| `POST`   | `/tasks`                | Hooks, pr-watcher, UI  | Create task                     |
+| `POST`   | `/tasks/:id/claim`      | Agents                 | Atomically claim an unassigned task |
+| `PATCH`  | `/tasks/:id`            | Hooks, UI              | Update task fields              |
+| `PUT`    | `/tasks/:id`            | Legacy scripts         | Alias for PATCH                 |
+| `DELETE` | `/tasks/:id`            | UI                     | Delete task                     |
+| `GET`    | `/sessionEvents`        | Frontend               | List session events             |
+| `POST`   | `/sessionEvents`        | `session-event.ts`     | Create session event            |
+| `DELETE` | `/sessionEvents`        | UI ("Clear all")       | Delete all session events       |
+
+---
+
+## Task Schema
+
+Defined in `src/db/schema.ts` (`tasksTable`).
 
 ```typescript
 interface Task {
-  id: string; // Unique task ID (e.g., "task-001" or Claude tool_use_id)
-  name: string; // Human-readable task description
-  status: TaskStatus; // See below
-  agentType: string; // Agent subtype (e.g., "general-purpose", "Explore")
-  parentId: string | null; // Parent task ID for subagent relationships; null = root
-  createdAt: string; // ISO 8601 timestamp
-  startedAt: string | null;
-  completedAt: string | null;
-  progressPercentage: number; // 0–100
-  logs: LogEntry[];
+  id: string;                  // UUID or tool_use_id from Claude Code
+  sessionId: string;           // Required — links to sessions table
+  name: string;                // Human-readable task name
+  description?: string;        // Optional detail / outcome summary
+  status: TaskStatus;
+  kind?: 'work' | 'evaluation' | 'planning';
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  parentId?: string;           // For subagent tree relationships
+  agentId?: string;            // Hex agent ID from SubagentStart hook
+  agentType?: string;          // e.g. "general-purpose", "Explore"
+  originatingSkill?: string;   // e.g. "/code-review"
+  taskKind?: string;           // "orchestrator" | "work" | "background-task"
+  claimedBy?: string;          // Agent or process that claimed the task
+  claimedAt?: string;          // ISO timestamp of claim
+  createdAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  progressPercentage?: number; // 0–100
 }
 
-type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'cancelled';
+type TaskStatus =
+  | 'unassigned'  // in pool, waiting to be claimed
+  | 'claimed'     // claimed by an agent, not yet started
+  | 'running'     // actively executing
+  | 'completed'   // finished successfully
+  | 'failed'      // finished with error
+  | 'paused'      // manually paused
+  | 'cancelled'   // manually cancelled
+  | 'blocked';    // waiting on a dependency (computed client-side)
+```
 
-interface LogEntry {
-  timestamp: string; // ISO 8601
-  level: 'info' | 'warn' | 'error' | 'debug';
-  message: string;
+**Note:** `logs` are stored in a separate `logsTable` (not embedded in the task object).
+`hookEvents` are stored in `hookEventsTable`.
+
+---
+
+## POST /tasks — Create a task
+
+**Required fields:** `name`, `sessionId`
+
+```bash
+curl -X POST http://localhost:3001/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Review auth module",
+    "sessionId": "orchestrator-session",
+    "agentType": "code-reviewer",
+    "priority": "high",
+    "status": "unassigned",
+    "description": "Check JWT validation and session expiry logic"
+  }'
+```
+
+The server auto-upserts a `sessions` row for the `sessionId` via `onConflictDoNothing`,
+so you don't need to pre-create a session before creating tasks.
+
+**Response:** `201` with the created task object.
+
+---
+
+## POST /tasks/:id/claim — Claim a task
+
+Atomically transitions a task from `unassigned` → `claimed`.
+Returns `409` if the task is already claimed by someone else.
+
+```bash
+curl -X POST http://localhost:3001/tasks/abc123/claim \
+  -H "Content-Type: application/json" \
+  -d '{"claimedBy": "agent-xyz"}'
+```
+
+**Response:** `200` with updated task, or `409 { "claimedBy": "<who has it>" }`.
+
+---
+
+## PATCH /tasks/:id — Update a task
+
+Whitelist of updatable fields (others are silently ignored):
+
+`name`, `description`, `status`, `kind`, `priority`, `progressPercentage`,
+`startedAt`, `completedAt`, `claimedAt`, `claimedBy`, `agentId`, `agentType`,
+`originatingSkill`, `taskKind`, `parentId`
+
+```bash
+# Mark complete
+curl -X PATCH http://localhost:3001/tasks/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"status": "completed", "progressPercentage": 100}'
+
+# Return to pool
+curl -X PATCH http://localhost:3001/tasks/abc123 \
+  -H "Content-Type: application/json" \
+  -d '{"status": "unassigned", "claimedBy": null, "claimedAt": null}'
+```
+
+---
+
+## GET /tasks/pool — Unassigned task queue
+
+Returns tasks with `status='unassigned'`, ordered by priority then `createdAt`.
+Useful for agents polling for work.
+
+```bash
+curl http://localhost:3001/tasks/pool
+# Response: { "data": [Task, ...] }
+```
+
+Priority order: `urgent` → `high` → `normal` → `low`.
+
+---
+
+## SessionEvent Schema
+
+```typescript
+interface SessionEvent {
+  id: string;
+  sessionId: string;
+  type: string;         // e.g. "SessionStart", "UserPromptSubmit", "SubagentStop"
+  summary?: string;
+  timestamp?: string;
+  agentId?: string;
+  agentType?: string;
+  model?: string;
+  metadata?: object;    // event-specific data (token counts, skill names, etc.)
 }
 ```
 
 ---
 
-## Full example
+## Vite Proxy
 
-```json
-{
-  "tasks": [
-    {
-      "id": "toolu_01AbCdEfGh",
-      "name": "Research existing API endpoints",
-      "status": "running",
-      "agentType": "Explore",
-      "parentId": null,
-      "createdAt": "2026-03-03T10:28:00.000Z",
-      "startedAt": "2026-03-03T10:28:05.000Z",
-      "completedAt": null,
-      "progressPercentage": 45,
-      "logs": [
-        {
-          "timestamp": "2026-03-03T10:28:05.000Z",
-          "level": "info",
-          "message": "Task started"
-        },
-        {
-          "timestamp": "2026-03-03T10:28:10.000Z",
-          "level": "debug",
-          "message": "Scanning src/routes/**"
-        }
-      ]
-    },
-    {
-      "id": "toolu_02XyZAbCd",
-      "name": "Write unit tests for auth module",
-      "status": "completed",
-      "agentType": "pr-review-toolkit:pr-test-analyzer",
-      "parentId": "toolu_01AbCdEfGh",
-      "createdAt": "2026-03-03T10:28:15.000Z",
-      "startedAt": "2026-03-03T10:28:16.000Z",
-      "completedAt": "2026-03-03T10:29:45.000Z",
-      "progressPercentage": 100,
-      "logs": [
-        {
-          "timestamp": "2026-03-03T10:29:45.000Z",
-          "level": "info",
-          "message": "All 12 tests passing"
-        }
-      ]
-    }
-  ]
-}
-```
+In dev, Vite proxies `/api/*` → `http://localhost:3001/*` (configured in `vite.config.ts`).
+The React app calls `/api/tasks`; Hono receives `/tasks`.
+No CORS config needed for the frontend.
 
----
-
-## Vite proxy
-
-In dev, Vite proxies `/api/*` → `http://localhost:3001/*` (stripping the `/api` prefix).
-So the React app calls `/api/tasks` and json-server receives `/tasks`.
-No CORS config needed.
+Hook scripts and `pr-watcher.ts` call `http://localhost:3001` directly (no proxy, no prefix).

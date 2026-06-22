@@ -11,41 +11,24 @@ The dashboard frontend then polls the database and renders tasks + events in rea
 
 ## Signal Flow Diagram
 
-```
-Claude Code Session Lifecycle
-         │
-         ├─ SessionStart ──────────────┐
-         │                              │
-         ├─ UserPromptSubmit (detects /skill-name)
-         │                              │
-         ├─ Agent tool called ─────────┼─ pre-tool-agent.ts
-         │  (PreToolUse)               │  creates Task record
-         │                              │
-         ├─ Regular tools called ──────┼─ pre-tool-all.ts
-         │  (Read, Bash, etc.)         │  logs HookEvent (phase='pre')
-         │                              │
-         ├─ Tools complete ────────────┼─ post-tool-all.ts
-         │  (PostToolUse)              │  updates HookEvent (phase='post')
-         │                              │
-         ├─ Subagent finishes ────────┼─ session-event.sh
-         │  (SubagentStop)             │  marks Task complete
-         │                              │
-    ┌────▼────────────────────────────┴─────────────────┐
-    │ All events flow through                            │
-    │ session-event.sh (for SessionEvents)               │
-    │ or hook handlers (for HookEvents)                  │
-    └─────────────────────────────────────────────────────┘
-                      │
-              PATCH /tasks/{id}
-              POST /sessionEvents
-                      │
-              SQLite Database
-                      │
-    ┌─────────────────┴──────────────────┐
-    │                                    │
-Vite polls /api/tasks (2.5s interval)   │
-    │                                    │
-React renders TaskTable + events        │
+```mermaid
+flowchart TD
+    CC([Claude Code])
+
+    CC -->|PreToolUse — Agent matcher| PTA[pre-tool-agent.ts\ncreates Task record]
+    CC -->|PreToolUse — all other tools| PTALL[pre-tool-all.ts\nlogs HookEvent pre-phase]
+    CC -->|PostToolUse — all other tools| POSTALL[post-tool-all.ts\nupdates HookEvent post-phase]
+    CC -->|PostToolUse — Agent matcher| POSTA[post-tool-agent.ts\nmarks Task completed / failed]
+    CC -->|all 18 session lifecycle events| SE[session-event.ts\ncreates SessionEvent]
+
+    PTA -->|POST /tasks| API[Hono API :3001]
+    PTALL -->|PATCH /tasks| API
+    POSTALL -->|PATCH /tasks| API
+    POSTA -->|PATCH /tasks| API
+    SE -->|POST /sessionEvents| API
+
+    API --> DB[(SQLite)]
+    DB -->|GET /api/tasks every 2.5s| FE[React Dashboard]
 ```
 
 ## Script Directory
@@ -142,16 +125,15 @@ POST /tasks                             # Create task record
 
 **Trigger:** Claude Code `PostToolUse` hook with `Agent` tool matcher
 
-**Status:** ⚠️ **Currently incomplete** (1-line file with undefined variable reference)
-
-**What it should do:** Mirror `post-tool-all.ts` but for Agent tool completion (mark task
-as completed/failed).
+**What it does:** Mirrors `post-tool-all.ts` for Agent tool completion — marks the task
+as `completed` or `failed`, sets `progressPercentage`, and logs the result summary.
+Infers task `kind` from `agentType` if no `[kind:...]` tag was provided.
 
 ---
 
 ### Session-Level Event Handler
 
-#### `session-event.sh` — Capture All 14+ Session Lifecycle Events
+#### `session-event.ts` — Capture All 18 Session Lifecycle Events
 
 **Trigger:** Claude Code session-level hooks via `--event-type` parameter:
 
@@ -250,6 +232,55 @@ parse JSON body first)
 
 ---
 
+#### `pr-watcher.ts` — PR Commit Watcher + Automated Code Review
+
+**Trigger:** Manual invocation — runs as a long-lived polling daemon.
+
+**CLI Signature:**
+
+```bash
+bun scripts/pr-watcher.ts \
+  --pr <num> \
+  [--repo <owner/repo>] \
+  [--skill <skill-name>] \
+  [--context <file>] \
+  [--self-correct] \
+  [--interval <secs>]
+```
+
+**What it does:**
+
+- Polls GitHub (via `gh pr view --json headRefOid`) every `--interval` seconds
+- On first run: records HEAD SHA as baseline, does not review it
+- On new commit: creates a dashboard task card, claims it, spawns a `claude` subprocess
+  to perform a structured code review
+- The review agent: fetches the diff, runs compound-engineering skills, posts a
+  CodeRabbit-style comment to the GitHub PR, and PATCHes the dashboard card with an
+  outcome summary (`✅ No issues found` / `🟠 2 findings — see PR comment`)
+- `--self-correct`: after posting findings, agent applies fixes locally using the Ponytail
+  skill, commits with `git add -u && git commit` (no push — user controls that)
+- `--context`: injects doc files (SPEC.md, IMPLEMENTATION.md, etc.) into the review prompt
+- State persisted in `scripts/.pr-watcher-{repoSlug}-{pr}.json` — immune to CWD changes
+
+**Default skills run on every review:**
+
+- `compound-engineering:ce-correctness-reviewer`
+- `compound-engineering:ce-api-contract-reviewer`
+- `compound-engineering:ce-reliability-reviewer`
+
+**Cross-repo usage:** Run from the target repo's directory with `--repo owner/name`.
+The dashboard API at `localhost:3001` is always local; the diff and PR comment go to GitHub.
+
+```bash
+cd /path/to/other-repo
+bun /path/to/claude-agent-dashboard/scripts/pr-watcher.ts \
+  --pr 3 \
+  --repo your-username/other-repo \
+  --interval 60
+```
+
+---
+
 #### `migrate-to-sqlite.ts` — One-Time Data Migration
 
 **What it does:**
@@ -301,7 +332,7 @@ main-session tasks. This handles both parent tasks and independent subagent tree
 Bridges race conditions between async hooks:
 
 - `pre-tool-agent.ts` writes `/tmp/cc-agent-task-{sessionId}` after POST /tasks succeeds
-- `session-event.sh` (SubagentStart) reads this file to link parent task
+- `session-event.ts` (SubagentStart) reads this file to link parent task
 - Fallback: API query if file doesn't exist yet (handles slow POST responses)
 
 ### 3. Metadata Embedding in Description
@@ -331,7 +362,7 @@ schema explosion. Examples:
 
 ### 6. Retry Logic with Exponential Backoff
 
-`session-event.sh` uses retry logic (100ms → 200ms → 400ms, 3 attempts) for network
+`session-event.ts` uses retry logic (100ms → 200ms → 400ms, 3 attempts) for network
 resilience. Important for unreliable conditions or slow API startup.
 
 ### 7. Skill Attribution
@@ -344,13 +375,11 @@ traces every task back to its originating skill (or main session).
 
 ## Known Issues
 
-| Issue                                | File                 | Impact                                               |
-| ------------------------------------ | -------------------- | ---------------------------------------------------- |
-| Truncated file (1 line)              | `post-tool-agent.ts` | Subagent completion not logged; tasks stay 'running' |
-| Undefined `rawName` variable         | `post-tool-agent.ts` | Script will crash if run                             |
-| taskId extracted as ReadableStream   | `post-task.ts`       | CLI tool doesn't return valid taskId                 |
-| Type mismatch: POST response parsing | `post-task.ts`       | Caller can't capture taskId from stdout              |
-| Incomplete type narrowing            | `post-task.ts`       | CLI args not validated for correct types             |
+| Issue                                | File           | Impact                                          |
+| ------------------------------------ | -------------- | ----------------------------------------------- |
+| taskId extracted as ReadableStream   | `post-task.ts` | CLI tool doesn't return valid taskId            |
+| Type mismatch: POST response parsing | `post-task.ts` | Caller can't capture taskId from stdout         |
+| Incomplete type narrowing            | `post-task.ts` | CLI args not validated for correct types        |
 
 ---
 
@@ -363,7 +392,7 @@ To enable the full signal chain:
 3. ✅ **Hook scripts** configured in Claude Code settings (`.claude/settings.json`)
 4. ✅ **Vite dev server** on `:5173` with proxy to `:3001`
 5. ✅ **useTaskPolling(2500)** in frontend polling /api/tasks every 2.5s
-6. ⚠️ **post-tool-agent.ts** needs completion (currently incomplete)
+6. ✅ **post-tool-agent.ts** complete — marks subagent tasks completed/failed
 7. ⚠️ **post-task.ts** needs taskId bug fix (response parsing)
 
 ---
