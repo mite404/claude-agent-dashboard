@@ -14,7 +14,7 @@
     "fix:tailwind": "bun scripts/fix-tailwind-vars.ts",
     "preview": "vite preview",
     "server": "PORT=3001 bun --watch src/server.ts",
-    "smoke": "bash scripts/smoke-test.sh",
+    "smoke": "bun scripts/smoke-test.ts",
     "test": "vitest",
     "test:ui": "vitest --ui"
   },
