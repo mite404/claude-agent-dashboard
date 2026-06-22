@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "concurrently --names \"vite,hono,hooks,spawn\" \"vite --port 5173\" \"PORT=3001 bun --watch src/server.ts\" \"tail -F logs/hooks.log\" \"bun scripts/spawn-terminal.ts\"",
     "build": "vite build",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint .",
     "lint:css": "stylelint '**/*.css'",
     "lint:md": "rumdl check .",
     "fix:tailwind": "bun scripts/fix-tailwind-vars.ts",
@@ -40,7 +42,6 @@
     "sonner": "^2.0.7"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/user-event": "^14.6.1",
@@ -51,20 +52,15 @@
     "@vitest/ui": "4.0.18",
     "concurrently": "^9.1.2",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.0.2",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "prettier": "3.8.1",
-    "prettier-plugin-tailwindcss": "^0.7.2",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
+    "stylelint-config-standard": "^40.0.0",
+    "stylelint-config-tailwindcss": "^1.0.1",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.21.0",
     "typescript": "~5.7.2",
-    "typescript-eslint": "^8.56.1",
     "vite": "^6.0.0",
     "vite-tsconfig-paths": "^6.1.1",
-    "stylelint-config-standard": "^40.0.0",
-    "stylelint-config-tailwindcss": "^1.0.1",
     "vitest": "^4.0.18"
   }
 }

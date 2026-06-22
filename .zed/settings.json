@@ -9,14 +9,10 @@
       "code_actions_on_format": {
         "source.fixAll.stylelint": false
       },
-      "language_servers": [
-        "tailwindcss"
-      ]
+      "language_servers": ["tailwindcss"]
     },
     "SQL": {
-      "language_servers": [
-        "!postgres-language-server"
-      ]
+      "language_servers": ["!postgres-language-server"]
     }
-  },
+  }
 }

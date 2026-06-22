@@ -368,8 +368,8 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
     const task = tasks.find((t) => t.id === active.id);
     const targetCol = COLUMNS.find((c) => c.id === over.id);
     if (!task || !targetCol) return;
-    const sourceCol = COLUMNS.find((c) => c.statuses.includes(task.status))
-    if (sourceCol?.id === targetCol.id) return // no-op: same column
+    const sourceCol = COLUMNS.find((c) => c.statuses.includes(task.status));
+    if (sourceCol?.id === targetCol.id) return; // no-op: same column
 
     // Check readonly (blocked is computed — can't drag into it)
     if (targetCol.readonly) {

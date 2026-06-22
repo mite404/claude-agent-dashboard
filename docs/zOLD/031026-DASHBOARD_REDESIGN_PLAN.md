@@ -178,13 +178,13 @@ CREATE TABLE schema_version (
 
 **View Modes**:
 
-| View | Purpose | Default Elements |
-|------|---------|------------------|
-| **Dashboard** | Overview + metrics | Session health, active agents, task counts, blocked tasks, recent completions |
-| **Kanban** | Workflow management | Columns: Unassigned, Claimed, Running, Blocked, Completed; drag-to-reprioritize |
-| **Tasks** | Detailed task list | Sortable table with session/agent columns, claiming actions, log expansion |
-| **Sessions** | Session hierarchy | Orchestrator + spawned agents tree, status per session, agent metrics |
-| **Settings** | Preferences | View toggles, notification rules, theme, refresh rate |
+| View          | Purpose             | Default Elements                                                                |
+| ------------- | ------------------- | ------------------------------------------------------------------------------- |
+| **Dashboard** | Overview + metrics  | Session health, active agents, task counts, blocked tasks, recent completions   |
+| **Kanban**    | Workflow management | Columns: Unassigned, Claimed, Running, Blocked, Completed; drag-to-reprioritize |
+| **Tasks**     | Detailed task list  | Sortable table with session/agent columns, claiming actions, log expansion      |
+| **Sessions**  | Session hierarchy   | Orchestrator + spawned agents tree, status per session, agent metrics           |
+| **Settings**  | Preferences         | View toggles, notification rules, theme, refresh rate                           |
 
 ### 2.3 Data Model Changes
 
@@ -233,8 +233,8 @@ Use Drizzle's `update().where()` for atomic operations:
 // This is atomic — both status AND claimedBy update together or neither does
 await db
   .update(tasks)
-  .set({ status: "claimed", claimedBy: agentId })
-  .where(and(eq(tasks.id, id), eq(tasks.status, "unassigned")))
+  .set({ status: 'claimed', claimedBy: agentId })
+  .where(and(eq(tasks.id, id), eq(tasks.status, 'unassigned')));
 ```
 
 **Deliverable**:
@@ -338,13 +338,13 @@ await db
 
 ### Why Drizzle ORM + SQLite over other approaches
 
-| Option | Pros | Cons | Verdict |
-|--------|------|------|---------|
-| **Drizzle + SQLite (Bun)** | Type-safe, ACID, local-first, zero deps, TS-first, familiar API (Supabase-like) | Slight perf overhead (~0.2ms) vs raw SQL | ✅ Choose |
-| Raw SQL + Bun.sqlite | Fastest, minimal overhead | Error-prone, no type safety, hard to read | ❌ Less safe |
-| Prisma + SQLite | Popular, good migrations | Heavier, slower cold starts, less control | ❌ Overkill |
-| PostgreSQL | Robust, production-grade | Overkill, requires external process | ❌ Too heavy |
-| Turso (SQLite remote) | Sync-friendly, cloud backup | Requires auth, internet, costs | ❌ Add later |
+| Option                     | Pros                                                                            | Cons                                      | Verdict      |
+| -------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------- | ------------ |
+| **Drizzle + SQLite (Bun)** | Type-safe, ACID, local-first, zero deps, TS-first, familiar API (Supabase-like) | Slight perf overhead (~0.2ms) vs raw SQL  | ✅ Choose    |
+| Raw SQL + Bun.sqlite       | Fastest, minimal overhead                                                       | Error-prone, no type safety, hard to read | ❌ Less safe |
+| Prisma + SQLite            | Popular, good migrations                                                        | Heavier, slower cold starts, less control | ❌ Overkill  |
+| PostgreSQL                 | Robust, production-grade                                                        | Overkill, requires external process       | ❌ Too heavy |
+| Turso (SQLite remote)      | Sync-friendly, cloud backup                                                     | Requires auth, internet, costs            | ❌ Add later |
 
 **Why Drizzle specifically**:
 
@@ -375,14 +375,14 @@ describing it.
 
 ## 5. Risk Mitigation
 
-| Risk | Mitigation |
-|------|------------|
-| SQLite race conditions (PRAGMA journal_mode) | Use WAL mode + explicit transactions + test concurrent writes |
-| Data loss during migration | Keep db.json as backup for 1 week; validate record counts match |
-| UI complexity (5 views × dashboard) | Build incrementally; start with Kanban only, add others as needed |
+| Risk                                                      | Mitigation                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| SQLite race conditions (PRAGMA journal_mode)              | Use WAL mode + explicit transactions + test concurrent writes                         |
+| Data loss during migration                                | Keep db.json as backup for 1 week; validate record counts match                       |
+| UI complexity (5 views × dashboard)                       | Build incrementally; start with Kanban only, add others as needed                     |
 | Agent task discovery (agents don't know what's available) | Add `/api/tasks?status=unassigned&sessionId=orchestrator` endpoint for agents to poll |
-| Kanban drag-drop UX (too much friction) | Use `react-beautiful-dnd` (proven, accessible) |
-| Schema migrations breaking older agents | Version hook input/output, keep backward compat in first 2 phases |
+| Kanban drag-drop UX (too much friction)                   | Use `react-beautiful-dnd` (proven, accessible)                                        |
+| Schema migrations breaking older agents                   | Version hook input/output, keep backward compat in first 2 phases                     |
 
 ---
 

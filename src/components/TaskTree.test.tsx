@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import userEvent from '@testing-library/user-event'
+import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { TaskTree } from './TaskTree';
 import type { TaskNode } from '@/types/task';
@@ -68,12 +68,15 @@ describe('TaskTree', () => {
   });
 
   it('calls onStatusChange when child status is updated', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-       ok: true,
-       status: 200,
-     } as Response))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+      } as Response),
+    );
 
-    const mockStatusChange = vi.fn()
+    const mockStatusChange = vi.fn();
     const childNode = createMockNode({
       id: 'childNode',
       name: 'Child Task',
@@ -85,28 +88,30 @@ describe('TaskTree', () => {
       children: [childNode],
     });
 
-    const user = userEvent.setup()
-    render(<TaskTree nodes={[parentNode]} onStatusChange={mockStatusChange} />)
+    const user = userEvent.setup();
+    render(<TaskTree nodes={[parentNode]} onStatusChange={mockStatusChange} />);
 
     // find the child node's container and click the cancel button that triggers status change
-    const childHeading = screen.getByRole('heading', { name: childNode.name })
-    const button = within(childHeading.closest('.relative') || document.body).getByRole('button', { name: /cancel/i });
-    await user.click(button)
+    const childHeading = screen.getByRole('heading', { name: childNode.name });
+    const button = within(childHeading.closest('.relative') || document.body).getByRole('button', {
+      name: /cancel/i,
+    });
+    await user.click(button);
 
-    expect(mockStatusChange).toHaveBeenCalled()
+    expect(mockStatusChange).toHaveBeenCalled();
   });
 
   it('renders multiple levels of nesting (grandchildren)', () => {
     const grandchildNode = createMockNode({
       id: 'grandchildNode',
       name: 'Grandchild Task',
-      parentId: 'childNode'
-    })
+      parentId: 'childNode',
+    });
     const childNode = createMockNode({
       id: 'childNode',
       name: 'Child Task',
       parentId: 'parentNode',
-      children: [grandchildNode]
+      children: [grandchildNode],
     });
     const parentNode = createMockNode({
       id: 'parentNode',
@@ -114,12 +119,12 @@ describe('TaskTree', () => {
       children: [childNode],
     });
 
-    render(<TaskTree nodes={[parentNode]} />)
+    render(<TaskTree nodes={[parentNode]} />);
 
     // check all 3 nodes exist in DOM
-    expect(screen.getByRole('heading', { name: parentNode.name })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: childNode.name })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: grandchildNode.name })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: parentNode.name })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: childNode.name })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: grandchildNode.name })).toBeInTheDocument();
 
     // // check indentation increases with depth
     // const childHeading = screen.getByRole('heading', { name: childNode.name })
@@ -127,5 +132,5 @@ describe('TaskTree', () => {
 
     // const grandchildHeading = screen.getByRole('heading', { name: grandchildNode.name })
     // expect(grandchildHeading.closest('.pl-12')).toBeInTheDocument() // grandchild indented twice
-  })
+  });
 });

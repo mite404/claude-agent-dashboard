@@ -4,10 +4,7 @@ import type { TaskNode } from '@/types/task';
 
 // ─── Test Fixtures ────────────────────────────────────────────────────────────
 
-function createTask(
-  id: string,
-  overrides: Partial<TaskNode> = {},
-): TaskNode {
+function createTask(id: string, overrides: Partial<TaskNode> = {}): TaskNode {
   return {
     id,
     name: `Task ${id}`,
@@ -30,10 +27,7 @@ function createTask(
 
 describe('sortNodes', () => {
   it('returns nodes unchanged when sort.col is null', () => {
-    const nodes = [
-      createTask('a', { status: 'running' }),
-      createTask('b', { status: 'pending' }),
-    ];
+    const nodes = [createTask('a', { status: 'running' }), createTask('b', { status: 'pending' })];
     const sorted = sortNodes(nodes, { col: null, dir: 'asc' });
     expect(sorted).toEqual(nodes);
   });
@@ -107,10 +101,7 @@ describe('sortNodes', () => {
   });
 
   it('sorts by agent ID', () => {
-    const nodes = [
-      createTask('a', { agentId: 'zzz' }),
-      createTask('b', { agentId: 'aaa' }),
-    ];
+    const nodes = [createTask('a', { agentId: 'zzz' }), createTask('b', { agentId: 'aaa' })];
 
     const sorted = sortNodes(nodes, { col: 'id', dir: 'asc' });
 
@@ -165,10 +156,7 @@ describe('sortNodes', () => {
 
 describe('flattenVisible', () => {
   it('flattens a tree into a single level list', () => {
-    const nodes = [
-      createTask('a'),
-      createTask('b'),
-    ];
+    const nodes = [createTask('a'), createTask('b')];
     const expanded = new Set<string>();
 
     const flat = flattenVisible(nodes, expanded);

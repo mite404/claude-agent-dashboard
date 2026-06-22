@@ -24,52 +24,52 @@ export function buildSessionEvent(
   timestamp: string,
   sessionId: string,
 ): Record<string, any> {
-  const agentId = payload.agent_id ?? "";
-  const agentType = payload.agent_type ?? "";
-  let summary = "";
+  const agentId = payload.agent_id ?? '';
+  const agentType = payload.agent_type ?? '';
+  let summary = '';
   let extraFields: Record<string, any> = {};
 
   switch (eventType) {
-    case "UserPromptSubmit": {
-      const prompt = payload.prompt ?? "";
+    case 'UserPromptSubmit': {
+      const prompt = payload.prompt ?? '';
       summary = prompt.slice(0, 100);
       extraFields = { prompt };
       break;
     }
-    case "SessionStart": {
-      const model = payload.model ?? "unknown";
+    case 'SessionStart': {
+      const model = payload.model ?? 'unknown';
       summary = model;
       extraFields = { model };
       break;
     }
-    case "Stop": {
-      summary = "session ended";
+    case 'Stop': {
+      summary = 'session ended';
       extraFields = {};
       break;
     }
-    case "SubagentStart":
+    case 'SubagentStart':
       summary = `agent ${agentId} started`;
       extraFields = {};
       break;
-    case "SubagentStop": {
+    case 'SubagentStop': {
       summary = `agent ${agentId} finished`;
       extraFields = {};
       break;
     }
-    case "Notification": {
-      const message = payload.message ?? "";
-      const notificationType = payload.notification_type ?? "";
+    case 'Notification': {
+      const message = payload.message ?? '';
+      const notificationType = payload.notification_type ?? '';
       summary = `${notificationType}: ${message.slice(0, 80)}`;
       extraFields = { message, notificationType };
       break;
     }
-    case "PermissionRequest": {
-      const tool = payload.tool_name ?? "unknown";
+    case 'PermissionRequest': {
+      const tool = payload.tool_name ?? 'unknown';
       summary = `${tool} requested`;
       extraFields = { toolName: tool };
       break;
     }
-    case "PreCompact": {
+    case 'PreCompact': {
       const tokenCount = payload.token_count ?? null;
       summary =
         tokenCount !== null
@@ -78,52 +78,52 @@ export function buildSessionEvent(
       extraFields = { tokenCount };
       break;
     }
-    case "PostToolUseFailure": {
-      const tool = payload.tool_name ?? "unknown";
-      const error = payload.error ?? "";
+    case 'PostToolUseFailure': {
+      const tool = payload.tool_name ?? 'unknown';
+      const error = payload.error ?? '';
       summary = `${tool} failed: ${error.slice(0, 80)}`;
       extraFields = { toolName: tool, error };
       break;
     }
-    case "SessionEnd": {
-      const reason = payload.reason ?? "unknown";
+    case 'SessionEnd': {
+      const reason = payload.reason ?? 'unknown';
       summary = `session ended: ${reason}`;
       extraFields = { reason };
       break;
     }
-    case "TeammateIdle": {
+    case 'TeammateIdle': {
       summary = `teammate ${agentId} idle`;
       extraFields = {};
       break;
     }
-    case "TaskCompleted": {
-      const taskTitle = payload.task_title ?? payload.task_id ?? "unknown";
+    case 'TaskCompleted': {
+      const taskTitle = payload.task_title ?? payload.task_id ?? 'unknown';
       summary = `task completed: ${taskTitle.slice(0, 80)}`;
       extraFields = { taskTitle };
       break;
     }
-    case "InstructionsLoaded": {
-      const filePath = payload.file_path ?? "unknown";
-      const source = payload.source ?? "unknown";
+    case 'InstructionsLoaded': {
+      const filePath = payload.file_path ?? 'unknown';
+      const source = payload.source ?? 'unknown';
       summary = `instructions loaded: ${filePath}`;
       extraFields = { filePath, source };
       break;
     }
-    case "ConfigChange": {
-      const filePath = payload.file_path ?? "unknown";
-      const source = payload.source ?? "unknown";
+    case 'ConfigChange': {
+      const filePath = payload.file_path ?? 'unknown';
+      const source = payload.source ?? 'unknown';
       summary = `config changed: ${filePath} (${source})`;
       extraFields = { filePath, source };
       break;
     }
-    case "WorktreeCreate": {
-      const branch = payload.branch ?? "unknown";
+    case 'WorktreeCreate': {
+      const branch = payload.branch ?? 'unknown';
       summary = `worktree created: ${branch}`;
       extraFields = { branch };
       break;
     }
-    case "WorktreeRemove": {
-      const branch = payload.branch ?? "unknown";
+    case 'WorktreeRemove': {
+      const branch = payload.branch ?? 'unknown';
       summary = `worktree removed: ${branch}`;
       extraFields = { branch };
       break;

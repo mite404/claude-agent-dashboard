@@ -35,11 +35,11 @@
 - Destructure with aliases to convert snake_case → camelCase:
 
   ```ts
-  const { 
+  const {
     session_id: sessionId = '',
     tool_use_id: taskId = '',
     tool_name: rawName = 'Unnamed task',
-    tool_input: { subagent_type: subagentType = 'general-purpose' } = {}
+    tool_input: { subagent_type: subagentType = 'general-purpose' } = {},
   } = payload;
   ```
 
@@ -143,11 +143,13 @@ const newTask = {
   kind,
   originatingSkill,
   // Optional: include logs for the server to record the startup event
-  logs: [{
-    timestamp: new Date().toISOString(),
-    level: 'info',
-    message: `Task started: ${displayName}`
-  }]
+  logs: [
+    {
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      message: `Task started: ${displayName}`,
+    },
+  ],
 };
 ```
 

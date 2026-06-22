@@ -31,15 +31,15 @@ Claude Code Agent
 
 The app's **input layer** — Claude Code calls these on every tool use via `.claude/settings.json`.
 
-| Script | Hook trigger | What it does |
-|--------|-------------|--------------|
-| `pre-tool-agent.sh` | `PreToolUse [Agent]` | POSTs a new task (`status='running'`) |
-| `post-tool-agent.sh` | `PostToolUse [Agent]` | PATCHes task to `completed`/`failed`, appends log |
-| `pre-tool-all.sh` | `PreToolUse [*]` | Appends a `HookEvent` (`phase:'pre'`) to the task |
-| `post-tool-all.sh` | `PostToolUse [*]` | Updates that HookEvent to `phase:'post'`, sets `completedAt` |
-| `session-event.sh` | All 16 session events | POSTs a `SessionEvent` row for every lifecycle event |
-| `smoke-test.sh` | Manual | Health check — verifies server + proxy + full CRUD round-trip |
-| `spawn-terminal.ts` | HTTP `:3002` | Launches a new `claude` session in a terminal via AppleScript |
+| Script               | Hook trigger          | What it does                                                  |
+| -------------------- | --------------------- | ------------------------------------------------------------- |
+| `pre-tool-agent.sh`  | `PreToolUse [Agent]`  | POSTs a new task (`status='running'`)                         |
+| `post-tool-agent.sh` | `PostToolUse [Agent]` | PATCHes task to `completed`/`failed`, appends log             |
+| `pre-tool-all.sh`    | `PreToolUse [*]`      | Appends a `HookEvent` (`phase:'pre'`) to the task             |
+| `post-tool-all.sh`   | `PostToolUse [*]`     | Updates that HookEvent to `phase:'post'`, sets `completedAt`  |
+| `session-event.sh`   | All 16 session events | POSTs a `SessionEvent` row for every lifecycle event          |
+| `smoke-test.sh`      | Manual                | Health check — verifies server + proxy + full CRUD round-trip |
+| `spawn-terminal.ts`  | HTTP `:3002`          | Launches a new `claude` session in a terminal via AppleScript |
 
 ### ⚠️ Known gap: HookEvents are silently dropped
 
@@ -47,7 +47,7 @@ The app's **input layer** — Claude Code calls these on every tool use via `.cl
 bodies. But `server.ts` strips `events` before every Drizzle UPDATE:
 
 ```typescript
-const { logs, events, dependencies, ...safeFields } = body;  // events is discarded
+const { logs, events, dependencies, ...safeFields } = body; // events is discarded
 ```
 
 The `EventTrailRow` in the UI will never show live tool events until this is addressed. Tasks
@@ -61,22 +61,22 @@ Hono REST server on port 3001. All routes are proxied through Vite at `/api/*`.
 
 ### Task endpoints
 
-| Method | Path | Called by | Purpose |
-|--------|------|-----------|---------|
-| `GET` | `/tasks` | `useTaskPolling` | List all; filter by `?status` or `?sessionId` |
-| `GET` | `/tasks/:id` | — | Single task by ID |
-| `POST` | `/tasks` | `pre-tool-agent.sh` | Create task; auto-upserts `sessions` row |
-| `PATCH` | `/tasks/:id` | `patchTask()` | Update task fields (whitelisted) |
-| `PUT` | `/tasks/:id` | Legacy shell scripts | Alias for PATCH |
-| `DELETE` | `/tasks/:id` | `deleteTask()` | Delete task |
+| Method   | Path         | Called by            | Purpose                                       |
+| -------- | ------------ | -------------------- | --------------------------------------------- |
+| `GET`    | `/tasks`     | `useTaskPolling`     | List all; filter by `?status` or `?sessionId` |
+| `GET`    | `/tasks/:id` | —                    | Single task by ID                             |
+| `POST`   | `/tasks`     | `pre-tool-agent.sh`  | Create task; auto-upserts `sessions` row      |
+| `PATCH`  | `/tasks/:id` | `patchTask()`        | Update task fields (whitelisted)              |
+| `PUT`    | `/tasks/:id` | Legacy shell scripts | Alias for PATCH                               |
+| `DELETE` | `/tasks/:id` | `deleteTask()`       | Delete task                                   |
 
 ### Session event endpoints
 
-| Method | Path | Called by | Purpose |
-|--------|------|-----------|---------|
-| `GET` | `/sessionEvents` | `useTaskPolling` | List all; filter by `?sessionId` |
-| `POST` | `/sessionEvents` | `session-event.sh` | Create a session event |
-| `DELETE` | `/sessionEvents` | `clearAllSessionEvents()` | Delete all (or by sessionId) |
+| Method   | Path             | Called by                 | Purpose                          |
+| -------- | ---------------- | ------------------------- | -------------------------------- |
+| `GET`    | `/sessionEvents` | `useTaskPolling`          | List all; filter by `?sessionId` |
+| `POST`   | `/sessionEvents` | `session-event.sh`        | Create a session event           |
+| `DELETE` | `/sessionEvents` | `clearAllSessionEvents()` | Delete all (or by sessionId)     |
 
 ### `handleTaskUpdate` — the PATCH/PUT whitelist
 
@@ -101,31 +101,31 @@ snake_case (e.g., `agentType` in code → `agent_type` in SQLite).
 
 The core table. Stored flat — tree structure is built client-side from `parentId`.
 
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | text PK | UUID, generated by server |
-| `sessionId` | text FK→sessions | Required; auto-upserted by POST /tasks |
-| `parentId` | text FK→tasks | Nullable; enables parent-child nesting |
-| `name` | text NOT NULL | Task description from hook |
-| `status` | text | Default `'unassigned'`; `'blocked'` is never stored |
-| `agentId` | text | Hex subagent ID (from SubagentStart event) |
-| `agentType` | text | e.g. `'general-purpose'`, `'Explore'` |
-| `progressPercentage` | integer | 0–100, default 0 |
-| `originatingSkill` | text | e.g. `'/review-pr'` |
-| `taskKind` | text | `'orchestrator'` \| `'work'` \| `'background-task'` |
+| Column               | Type             | Notes                                               |
+| -------------------- | ---------------- | --------------------------------------------------- |
+| `id`                 | text PK          | UUID, generated by server                           |
+| `sessionId`          | text FK→sessions | Required; auto-upserted by POST /tasks              |
+| `parentId`           | text FK→tasks    | Nullable; enables parent-child nesting              |
+| `name`               | text NOT NULL    | Task description from hook                          |
+| `status`             | text             | Default `'unassigned'`; `'blocked'` is never stored |
+| `agentId`            | text             | Hex subagent ID (from SubagentStart event)          |
+| `agentType`          | text             | e.g. `'general-purpose'`, `'Explore'`               |
+| `progressPercentage` | integer          | 0–100, default 0                                    |
+| `originatingSkill`   | text             | e.g. `'/review-pr'`                                 |
+| `taskKind`           | text             | `'orchestrator'` \| `'work'` \| `'background-task'` |
 
 ### `sessionEventsTable`
 
 One row per Claude Code lifecycle event. Not task-scoped — covers the whole session.
 
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | text PK | UUID |
-| `sessionId` | text FK→sessions | |
-| `type` | text NOT NULL | One of 16 `SessionEventType` values |
-| `summary` | text | Human-readable description |
-| `agentId` | text | Which subagent fired this |
-| `metadata` | text (JSON) | Parsed to object on read by GET /sessionEvents |
+| Column      | Type             | Notes                                          |
+| ----------- | ---------------- | ---------------------------------------------- |
+| `id`        | text PK          | UUID                                           |
+| `sessionId` | text FK→sessions |                                                |
+| `type`      | text NOT NULL    | One of 16 `SessionEventType` values            |
+| `summary`   | text             | Human-readable description                     |
+| `agentId`   | text             | Which subagent fired this                      |
+| `metadata`  | text (JSON)      | Parsed to object on read by GET /sessionEvents |
 
 ### Other tables
 
@@ -181,26 +181,26 @@ The biggest file in the codebase. Handles filtering, sorting, row expansion, and
 
 ### Sub-components (all co-located in the same file)
 
-| Component | ~Line | Purpose |
-|-----------|-------|---------|
-| `FilterPopover` | 94 | Dropdown for status/agent filter chips |
-| `LogDetailRow` | 147 | Expandable row: task logs with color-coded levels |
-| `CheckpointRow` | 225 | Expandable row: subtask list with status icons |
-| `AgentSummaryRow` | 262 | Expandable row: last assistant message |
-| `EventTrailRow` | 283 | Expandable row: tool event timeline (currently empty — see gap above) |
-| `TaskRow` | 363 | The main task row: name, agent, status, progress bar, action menu |
-| `SortHeader` | 589 | Column header with sort direction + hide toggle |
-| `TaskTable` | 640 | Root component; owns all state |
+| Component         | ~Line | Purpose                                                               |
+| ----------------- | ----- | --------------------------------------------------------------------- |
+| `FilterPopover`   | 94    | Dropdown for status/agent filter chips                                |
+| `LogDetailRow`    | 147   | Expandable row: task logs with color-coded levels                     |
+| `CheckpointRow`   | 225   | Expandable row: subtask list with status icons                        |
+| `AgentSummaryRow` | 262   | Expandable row: last assistant message                                |
+| `EventTrailRow`   | 283   | Expandable row: tool event timeline (currently empty — see gap above) |
+| `TaskRow`         | 363   | The main task row: name, agent, status, progress bar, action menu     |
+| `SortHeader`      | 589   | Column header with sort direction + hide toggle                       |
+| `TaskTable`       | 640   | Root component; owns all state                                        |
 
 ### Key state inside `TaskTable`
 
-| State | Type | Purpose |
-|-------|------|---------|
-| `expandedLogs` | `Set<string>` | Which task IDs have the detail panel open |
-| `filters` | `{ status, agent }` | Active filter selections |
-| `sort` | `{ col, dir }` | Current sort column and direction |
-| `hiddenCols` | `Set<HideableCol>` | Columns toggled off via View menu |
-| `selected` | `Set<string>` | Checked rows for bulk actions |
+| State          | Type                | Purpose                                   |
+| -------------- | ------------------- | ----------------------------------------- |
+| `expandedLogs` | `Set<string>`       | Which task IDs have the detail panel open |
+| `filters`      | `{ status, agent }` | Active filter selections                  |
+| `sort`         | `{ col, dir }`      | Current sort column and direction         |
+| `hiddenCols`   | `Set<HideableCol>`  | Columns toggled off via View menu         |
+| `selected`     | `Set<string>`       | Checked rows for bulk actions             |
 
 ### Data pipeline inside `TaskTable` (useMemo chain)
 
@@ -218,11 +218,11 @@ tree (from useTaskPolling, passed as prop)
 
 Thin `fetch` wrappers. All throw on non-OK responses.
 
-| Function | Method | Endpoint | Used by |
-|----------|--------|----------|---------|
-| `patchTask(id, patch)` | PATCH | `/api/tasks/:id` | TaskTable action handlers |
-| `deleteTask(id)` | DELETE | `/api/tasks/:id` | Bulk delete, "Clear done" button |
-| `clearAllSessionEvents()` | DELETE | `/api/sessionEvents` | GlobalEventStrip "Clear all" |
+| Function                  | Method | Endpoint             | Used by                          |
+| ------------------------- | ------ | -------------------- | -------------------------------- |
+| `patchTask(id, patch)`    | PATCH  | `/api/tasks/:id`     | TaskTable action handlers        |
+| `deleteTask(id)`          | DELETE | `/api/tasks/:id`     | Bulk delete, "Clear done" button |
+| `clearAllSessionEvents()` | DELETE | `/api/sessionEvents` | GlobalEventStrip "Clear all"     |
 
 ---
 
@@ -258,32 +258,38 @@ WorktreeRemove    🍂
 interface Task {
   id: string;
   name: string;
-  status: TaskStatus;        // see union below; 'blocked' is computed, never stored
-  agentType: string;         // 'general-purpose' | 'Explore' | etc.
-  parentId?: string | null;  // enables tree nesting
+  status: TaskStatus; // see union below; 'blocked' is computed, never stored
+  agentType: string; // 'general-purpose' | 'Explore' | etc.
+  parentId?: string | null; // enables tree nesting
   sessionId?: string;
-  createdAt: string;         // ISO timestamp
+  createdAt: string; // ISO timestamp
   startedAt?: string | null;
   completedAt?: string | null;
   progressPercentage: number;
-  logs?: LogEntry[];         // optional — stored in logsTable, not in GET /tasks response
-  events?: HookEvent[];      // tool events — currently not persisted (see known gap)
-  dependencies?: string[];   // task IDs this task waits for
-  agentId?: string;          // hex subagent ID from SubagentStart
+  logs?: LogEntry[]; // optional — stored in logsTable, not in GET /tasks response
+  events?: HookEvent[]; // tool events — currently not persisted (see known gap)
+  dependencies?: string[]; // task IDs this task waits for
+  agentId?: string; // hex subagent ID from SubagentStart
   originatingSkill?: string; // e.g. '/review-pr'
   taskKind?: TaskKind;
 }
 
-type TaskStatus = 'running' | 'completed' | 'failed' | 'paused'
-                | 'cancelled' | 'blocked' | 'unassigned';
+type TaskStatus =
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'paused'
+  | 'cancelled'
+  | 'blocked'
+  | 'unassigned';
 ```
 
 ### `TaskNode` — frontend-only tree form
 
 ```typescript
 interface TaskNode extends Task {
-  children: TaskNode[];  // nested child tasks, built by buildTree()
-  blockedBy?: string[];  // computed by computeBlockedState(), never in DB
+  children: TaskNode[]; // nested child tasks, built by buildTree()
+  blockedBy?: string[]; // computed by computeBlockedState(), never in DB
 }
 ```
 
@@ -296,11 +302,11 @@ Key fields: `id`, `type: SessionEventType`, `timestamp`, `sessionId`, `summary`,
 
 ```typescript
 interface HookEvent {
-  id: string;          // same as tool_use_id from Claude Code
-  toolName: string;    // 'Bash' | 'Read' | 'Write' | 'Edit' | etc.
+  id: string; // same as tool_use_id from Claude Code
+  toolName: string; // 'Bash' | 'Read' | 'Write' | 'Edit' | etc.
   phase: 'pre' | 'post';
   status: 'running' | 'completed' | 'failed';
-  summary: string;     // first ~120 chars of tool input
+  summary: string; // first ~120 chars of tool input
   timestamp: string;
   completedAt?: string;
 }
@@ -312,19 +318,19 @@ interface HookEvent {
 
 Lookup tables used throughout the UI. Import from here instead of hardcoding.
 
-| Export | Maps | Used by |
-|--------|------|---------|
-| `STATUS_ICON` | `TaskStatus → JSX icon` | TaskRow status column |
-| `STATUS_LABEL` | `TaskStatus → string` | Filter chips |
-| `STATUS_TEXT` | `TaskStatus → Tailwind color` | TaskRow text |
-| `PROGRESS_BAR` | `TaskStatus → Tailwind bg` | Progress bar fill color |
-| `LOG_LEVEL_STYLE` | `LogLevel → Tailwind color` | LogDetailRow |
-| `TOOL_EMOJI` | `toolName → emoji` | EventTrailRow |
-| `SESSION_EVENT_EMOJI` | `SessionEventType → emoji` | GlobalEventStrip |
-| `CHECKPOINT_ICON` | `TaskStatus → unicode char` | CheckpointRow |
-| `TASK_KIND_ICON` | `TaskKind → JSX icon` | TaskRow |
-| `HIDEABLE_COLS` | `{ col, label }[]` | View menu column toggles |
-| `STATUS_ORDER` | `TaskStatus → number` | sortNodes sort order |
+| Export                | Maps                          | Used by                  |
+| --------------------- | ----------------------------- | ------------------------ |
+| `STATUS_ICON`         | `TaskStatus → JSX icon`       | TaskRow status column    |
+| `STATUS_LABEL`        | `TaskStatus → string`         | Filter chips             |
+| `STATUS_TEXT`         | `TaskStatus → Tailwind color` | TaskRow text             |
+| `PROGRESS_BAR`        | `TaskStatus → Tailwind bg`    | Progress bar fill color  |
+| `LOG_LEVEL_STYLE`     | `LogLevel → Tailwind color`   | LogDetailRow             |
+| `TOOL_EMOJI`          | `toolName → emoji`            | EventTrailRow            |
+| `SESSION_EVENT_EMOJI` | `SessionEventType → emoji`    | GlobalEventStrip         |
+| `CHECKPOINT_ICON`     | `TaskStatus → unicode char`   | CheckpointRow            |
+| `TASK_KIND_ICON`      | `TaskKind → JSX icon`         | TaskRow                  |
+| `HIDEABLE_COLS`       | `{ col, label }[]`            | View menu column toggles |
+| `STATUS_ORDER`        | `TaskStatus → number`         | sortNodes sort order     |
 
 ---
 

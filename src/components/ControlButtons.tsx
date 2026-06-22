@@ -1,12 +1,12 @@
-import { useState } from 'react'
-import { XCircle, PauseCircle, RotateCcw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import type { TaskStatus } from '@/types/task'
+import { useState } from 'react';
+import { XCircle, PauseCircle, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { TaskStatus } from '@/types/task';
 
 interface ControlButtonsProps {
-  taskId: string
-  status: TaskStatus
-  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void
+  taskId: string;
+  status: TaskStatus;
+  onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
 async function patchTask(taskId: string, patch: object) {
@@ -14,35 +14,35 @@ async function patchTask(taskId: string, patch: object) {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
-  })
-  if (!res.ok) throw new Error(`PATCH failed: HTTP ${res.status}`)
+  });
+  if (!res.ok) throw new Error(`PATCH failed: HTTP ${res.status}`);
 }
 
 export function ControlButtons({ taskId, status, onStatusChange }: ControlButtonsProps) {
-  const [busy, setBusy] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null);
 
   const handle = async (action: 'cancel' | 'pause' | 'retry') => {
-    setBusy(action)
+    setBusy(action);
     try {
       const patch =
         action === 'cancel'
           ? { status: 'cancelled' as TaskStatus }
           : action === 'pause'
             ? { status: 'paused' as TaskStatus }
-            : { status: 'running' as TaskStatus, progressPercentage: 0 }
+            : { status: 'running' as TaskStatus, progressPercentage: 0 };
 
-      await patchTask(taskId, patch)
-      onStatusChange?.(taskId, patch.status)
+      await patchTask(taskId, patch);
+      onStatusChange?.(taskId, patch.status);
     } catch (err) {
-      console.error(`Failed to ${action} task ${taskId}:`, err)
+      console.error(`Failed to ${action} task ${taskId}:`, err);
     } finally {
-      setBusy(null)
+      setBusy(null);
     }
-  }
+  };
 
-  const isTerminal = status === 'completed' || status === 'cancelled'
-  const isRunning = status === 'running'
-  const isPaused = status === 'paused'
+  const isTerminal = status === 'completed' || status === 'cancelled';
+  const isRunning = status === 'running';
+  const isPaused = status === 'paused';
 
   return (
     <div className="flex items-center gap-1">
@@ -82,5 +82,5 @@ export function ControlButtons({ taskId, status, onStatusChange }: ControlButton
         Retry
       </Button>
     </div>
-  )
+  );
 }

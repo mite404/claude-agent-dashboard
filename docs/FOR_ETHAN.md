@@ -35,16 +35,16 @@ Claude Code (the talent)
 
 **Key cast members:**
 
-| File | Role |
-|------|------|
-| `db.json` | Source of truth. json-server reads + writes here. |
-| `src/hooks/useTaskPolling.ts` | The heartbeat. Fetches `/api/tasks` on a timer. |
-| `src/components/Dashboard.tsx` | The control room. Holds state, renders everything. |
-| `src/components/TaskTree.tsx` | The org chart. Renders parent → child recursively. |
-| `src/components/TaskCard.tsx` | The monitor tile. One task per card. |
-| `src/components/LogViewer.tsx` | The tape deck. Accordion log viewer. |
-| `src/components/ControlButtons.tsx` | The intercom. Cancel/Pause/Retry via PATCH. |
-| `vite.config.ts` | The broadcast director. Routes, proxies, and watching rules. |
+| File                                | Role                                                         |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `db.json`                           | Source of truth. json-server reads + writes here.            |
+| `src/hooks/useTaskPolling.ts`       | The heartbeat. Fetches `/api/tasks` on a timer.              |
+| `src/components/Dashboard.tsx`      | The control room. Holds state, renders everything.           |
+| `src/components/TaskTree.tsx`       | The org chart. Renders parent → child recursively.           |
+| `src/components/TaskCard.tsx`       | The monitor tile. One task per card.                         |
+| `src/components/LogViewer.tsx`      | The tape deck. Accordion log viewer.                         |
+| `src/components/ControlButtons.tsx` | The intercom. Cancel/Pause/Retry via PATCH.                  |
+| `vite.config.ts`                    | The broadcast director. Routes, proxies, and watching rules. |
 
 ---
 
@@ -80,17 +80,17 @@ ourselves. Not worth it for this use case.
 
 Tailwind v4 (released early 2025) flipped the config model:
 
-| v3 | v4 |
-|----|----|
-| `tailwind.config.js` (JavaScript) | `@theme {}` block in CSS |
-| `postcss.config.js` required | PostCSS **not needed** |
-| `content: ['./src/**/*.tsx']` | Automatically scans files |
-| `theme.extend.colors` | CSS custom properties in `@theme` |
+| v3                                | v4                                |
+| --------------------------------- | --------------------------------- |
+| `tailwind.config.js` (JavaScript) | `@theme {}` block in CSS          |
+| `postcss.config.js` required      | PostCSS **not needed**            |
+| `content: ['./src/**/*.tsx']`     | Automatically scans files         |
+| `theme.extend.colors`             | CSS custom properties in `@theme` |
 
 In `src/index.css`:
 
 ```css
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-status-running: hsl(217 91% 60%);
@@ -172,8 +172,8 @@ exclude them.
 2. (files with `"type": "module"` in `package.json`). Vite does shim it in config files,
    but the alias value ended up wrong.
 3. Second try used `fileURLToPath(new URL('./src', import.meta.url))` — correct approach for ESM,
-but Vite still didn't pick it up in time because a full server restart is required for config
-changes (HMR doesn't apply to the config file itself).
+   but Vite still didn't pick it up in time because a full server restart is required for config
+   changes (HMR doesn't apply to the config file itself).
 
 **Fix:** Use `vite-tsconfig-paths` plugin. It reads path mappings from `tsconfig.app.json` and hands
 them to Vite — one source of truth, no manual alias wiring.
@@ -225,24 +225,24 @@ suite that runs for free.
 array by status, render them. Done, right?
 
 **Why that breaks:** Our tasks have parent/child relationships. If you sort a flat list, a child
-task ("Build CI pipeline") could end up rendered *above* its parent ("Orchestrate workflow"). The
+task ("Build CI pipeline") could end up rendered _above_ its parent ("Orchestrate workflow"). The
 tree hierarchy falls apart — orphaned rows floating in the wrong order.
 
-**The fix:** Sort *recursively*. Sort the top-level parent nodes relative to each other, then for
-each parent, sort *its children* relative to each other. The family units stay intact.
+**The fix:** Sort _recursively_. Sort the top-level parent nodes relative to each other, then for
+each parent, sort _its children_ relative to each other. The family units stay intact.
 
 ```typescript
 function sortNodes(nodes: TaskNode[], dir: SortDir): TaskNode[] {
-  if (!dir) return nodes
+  if (!dir) return nodes;
   const sorted = [...nodes].sort((a, b) => {
-    const cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
-    return dir === 'asc' ? cmp : -cmp
-  })
-  return sorted.map(n => ({ ...n, children: sortNodes(n.children, dir) }))
+    const cmp = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  return sorted.map((n) => ({ ...n, children: sortNodes(n.children, dir) }));
 }
 ```
 
-**Film analogy:** It's like sorting a shoot schedule by scene type. You can reorder the *days* of
+**Film analogy:** It's like sorting a shoot schedule by scene type. You can reorder the _days_ of
 production, but you can't separate a director from their crew within a given day. The hierarchy is
 the atomic unit.
 
@@ -255,7 +255,7 @@ flattens the tree first and then acts on the flat list will always break parent/
 
 **The old architecture:** Each `TaskCard` contained `ControlButtons`, which contained its own
 `fetch` call to PATCH json-server. The card was a self-contained unit — it knew how to cancel
-itself, pause itself, retry itself. This is called a **fat component**: it owns both rendering *and*
+itself, pause itself, retry itself. This is called a **fat component**: it owns both rendering _and_
 actions.
 
 **Why that pattern breaks in a table:** In a table, each row is a thin data renderer. If
@@ -275,15 +275,15 @@ TaskTable         ← owns: busy, expandedRows, selectedRows, filters, sort
 **Film analogy:** The old card system was like every actor booking their own car. The table system
 has one production coordinator who handles all logistics. The actors just say "I need a ride."
 
-**Lesson:** Fat components are fine for isolated widgets. But once components need to *share* state
-or *coordinate*, lift that state to the nearest common ancestor. This is one of React's core
+**Lesson:** Fat components are fine for isolated widgets. But once components need to _share_ state
+or _coordinate_, lift that state to the nearest common ancestor. This is one of React's core
 patterns: "lifting state up."
 
 ---
 
 ### 🎬 Blooper 8: You can't put a `key` prop on a `<>` fragment shorthand
 
-**The situation:** The table needed to render *two sibling `<tr>` elements* per task — the task
+**The situation:** The table needed to render _two sibling `<tr>` elements_ per task — the task
 row,
 and an optional log detail row directly below it. In a `.map()`, React requires a `key` on the
 outermost element of each item so it can track list order efficiently.
@@ -324,7 +324,7 @@ groups), switch to `<React.Fragment key={...}>`.
 ### 🎬 Blooper 9: The checkbox "indeterminate" state doesn't exist as a React prop
 
 **The situation:** The "select all" checkbox in the table header needs three states: unchecked
-(nothing selected), checked (everything selected), and *indeterminate* (some selected — the ⊟
+(nothing selected), checked (everything selected), and _indeterminate_ (some selected — the ⊟
 half-filled visual). That third state is how every professional data table signals partial
 selection.
 
@@ -349,7 +349,7 @@ const headerChecked = allSelected ? true : someSelected ? 'indeterminate' : fals
 ```
 
 **Lesson:** Some browser behaviors don't map cleanly to React's prop model because they're DOM
-*properties* (set via JavaScript), not HTML *attributes* (set via markup). Radix UI exists partly to
+_properties_ (set via JavaScript), not HTML _attributes_ (set via markup). Radix UI exists partly to
 paper over exactly these gaps — it wraps the imperative DOM API in a declarative React interface.
 
 ---
@@ -367,38 +367,38 @@ the user.
 ```tsx
 // ❌ This resets ALL expanded state on every poll
 useEffect(() => {
-  const parentIds = new Set(tree.filter(n => n.children.length > 0).map(n => n.id))
-  setExpandedRows(parentIds) // blows away manual collapses
-}, [tree])
+  const parentIds = new Set(tree.filter((n) => n.children.length > 0).map((n) => n.id));
+  setExpandedRows(parentIds); // blows away manual collapses
+}, [tree]);
 ```
 
-**The right fix:** Only *add* newly-seen parent IDs — never remove ones already tracked. The `Set`
-grows monotonically from polling, but only *shrinks* when the user manually clicks a collapse
+**The right fix:** Only _add_ newly-seen parent IDs — never remove ones already tracked. The `Set`
+grows monotonically from polling, but only _shrinks_ when the user manually clicks a collapse
 toggle.
 
 ```tsx
 useEffect(() => {
-  setExpandedRows(prev => {
-    const next = new Set(prev)           // start from existing state
+  setExpandedRows((prev) => {
+    const next = new Set(prev); // start from existing state
     const collect = (nodes: TaskNode[]) => {
       for (const n of nodes) {
-        if (n.children.length > 0) next.add(n.id)  // only add, never remove
-        collect(n.children)
+        if (n.children.length > 0) next.add(n.id); // only add, never remove
+        collect(n.children);
       }
-    }
-    collect(tree)
-    return next
-  })
-}, [tree])
+    };
+    collect(tree);
+    return next;
+  });
+}, [tree]);
 ```
 
 **Film analogy:** Think of `expandedRows` like a director's shot list. New shots get appended as
 production evolves — you never throw away the whole list just because a new day of shooting
 started.
 
-**Lesson:** When polling data updates state that users also control manually, always *merge*
+**Lesson:** When polling data updates state that users also control manually, always _merge_
 incoming data into existing user state rather than replacing it. Replacing feels like the app is
-fighting the user. The rule of thumb: polling can only *add* to user-driven state, never *reset* it.
+fighting the user. The rule of thumb: polling can only _add_ to user-driven state, never _reset_ it.
 
 ---
 
@@ -412,12 +412,12 @@ multiple call sites. The refactoring started fine, but some references were miss
 
 ```typescript
 // OLD pattern: sortDir was a primitive
-const [sortDir, setSortDir] = useState<"asc" | "desc" | null>(null);
-const sorted = sortNodes(tree, sortDir);  // ← pass primitive
+const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null);
+const sorted = sortNodes(tree, sortDir); // ← pass primitive
 
 // NEW pattern: sort is an object
-const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
-const sorted = sortNodes(tree, sort);  // ← pass object
+const [sort, setSort] = useState<SortState>({ col: null, dir: 'asc' });
+const sorted = sortNodes(tree, sort); // ← pass object
 ```
 
 But when the refactoring wasn't complete, the code mixed old and new:
@@ -445,7 +445,7 @@ function sortNodes(nodes: TaskNode[], sort: SortState): TaskNode[] {
   // ... sort logic ...
   return sorted.map((n) => ({
     ...n,
-    children: sortNodes(n.children, sort)  // ← calls itself with same 'sort' object
+    children: sortNodes(n.children, sort), // ← calls itself with same 'sort' object
   }));
 }
 ```
@@ -465,7 +465,7 @@ interface Task {
 }
 
 interface TaskNode extends Task {
-  children: TaskNode[]  // ← TaskNode contains TaskNode[], which can contain TaskNode[]
+  children: TaskNode[]; // ← TaskNode contains TaskNode[], which can contain TaskNode[]
 }
 ```
 
@@ -491,10 +491,10 @@ Recursion works by **passing the same parameter down** through each level:
 ```typescript
 function processTree(nodes: TaskNode[], config: SortState) {
   // Process this level...
-  return nodes.map(n => ({
+  return nodes.map((n) => ({
     ...n,
     // Process the next level with the SAME config
-    children: processTree(n.children, config)
+    children: processTree(n.children, config),
   }));
 }
 ```
@@ -571,7 +571,7 @@ For PostToolUse (Agent done):
 ### Background Tasks: The Special Case
 
 When you invoke an Agent with `run_in_background: true`, Claude Code dispatches it to run async and
-returns immediately. The PostToolUse hook fires when the *dispatch* completes — not when the
+returns immediately. The PostToolUse hook fires when the _dispatch_ completes — not when the
 actual
 agent work finishes. So:
 
@@ -592,7 +592,7 @@ jq '...' db.json > db.json.tmp && mv db.json.tmp db.json
 
 Why? `jq` reads from `db.json` and needs to finish processing before anything else reads it. If you
 wrote directly (`jq '...' db.json > db.json`), the shell would truncate `db.json` to zero bytes
-*before* `jq` had read it — corrupting your data. Writing to a `.tmp` file first, then atomically
+_before_ `jq` had read it — corrupting your data. Writing to a `.tmp` file first, then atomically
 renaming it, avoids this entirely.
 
 Think of it as the "safe cut" technique in editing: you export to a new file, verify it's good, then
@@ -611,7 +611,7 @@ dependencies = fewer failure modes at the system boundary.
 The hooks are wired in `~/.claude/settings.json` (your home directory), not in the project's
 `.claude/settings.json`. This matters because:
 
-- **Project-level** hooks only fire when you're working in *that specific project*
+- **Project-level** hooks only fire when you're working in _that specific project_
 - **Global** hooks fire across all your Claude Code sessions, regardless of which project you're in
 
 Since the dashboard is meant to monitor all your agent sessions (not just sessions inside the
@@ -637,7 +637,7 @@ Silicon) wasn't in that restricted path.
 enough for jq-based scripting.
 
 **Lesson:** Shebangs that use `env` are more portable across machines, but less reliable across
-execution environments on the *same* machine. When your script must work in restricted environments
+execution environments on the _same_ machine. When your script must work in restricted environments
 (CI runners, app sandboxes, Claude Code hooks), prefer absolute paths.
 
 ---
@@ -671,7 +671,7 @@ fi
 
 `jq -e` exits with code 1 if the result is `null` or `false`, making it a perfect validator.
 
-**Film analogy:** Think of it like checking whether a film reel is loaded *and* properly threaded.
+**Film analogy:** Think of it like checking whether a film reel is loaded _and_ properly threaded.
 Checking only that the reel exists doesn't mean the projector can run it.
 
 **Lesson:** File existence checks are necessary but not sufficient for structured data files. After
@@ -690,15 +690,15 @@ Errors: command: value required / claude: invalid field"**.
 **Why it happened:** Two separate issues:
 
 1. **`open -a Ghostty --args ...`** —
-macOS's `open` command is a single-instance launcher. If the app is already running, it just
-activates the existing window and ignores `--args` entirely. This is by macOS design.
+   macOS's `open` command is a single-instance launcher. If the app is already running, it just
+   activates the existing window and ignores `--args` entirely. This is by macOS design.
 
 2. **Ghostty's CLI parser** — unlike most Unix tools, Ghostty parses its command-line flags the
-same
-way it parses its config file. `--command=claude` isn't a flag with a value; it's a config entry
-`command` with value `claude` — but `command` requires a *list* value, not a string. And `claude`
-as
-a standalone argument has no key at all, making it an invalid config field.
+   same
+   way it parses its config file. `--command=claude` isn't a flag with a value; it's a config entry
+   `command` with value `claude` — but `command` requires a _list_ value, not a string. And `claude`
+   as
+   a standalone argument has no key at all, making it an invalid config field.
 
 **Fix:** AppleScript. Activate Ghostty, send Cmd+N to open a new window, then use System Events to
 keystroke `claude` and press Enter:
@@ -729,13 +729,13 @@ sets) and branch to terminal-specific code.
 every major terminal sets `$TERM_PROGRAM` to its own name. This is the closest thing macOS has to
 "default terminal" detection without querying system preferences.
 
-| Terminal | `$TERM_PROGRAM` value |
-|----------|-----------------------|
-| iTerm2 | `iTerm.app` |
-| Terminal.app | `Apple_Terminal` |
-| Ghostty | `Ghostty` |
-| VS Code terminal | `vscode` |
-| Warp | `WarpTerminal` |
+| Terminal         | `$TERM_PROGRAM` value |
+| ---------------- | --------------------- |
+| iTerm2           | `iTerm.app`           |
+| Terminal.app     | `Apple_Terminal`      |
+| Ghostty          | `Ghostty`             |
+| VS Code terminal | `vscode`              |
+| Warp             | `WarpTerminal`        |
 
 The variable is **inherited** by all child processes. So when you run `bun run dev` inside Ghostty,
 the spawn-terminal server process inherits `TERM_PROGRAM=Ghostty` — and can use it to dispatch to
@@ -755,11 +755,11 @@ Shell environments are full of inherited variables that encode useful context �
 ### On "boring technology"
 
 The architecture of this project deliberately avoids exciting choices: no WebSockets, no Redux, no
-GraphQL, no edge functions. Each of those would solve a real problem — but not a problem *this*
+GraphQL, no edge functions. Each of those would solve a real problem — but not a problem _this_
 project actually has. Senior engineers have a bias toward solutions that are simple enough to be
 understood at 2am when something breaks.
 
-Ask yourself before adding complexity: "Does this project *actually need* this, or does it just feel
+Ask yourself before adding complexity: "Does this project _actually need_ this, or does it just feel
 more impressive?"
 
 ### On the `@/` path alias pattern
@@ -780,63 +780,63 @@ Three concepts that seem obvious once you understand them, but can be fuzzy at f
 1. **jsdom is the stage, testing-library is the audience.**
 
 - jsdom creates a fake DOM environment so your test can actually query nodes
-(`document.querySelector`, etc.). Without it, there's no browser-like environment to test against.
-- `@testing-library/react` runs your React components *into* that jsdom stage and provides queries
-(`getByRole`, `getByLabelText`) that mimic how a user finds elements. The queries themselves are
-generic (they work with any framework), but React's test library wraps them with React-specific
-tooling (render functions, component lifecycle handling).
+  (`document.querySelector`, etc.). Without it, there's no browser-like environment to test against.
+- `@testing-library/react` runs your React components _into_ that jsdom stage and provides queries
+  (`getByRole`, `getByLabelText`) that mimic how a user finds elements. The queries themselves are
+  generic (they work with any framework), but React's test library wraps them with React-specific
+  tooling (render functions, component lifecycle handling).
 - Think of it this way: jsdom is the empty theater, testing-library is the script the actors follow,
-`render()` puts the actors on stage, and queries find them from the audience's perspective.
+  `render()` puts the actors on stage, and queries find them from the audience's perspective.
 
 2. **vitest vs Jest: Pick the tool that speaks your bundler's language.**
 
 - Jest is a general-purpose test runner that works everywhere. It's battle-tested, well-documented,
-but doesn't know about your Vite config.
-- vitest is Jest-compatible but built *for* Vite. It understands your module resolution, path
-aliases, and dev setup automatically. No extra config. The terminal output is also cleaner —
-easier
-to read at a glance.
+  but doesn't know about your Vite config.
+- vitest is Jest-compatible but built _for_ Vite. It understands your module resolution, path
+  aliases, and dev setup automatically. No extra config. The terminal output is also cleaner —
+  easier
+  to read at a glance.
   - For a Vite project, vitest is the obvious choice. For a non-Vite project, Jest is fine.
 
 3. **Why @testing-library/dom exists separately from @testing-library/react:**
 
 - DOM testing is framework-agnostic. The query logic ("find an element by role") works with React,
-Vue, Svelte, plain HTML, etc.
+  Vue, Svelte, plain HTML, etc.
 - React testing adds React-specific concerns: how to render a component, how to interact with hooks,
-how to handle component state changes.
+  how to handle component state changes.
 - Separating them lets other frameworks (Vue, Svelte) build their own testing libraries on top of
-@testing-library/dom without reinventing the query logic.
+  @testing-library/dom without reinventing the query logic.
 - **The lesson:** Good libraries separate concerns. Don't couple framework-specific code to generic
-code. It makes both parts harder to maintain.
+  code. It makes both parts harder to maintain.
 
 **Three vitest config details that tie everything together:**
 
 1. **`globals: true` injects test functions globally** —
-`describe`, `it`, `expect`, `beforeEach`, `afterEach` become available without imports.
-Cleaner test files, but requires `vitest/globals` in your tsconfig.json types so TypeScript
-recognizes them. Some libraries (like @testing-library/react) depend on globals being present
-to auto-cleanup.
+   `describe`, `it`, `expect`, `beforeEach`, `afterEach` become available without imports.
+   Cleaner test files, but requires `vitest/globals` in your tsconfig.json types so TypeScript
+   recognizes them. Some libraries (like @testing-library/react) depend on globals being present
+   to auto-cleanup.
 
 2. **`environment: jsdom`** — Tells vitest to use jsdom instead of Node's default environment.
-Without this, tests that interact with the DOM (component rendering, querying elements) fail because
-`document` doesn't exist.
+   Without this, tests that interact with the DOM (component rendering, querying elements) fail because
+   `document` doesn't exist.
 
 3. **Path aliases need both TypeScript and Vite to understand them** — If you use `@/components`
-in
-test files, both the TS compiler and vitest's module resolution must know what `@/` means. This is
-why `vite-tsconfig-paths` plugin + `tsconfig.json paths` are essential. Without them, import
-resolution fails in tests, and you get module-not-found errors.
+   in
+   test files, both the TS compiler and vitest's module resolution must know what `@/` means. This is
+   why `vite-tsconfig-paths` plugin + `tsconfig.json paths` are essential. Without them, import
+   resolution fails in tests, and you get module-not-found errors.
 
 **The Complete Testing Stack: Four Layers That Work Together**
 
 When you `bun test`, there are four distinct tools at play, each doing one job:
 
-| Layer | Package | What it does | Analogy |
-|-------|---------|-------------|---------|
-| **Virtual Browser** | `jsdom` | Creates a fake DOM environment (`document`, `window`, `querySelector`). Without it, there's no browser to test against — you'd be testing React in a void. | The **stage backlot**. A physical place where your actors (components) can be placed. |
-| **Test Runner** | `vitest` | Runs tests, provides `describe`, `it`, `expect`, `vi`. Understands Vite aliases and config automatically. The assertion engine that says "yes" or "no" about your code. | The **director and cinematographer**. Sets up the scene, calls action, reviews the footage. |
-| **Render & Query** | `@testing-library/react` | Takes your React components and renders them *into* that jsdom stage. Provides queries (`getByText`, `getByRole`, `within`) that mimic how a real user finds elements on a page. | The **camera crew and lighting**. They put the actors on the stage and position the camera to see what the audience would see. |
-| **DOM Matchers** | `@testing-library/jest-dom` | Adds **custom `expect` matchers** for DOM elements — `.toBeInTheDocument()`, `.toBeDisabled()`, `.toHaveClass()`, `.toHaveValue()`. Without it, vitest's generic assertions (`toBe`, `toEqual`) don't know what a DOM element is. | The **focus puller and script supervisor**. They ensure the camera is focused on the right thing and verify it matches the script. |
+| Layer               | Package                     | What it does                                                                                                                                                                                                                      | Analogy                                                                                                                            |
+| ------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Virtual Browser** | `jsdom`                     | Creates a fake DOM environment (`document`, `window`, `querySelector`). Without it, there's no browser to test against — you'd be testing React in a void.                                                                        | The **stage backlot**. A physical place where your actors (components) can be placed.                                              |
+| **Test Runner**     | `vitest`                    | Runs tests, provides `describe`, `it`, `expect`, `vi`. Understands Vite aliases and config automatically. The assertion engine that says "yes" or "no" about your code.                                                           | The **director and cinematographer**. Sets up the scene, calls action, reviews the footage.                                        |
+| **Render & Query**  | `@testing-library/react`    | Takes your React components and renders them _into_ that jsdom stage. Provides queries (`getByText`, `getByRole`, `within`) that mimic how a real user finds elements on a page.                                                  | The **camera crew and lighting**. They put the actors on the stage and position the camera to see what the audience would see.     |
+| **DOM Matchers**    | `@testing-library/jest-dom` | Adds **custom `expect` matchers** for DOM elements — `.toBeInTheDocument()`, `.toBeDisabled()`, `.toHaveClass()`, `.toHaveValue()`. Without it, vitest's generic assertions (`toBe`, `toEqual`) don't know what a DOM element is. | The **focus puller and script supervisor**. They ensure the camera is focused on the right thing and verify it matches the script. |
 
 **Why all four?**
 
@@ -847,14 +847,14 @@ query elements, but assertions are clunky:
 
 ```ts
 // Without jest-dom — technically works, but terrible feedback:
-expect(screen.queryByText('Test Node')).not.toBeNull()
+expect(screen.queryByText('Test Node')).not.toBeNull();
 ```
 
 All four together = clear, readable tests with useful failure messages:
 
 ```ts
 // With jest-dom — reads like English, fails with actionable info:
-expect(screen.getByText('Test Node')).toBeInTheDocument()
+expect(screen.getByText('Test Node')).toBeInTheDocument();
 ```
 
 **Setup checklist:**
@@ -879,7 +879,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
   },
-  setupFiles: ['./vitest-setup.ts'],  // ← Run this file before tests
+  setupFiles: ['./vitest-setup.ts'], // ← Run this file before tests
 });
 ```
 
@@ -888,7 +888,7 @@ export default defineConfig({
 
 ```ts
 // vitest-setup.ts
-import '@testing-library/jest-dom/vitest'
+import '@testing-library/jest-dom/vitest';
 // Any other global setup goes here
 ```
 
@@ -899,11 +899,11 @@ The jest-dom docs say "add this to `tsconfig.json`" — but that's written for a
 single-tsconfig project. This project has three tsconfig files with a
 **coordinator pattern**:
 
-| File | Role | Contains |
-|------|------|----------|
-| `tsconfig.json` | Coordinator only | Just `"references"` pointers. `"files": []` means it holds zero files itself. |
-| `tsconfig.app.json` | App + tests | `src/`, `vitest-setup.ts`, jest-dom types. **This is what the docs mean by "tsconfig.json".** |
-| `tsconfig.node.json` | Vite config only | `vite.config.ts`, `noEmit: true` |
+| File                 | Role             | Contains                                                                                      |
+| -------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| `tsconfig.json`      | Coordinator only | Just `"references"` pointers. `"files": []` means it holds zero files itself.                 |
+| `tsconfig.app.json`  | App + tests      | `src/`, `vitest-setup.ts`, jest-dom types. **This is what the docs mean by "tsconfig.json".** |
+| `tsconfig.node.json` | Vite config only | `vite.config.ts`, `noEmit: true`                                                              |
 
 So the types and include go in `tsconfig.app.json`, not the root:
 
@@ -923,10 +923,7 @@ The root coordinator stays empty:
 // tsconfig.json — do NOT add types or include here
 {
   "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
 }
 ```
 
@@ -935,9 +932,9 @@ The root coordinator stays empty:
 When `tsconfig.json` has `"files": []` + `"references"`, TypeScript treats it as
 a pure coordinator. The moment you add `"include"`, it becomes a real project too
 — and TypeScript then enforces composite project rules: all referenced
-sub-projects must be able to *emit* files. But `tsconfig.node.json` has
-`"noEmit": true`, which conflicts. Error: *"Referenced project may not disable
-emit."*
+sub-projects must be able to _emit_ files. But `tsconfig.node.json` has
+`"noEmit": true`, which conflicts. Error: _"Referenced project may not disable
+emit."_
 
 The fix is to leave the coordinator alone and put things where the files actually live.
 
@@ -987,12 +984,12 @@ When testing, you need realistic test data. The naive approach is to hand-craft 
 every test:
 
 ```ts
-test("builds tree correctly", () => {
+test('builds tree correctly', () => {
   const task1 = {
-    id: "1",
-    name: "Test Task",
-    status: "pending" as TaskStatus,
-    agentType: "Explore",
+    id: '1',
+    name: 'Test Task',
+    status: 'pending' as TaskStatus,
+    agentType: 'Explore',
     parentId: null,
     createdAt: new Date().toISOString(),
     startedAt: null,
@@ -1002,10 +999,10 @@ test("builds tree correctly", () => {
   };
 
   const task2 = {
-    id: "2",
-    name: "Another Task",
-    status: "pending" as TaskStatus,
-    agentType: "Explore",
+    id: '2',
+    name: 'Another Task',
+    status: 'pending' as TaskStatus,
+    agentType: 'Explore',
     parentId: null,
     createdAt: new Date().toISOString(),
     startedAt: null,
@@ -1020,21 +1017,21 @@ test("builds tree correctly", () => {
 
 **The smell:** You're writing 20 lines of setup to test 2 lines of actual logic. Every test needs
 the same boilerplate. And if the `Task` type changes (you add a new required field), you have to
-update *every single test*.
+update _every single test_.
 
 **The factory pattern solves this:**
 
 A **factory function** is a helper that creates objects for you with sensible defaults. You give it
-*only the parts that matter for this test*, and it fills in the rest:
+_only the parts that matter for this test_, and it fills in the rest:
 
 ```ts
 function createMockTask(overrides: Partial<Task>): Task {
   return {
     // Sensible defaults — these work for most tests
-    id: "1",
-    name: "Test Task",
-    status: "pending",
-    agentType: "Explore",
+    id: '1',
+    name: 'Test Task',
+    status: 'pending',
+    agentType: 'Explore',
     parentId: null,
     createdAt: new Date().toISOString(),
     startedAt: null,
@@ -1050,9 +1047,9 @@ function createMockTask(overrides: Partial<Task>): Task {
 Now the same test becomes:
 
 ```ts
-test("builds tree correctly", () => {
-  const task1 = createMockTask({ id: "1" });
-  const task2 = createMockTask({ id: "2" });
+test('builds tree correctly', () => {
+  const task1 = createMockTask({ id: '1' });
+  const task2 = createMockTask({ id: '2' });
   // ... test logic
 });
 ```
@@ -1060,12 +1057,12 @@ test("builds tree correctly", () => {
 **How it works technically:**
 
 - `Partial<Task>` is a TypeScript utility that makes all Task properties optional (not required).
-So you can pass `{ id: "2" }` without typing out `name`, `status`, etc.
+  So you can pass `{ id: "2" }` without typing out `name`, `status`, etc.
 - The spread operator `...overrides` takes whatever the caller passed and **overwrites** the
-defaults. If you call `createMockTask({ status: "running" })`, the returned object will have
-`status: "running"` instead of `"pending"`.
+  defaults. If you call `createMockTask({ status: "running" })`, the returned object will have
+  `status: "running"` instead of `"pending"`.
 - The caller can pass `{}` (empty object) to get all defaults, or pass specific fields they care
-about for this test.
+  about for this test.
 
 **When to smell that you need a factory:**
 
@@ -1079,7 +1076,7 @@ about for this test.
 1. **Less boilerplate** — tests focus on the logic, not object construction
 2. **Single source of truth** — if `Task` type changes, update one factory, all tests work
 3. **Readable tests** — `createMockTask({ parentId: "1" })` is self-documenting. It says "I need a
-task with a parent, and I don't care about the rest."
+   task with a parent, and I don't care about the rest."
 
 **This pattern appears in every mature codebase** — sometimes it's called a "factory," sometimes a
 "builder," sometimes a "test fixture." The idea is always the same: **provide sensible defaults, let
@@ -1094,16 +1091,16 @@ As you move from beginner to intermediate, you'll start noticing code smells —
 something
 could be structured better. Here's a cheat sheet:
 
-| Smell | What's happening | Pattern to consider | Why |
-|-------|------------------|-------------------|-----|
-| Copy-pasting the same code 3+ times | You're repeating setup, logic, or initialization | **Factory** (for creation) or **Helper function** (for logic) | DRY principle: Don't Repeat Yourself. One change should update one place, not ten. |
-| You have one object but need it in multiple variants | Creating `UserAdmin`, `UserGuest`, `UserViewer` separately | **Factory** or **Builder** | Factory with options (`createUser({ role: 'admin' })`) is cleaner than three separate functions. |
-| State that's used everywhere in your component | A value passed as a prop through 5 layers of components | **Context API** (React) or **State management** | Prop drilling (passing props through intermediate components that don't use them) is a smell. |
-| Same logic appears in 2+ files | A sorting algorithm, validation rule, or data transformer | **Utility module** (a `.ts` file with reusable functions) | Extracting shared logic to one place makes it testable and maintainable. |
-| Conditionals checking the same thing repeatedly | `if (user.role === 'admin')` appears in 5 places | **Helper function** like `function isAdmin(user) { return user.role === 'admin' }` | Centralizes the logic. If the definition of "admin" changes, you update one place. |
-| Your component has multiple responsibilities | Rendering *and* fetching *and* filtering *and* formatting | **Split into smaller components** or **extract hooks** | One component should do one thing well. Easier to test, reuse, and understand. |
-| You need to create complex objects with many options | Building a request with headers, auth, retry config, etc. | **Builder pattern** | Example: `new RequestBuilder().withAuth(token).withRetry(3).build()` reads left-to-right like instructions. |
-| The same default values appear in many places | Every test file uses `status: "pending"`, every form has the same validation | **Constants file** or **Factory** | If defaults live in one place, they're easy to update. If they're scattered, you'll miss some. |
+| Smell                                                | What's happening                                                             | Pattern to consider                                                                | Why                                                                                                         |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Copy-pasting the same code 3+ times                  | You're repeating setup, logic, or initialization                             | **Factory** (for creation) or **Helper function** (for logic)                      | DRY principle: Don't Repeat Yourself. One change should update one place, not ten.                          |
+| You have one object but need it in multiple variants | Creating `UserAdmin`, `UserGuest`, `UserViewer` separately                   | **Factory** or **Builder**                                                         | Factory with options (`createUser({ role: 'admin' })`) is cleaner than three separate functions.            |
+| State that's used everywhere in your component       | A value passed as a prop through 5 layers of components                      | **Context API** (React) or **State management**                                    | Prop drilling (passing props through intermediate components that don't use them) is a smell.               |
+| Same logic appears in 2+ files                       | A sorting algorithm, validation rule, or data transformer                    | **Utility module** (a `.ts` file with reusable functions)                          | Extracting shared logic to one place makes it testable and maintainable.                                    |
+| Conditionals checking the same thing repeatedly      | `if (user.role === 'admin')` appears in 5 places                             | **Helper function** like `function isAdmin(user) { return user.role === 'admin' }` | Centralizes the logic. If the definition of "admin" changes, you update one place.                          |
+| Your component has multiple responsibilities         | Rendering _and_ fetching _and_ filtering _and_ formatting                    | **Split into smaller components** or **extract hooks**                             | One component should do one thing well. Easier to test, reuse, and understand.                              |
+| You need to create complex objects with many options | Building a request with headers, auth, retry config, etc.                    | **Builder pattern**                                                                | Example: `new RequestBuilder().withAuth(token).withRetry(3).build()` reads left-to-right like instructions. |
+| The same default values appear in many places        | Every test file uses `status: "pending"`, every form has the same validation | **Constants file** or **Factory**                                                  | If defaults live in one place, they're easy to update. If they're scattered, you'll miss some.              |
 
 **The unifying principle:** All patterns exist to solve **repetition** and **clarity**. Ask
 yourself:
@@ -1161,14 +1158,14 @@ the JSON.
 
 ```typescript
 // ❌ Implementation detail — finds ANY element with this text
-screen.getByText('Cancel')
+screen.getByText('Cancel');
 
 // ✓ Accessibility-first — finds a BUTTON with this accessible name
-screen.getByRole('button', { name: /cancel/i })
+screen.getByRole('button', { name: /cancel/i });
 ```
 
-**Why this matters:** `getByText` tests *what* appears on screen. `getByRole` tests
-*how* the screen is built — and that's how users and assistive tech interact.
+**Why this matters:** `getByText` tests _what_ appears on screen. `getByRole` tests
+_how_ the screen is built — and that's how users and assistive tech interact.
 
 **The concrete example from TaskTree:**
 
@@ -1194,7 +1191,7 @@ Your test just caught an accessibility regression before it shipped.
    - Use sparingly; prefer semantic queries
 
 **The testing-as-accessibility-checker mindset:** When you write tests with
-`getByRole`, you're checking that the UI is *built correctly*, not just that it
+`getByRole`, you're checking that the UI is _built correctly_, not just that it
 works. A test passing `getByRole('button')` confirms your button is an actual
 button, not a div pretending to be one.
 
@@ -1230,14 +1227,14 @@ can write.
 ```typescript
 export const sessionsTable: SQLiteTable = sqliteTable('sessions', {
   id: text().primaryKey(),
-})
+});
 
 // Later, in a foreign key reference:
-sessionId: text().references(() => sessionsTable.id)  // ← ERROR: 'id' does not exist
+sessionId: text().references(() => sessionsTable.id); // ← ERROR: 'id' does not exist
 ```
 
 The error happens because `SQLiteTable` (without type parameters) is a generic type — it says "this
-is *a* table, but I don't know what columns it has." TypeScript can't prove that `sessionsTable.id`
+is _a_ table, but I don't know what columns it has." TypeScript can't prove that `sessionsTable.id`
 exists, so it rejects the code.
 
 **Inferred type — the solution:**
@@ -1245,43 +1242,43 @@ exists, so it rejects the code.
 ```typescript
 export const sessionsTable = sqliteTable('sessions', {
   id: text().primaryKey(),
-})
+});
 
 // Later, in a foreign key reference:
-sessionId: text().references(() => sessionsTable.id)  // ✅ Works
+sessionId: text().references(() => sessionsTable.id); // ✅ Works
 ```
 
 When you drop the type annotation, TypeScript infers the full type from `sqliteTable()`. This type
 includes column information, so TypeScript knows `.id` exists. The inferred type is a **subtype** of
-`SQLiteTable` — it has all the general table properties *plus* specific column access.
+`SQLiteTable` — it has all the general table properties _plus_ specific column access.
 
 **When to use each:**
 
-- **Generic `SQLiteTable`**: Write utility functions that work with *any* table, regardless of
-columns. Example:
+- **Generic `SQLiteTable`**: Write utility functions that work with _any_ table, regardless of
+  columns. Example:
 
   ```typescript
   function logTableName(table: SQLiteTable) {
-    console.log(table.tableName)  // Only properties all tables have
+    console.log(table.tableName); // Only properties all tables have
   }
   ```
 
 - **Inferred type**: Always for table definitions. You need column access for queries and foreign
-keys.
+  keys.
 
 **On constraints and naming:**
 
 The difference between TypeScript and SQL names (camelCase vs snake_case) is separate from type
 safety. When you define a column, you specify constraints (`.primaryKey()`, `.notNull()`,
-`.unique()`, `.references()`) that apply *regardless* of naming:
+`.unique()`, `.references()`) that apply _regardless_ of naming:
 
 - **Unique keys**: A column needs `.unique()` when "no two rows should have the same value."
 - **Foreign keys**: A column needs `.references()` to point to another table. Multiple rows in the
-referencing table can point to the *same* parent — so `.unique()` is wrong on a foreign key.
+  referencing table can point to the _same_ parent — so `.unique()` is wrong on a foreign key.
 - **Primary keys**: `.primaryKey()` is implicitly unique. It's the table's single-row identifier.
 - **Casing**: With `casing: 'snake_case'` enabled on the database client, TypeScript keys (`appliedAt`)
-automatically become SQL column names (`applied_at`). The `.unique()` constraint still applies — it's
-just now enforcing uniqueness on the SQL column, not the TypeScript key.
+  automatically become SQL column names (`applied_at`). The `.unique()` constraint still applies — it's
+  just now enforcing uniqueness on the SQL column, not the TypeScript key.
 
 **The lesson:** Type annotations are convenient but expensive. Let TypeScript infer, especially when
 you're building references between tables. The inferred type is more specific and more useful.
@@ -1306,18 +1303,18 @@ you're building references between tables. The inferred type is more specific an
 
 ```typescript
 // Native JSON column — automatic serialize/parse
-metadata: text({ mode: 'json' }).default(null)
+metadata: text({ mode: 'json' }).default(null);
 // When inserting: no stringify needed
-await db.insert(table).values({ metadata: body.metadata })
+await db.insert(table).values({ metadata: body.metadata });
 
 // TEXT column — manual serialize/parse
-metadata: text().default(null)
+metadata: text().default(null);
 // When inserting: must stringify
 await db.insert(table).values({
   metadata: body.metadata ? JSON.stringify(body.metadata) : null,
-})
+});
 // When reading: must parse
-const parsed = row.metadata ? JSON.parse(row.metadata) : null
+const parsed = row.metadata ? JSON.parse(row.metadata) : null;
 ```
 
 **Why TEXT sometimes makes sense:** If you're storing opaque blobs (raw hook output, third-party
@@ -1337,13 +1334,13 @@ audit revealed ~12 issues across three severity levels. The first instinct was t
 **What we found:**
 
 - 4 critical issues: icon-only buttons without `aria-label`, searchable inputs without accessible
-names
+  names
 - 4 serious issues: clickable rows without keyboard handlers, missing focus rings, touch targets
-too small
+  too small
 - 4 moderate issues: decorative icons not hidden from screen readers, contrast ratios below 4.5:1,
-missing live regions
+  missing live regions
 
-None of these were hard to fix *once discovered*. But they all required **intentional design
+None of these were hard to fix _once discovered_. But they all required **intentional design
 decisions**, not coding heroics.
 
 **The mental model shift:** Accessibility isn't a "nice-to-have" feature. It's part of the
@@ -1355,11 +1352,11 @@ errors — you're trading short-term speed for long-term fragility.
 
 1. **Icon-only buttons are broken by default.** A button with only an icon (`<button><IconRefresh
 /></button>`) is invisible to screen readers. The fix is one line: `aria-label="Refresh"`.
-This isn't extra; it's required. If your icon component doesn't have an accessible name,
-the button doesn't work.
+   This isn't extra; it's required. If your icon component doesn't have an accessible name,
+   the button doesn't work.
 
 2. **Clickable elements need keyboard support.** A row with `onClick` is pointless for keyboard
-users. The fix is straightforward:
+   users. The fix is straightforward:
 
    ```jsx
    onClick={handleClick}
@@ -1376,10 +1373,10 @@ This is not "extra accessibility code" — it's the price of entry for interacti
 it.
 
 3. **Invisible UX is real UX.** The `-m-2` padding trick (expanding a 20px button's tap zone to 36px
-without changing its visual appearance) taught a film-production lesson: what users see isn't all
-the information your design conveys. Like a film credit that lists production assistants nobody sees
-— it still matters. `aria-live="polite"` announcements, `aria-expanded` toggles, and unseen focus
-rings are all real UI. They just happen to be invisible to non-assistive users.
+   without changing its visual appearance) taught a film-production lesson: what users see isn't all
+   the information your design conveys. Like a film credit that lists production assistants nobody sees
+   — it still matters. `aria-live="polite"` announcements, `aria-expanded` toggles, and unseen focus
+   rings are all real UI. They just happen to be invisible to non-assistive users.
 
 **The color palette example:** This project uses a minimalist stone-based palette. During the audit,
 it became clear that "running" (stone-200) vs "failed" (stone-300) — both in muted gray — was
@@ -1387,11 +1384,11 @@ hard
 to scan. The design fix wasn't to compromise the aesthetic. It was to use semantic colors
 intentionally: "running" → slate-400 (blue-gray), "failed" → red-500, "paused" → amber-400.
 These
-colors were *always in the Tailwind palette* — they just hadn't been chosen. The RAMS review
+colors were _always in the Tailwind palette_ — they just hadn't been chosen. The RAMS review
 surfaced a design decision that was always available.
 
 **Film production analogy:** Accessibility is like continuity in film. You might not consciously
-notice a well-maintained prop across cuts, but you *will* notice if it's wrong. The viewer doesn't
+notice a well-maintained prop across cuts, but you _will_ notice if it's wrong. The viewer doesn't
 see the continuity supervisor's notes — but without them, the film falls apart. Accessibility is
 the
 continuity supervisor of the web.
@@ -1426,25 +1423,25 @@ the server gave you, lose the original data, and can't debug what went wrong.
 
 ```javascript
 // 1. Get from database (source of truth)
-const rawTasks = await fetch('/api/tasks').then(r => r.json());
+const rawTasks = await fetch('/api/tasks').then((r) => r.json());
 
 // 2. Make a working copy
-const workingCopy = rawTasks.map(t => ({ ...t }));
+const workingCopy = rawTasks.map((t) => ({ ...t }));
 
 // 3. Mutate the copy in memory
-workingCopy[0].status = "completed";
+workingCopy[0].status = 'completed';
 workingCopy[0].progressPercentage = 100;
 
 // 4. Validate
 if (isValid(workingCopy[0])) {
   // 5. Write back to database
   await fetch(`/api/tasks/${workingCopy[0].id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "completed", progressPercentage: 100 })
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'completed', progressPercentage: 100 }),
   });
 } else {
   // Validation failed — discard the copy, original DB data untouched
-  console.log("Invalid, discarding changes");
+  console.log('Invalid, discarding changes');
 }
 ```
 
@@ -1457,7 +1454,7 @@ if (isValid(workingCopy[0])) {
 The old log expansion showed raw `LogEntry[]` lines — timestamps, log levels, message strings.
 Fine for debugging, but useless for project management. When an orchestrator spawns five agents
 and you want to know "is the research phase done?", a wall of `INFO` lines doesn't answer that.
-The *subtasks* do.
+The _subtasks_ do.
 
 ### The Pattern: Smart Detail Fallback
 
@@ -1521,7 +1518,7 @@ This one looked like everything was working — the dashboard UI loaded, tasks a
 `db.json` when agents ran, the hooks fired without errors. But the table never updated. Why?
 
 **The setup.** json-server works like this: at startup, it reads `db.json` into memory and then
-*serves its in-memory copy*. All reads and writes go through that in-memory store. When the
+_serves its in-memory copy_. All reads and writes go through that in-memory store. When the
 dashboard calls `GET /api/tasks`, it hits json-server's RAM, not the file on disk.
 
 **The bug.** The original hook scripts used `jq` to write directly to `db.json` on disk:
@@ -1566,16 +1563,16 @@ curl -s -X PUT "http://localhost:3001/tasks/$TASK_ID" \
 ```
 
 Note the POST for pre-hook (creates), and GET→mutate→PUT for post-hook. json-server's `PATCH`
-does a *shallow merge* — it would overwrite the `logs` array instead of appending to it, so we
+does a _shallow merge_ — it would overwrite the `logs` array instead of appending to it, so we
 need to read the full record, build the updated version, and PUT it back as a full replace.
 
 **The db.json bootstrap stays.** Even though we no longer write tasks to disk directly, the
-bootstrap check (`if [ ! -f "$DB_FILE" ]...`) is kept in both scripts. It's now a *pre-flight
-check* — it ensures `db.json` is valid JSON with a `tasks` key so that if json-server ever
+bootstrap check (`if [ ! -f "$DB_FILE" ]...`) is kept in both scripts. It's now a _pre-flight
+check_ — it ensures `db.json` is valid JSON with a `tasks` key so that if json-server ever
 restarts, it comes back up cleanly rather than crashing on a missing or corrupt file.
 
-**Lesson:** When your data store has two layers (in-memory + file), always ask: *which layer is
-actually being read?* The answer is often not what you expect. Verify with a direct API call
+**Lesson:** When your data store has two layers (in-memory + file), always ask: _which layer is
+actually being read?_ The answer is often not what you expect. Verify with a direct API call
 before assuming file writes are visible.
 
 ---
@@ -1589,7 +1586,7 @@ isn't running yet. Maybe a port is blocked. The original fix redirected all curl
 **The problem with silent failures** is that they look identical to successes from the outside.
 A failed hook and a working hook both produce zero terminal output. You only notice something
 is wrong when you check the dashboard and tasks aren't there — but by then, you've lost the
-context of *when* it failed and *why*.
+context of _when_ it failed and _why_.
 
 **The fix: a shared log file + terminal stream.**
 
@@ -1697,7 +1694,7 @@ When Claude Code fires a `PreToolUse` hook, it passes this JSON payload via stdi
 ```
 
 That's the full picture the hook gets. No `parent_tool_use_id`. No call stack. No indication
-that this agent was launched *by* another agent. Every tool call looks like a top-level event.
+that this agent was launched _by_ another agent. Every tool call looks like a top-level event.
 
 So the original hook hardcoded the only honest answer:
 
@@ -1711,7 +1708,7 @@ actually orchestrated them.
 
 ### The Constraint: What Can We Actually Control?
 
-To establish a parent-child relationship, the hook needs to know the parent task's ID *before*
+To establish a parent-child relationship, the hook needs to know the parent task's ID _before_
 the child task is created. The hook context gives us exactly one string we control: the
 `description` field. That's it.
 
@@ -1766,7 +1763,7 @@ natively. Until then, the `[parentId:XXX]` convention is the only option that do
 modifying Claude Code itself.
 
 **Senior Engineer Note:** When you hit an API surface that doesn't expose what you need, look
-for the fields you *do* control before giving up. Sometimes the workaround is "write metadata
+for the fields you _do_ control before giving up. Sometimes the workaround is "write metadata
 into the one string field you own." It's not elegant, but it ships — and the workaround is
 clearly documented so the next person knows why it exists and when to replace it.
 
@@ -1791,7 +1788,7 @@ useEffect(() => {
   const el = scrollRef.current;
   if (!el) return;
   const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
-  if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 }, [logs]);
 ```
 
@@ -1809,7 +1806,7 @@ The guard `hasCompletedTasks` is computed fresh on each render from the full tre
 
 ```typescript
 const hasCompletedTasks = collectAllTasks(tree).some(
-  (t) => t.status === "completed" || t.status === "cancelled",
+  (t) => t.status === 'completed' || t.status === 'cancelled',
 );
 ```
 
@@ -1838,13 +1835,16 @@ const sessionOptions = useMemo(() => {
   const groups = new Map<string, TaskNode[]>();
   for (const task of collectAllTasks(tree)) {
     if (!task.sessionId) continue;
-    (groups.get(task.sessionId) ?? (groups.set(task.sessionId, []), groups.get(task.sessionId)!))
-      .push(task);
+    (
+      groups.get(task.sessionId) ?? (groups.set(task.sessionId, []), groups.get(task.sessionId)!)
+    ).push(task);
   }
   return [...groups.entries()].map(([sid, tasks]) => {
-    const label = tasks
-      .filter(t => !t.parentId)
-      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))[0]?.name ?? sid.slice(0, 8);
+    const label =
+      tasks
+        .filter((t) => !t.parentId)
+        .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))[0]?.name ??
+      sid.slice(0, 8);
     return { id: sid, label };
   });
 }, [tree]);
@@ -1891,8 +1891,14 @@ The keyframe in `index.css`:
 
 ```css
 @keyframes rowFadeIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 ```
 
@@ -1955,7 +1961,7 @@ class. The same technique works for:
 - `--tw-ring-offset-width` to change the ring gap without a utility class
 - `--tw-gradient-from` / `--tw-gradient-to` to retheme a gradient locally
 
-Think of the Tailwind utility class as setting the *default* value of a CSS variable. Your CSS
+Think of the Tailwind utility class as setting the _default_ value of a CSS variable. Your CSS
 can always override the variable downstream without knowing what the utility class was.
 
 ### 🎬 Blooper 19: The Theme Toggle That Painted White Before It Was Done
@@ -1967,7 +1973,7 @@ to `<html>`:
 
 ```typescript
 useEffect(() => {
-  document.documentElement.classList.toggle("light", lightMode);
+  document.documentElement.classList.toggle('light', lightMode);
 }, [lightMode]);
 ```
 
@@ -1980,7 +1986,7 @@ elements momentarily went pure white or over-saturated before settling into the 
 `TableRow` applies `transition-colors` as a base class. Every row, button, and border in the
 table has a CSS transition on `background-color`, `color`, and `border-color`. When the stone
 palette flips from dark (stone-950 = near-black) to light (stone-950 = pure white), those
-transitions don't jump — they *animate*. Interpolating between oklch(0.09) and oklch(1.0)
+transitions don't jump — they _animate_. Interpolating between oklch(0.09) and oklch(1.0)
 passes through the full brightness range, including pure white at the midpoint. On a table with
 50 rows, that's 50 simultaneous white flashes.
 
@@ -2014,19 +2020,19 @@ The toggle was moved out of `useEffect` and into a direct click handler:
 const handleThemeToggle = () => {
   const next = !lightMode;
   const root = document.documentElement;
-  root.classList.add("no-transition");     // kill switch ON
-  root.classList.toggle("light", next);    // palette flips (no transitions, no flash)
-  setLightMode(next);                      // React state syncs (for button icon)
+  root.classList.add('no-transition'); // kill switch ON
+  root.classList.toggle('light', next); // palette flips (no transitions, no flash)
+  setLightMode(next); // React state syncs (for button icon)
   requestAnimationFrame(() =>
-    requestAnimationFrame(() =>
-      root.classList.remove("no-transition") // kill switch OFF
-    )
+    requestAnimationFrame(
+      () => root.classList.remove('no-transition'), // kill switch OFF
+    ),
   );
 };
 ```
 
 By doing the DOM manipulation synchronously in the click handler, the `no-transition` and
-`light` class changes happen in the *same JavaScript execution context* — the browser hasn't
+`light` class changes happen in the _same JavaScript execution context_ — the browser hasn't
 had a chance to paint anything yet.
 
 **Part 3: The double `requestAnimationFrame` — the common single-RAF trap.**
@@ -2034,12 +2040,12 @@ had a chance to paint anything yet.
 This is the part most developers get wrong. The instinct is to write:
 
 ```javascript
-root.classList.add("no-transition");
-root.classList.toggle("light", next);
-requestAnimationFrame(() => root.classList.remove("no-transition")); // ← WRONG
+root.classList.add('no-transition');
+root.classList.toggle('light', next);
+requestAnimationFrame(() => root.classList.remove('no-transition')); // ← WRONG
 ```
 
-But a single RAF fires *before the next paint*, not after it. The sequence with single RAF:
+But a single RAF fires _before the next paint_, not after it. The sequence with single RAF:
 
 ```
 ① classList operations (sync)
@@ -2078,8 +2084,8 @@ trick is the standard surgical tool to achieve it.
 ### The Story
 
 We added the three observability layers that complete the dashboard's purpose. The task table was
-always showing you *what* agents were working on. Now it also shows you *how* they did it, *why*
-something is blocked, and *what's happening at the session level* (outside of any task).
+always showing you _what_ agents were working on. Now it also shows you _how_ they did it, _why_
+something is blocked, and _what's happening at the session level_ (outside of any task).
 
 Think of it like upgrading from a call sheet (task list) to a full production report:
 call sheet + shot-by-shot log + director's notes.
@@ -2167,22 +2173,22 @@ Color: orange-400 (distinct from amber's paused, red's failed).
 
 ### New Files
 
-| File | Purpose |
-|------|---------|
-| `scripts/pre-tool-all.sh` | PreToolUse hook for all non-Agent tools → event trail |
-| `scripts/post-tool-all.sh` | PostToolUse/Failure hook for all non-Agent tools |
+| File                       | Purpose                                                 |
+| -------------------------- | ------------------------------------------------------- |
+| `scripts/pre-tool-all.sh`  | PreToolUse hook for all non-Agent tools → event trail   |
+| `scripts/post-tool-all.sh` | PostToolUse/Failure hook for all non-Agent tools        |
 | `scripts/session-event.sh` | Session-level hook (12 event types, `--event-type` arg) |
 
 ### Modified Files
 
-| File | Change |
-|------|--------|
-| `src/types/task.ts` | Added `HookEvent`, `SessionEvent`, `SessionEventType`; `blocked` to `TaskStatus`; `events?`, `dependencies?`, `sessionId?` to `Task`; `blockedBy?` to `TaskNode` |
-| `src/hooks/useTaskPolling.ts` | `computeBlockedState()`, `sessionEvents` state, parallel fetch |
-| `src/components/TaskTable.tsx` | `EventTrailRow`, `GlobalEventStrip`, `blocked` in all status maps, `taskMap` for blocking name lookup, updated expanded row priority |
-| `src/components/ui/badge.tsx` | Added `blocked` variant (orange) |
-| `~/.claude/settings.json` | Added 10 new hook event types |
-| `db.json` | Added `sessionEvents: []` collection |
+| File                           | Change                                                                                                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/types/task.ts`            | Added `HookEvent`, `SessionEvent`, `SessionEventType`; `blocked` to `TaskStatus`; `events?`, `dependencies?`, `sessionId?` to `Task`; `blockedBy?` to `TaskNode` |
+| `src/hooks/useTaskPolling.ts`  | `computeBlockedState()`, `sessionEvents` state, parallel fetch                                                                                                   |
+| `src/components/TaskTable.tsx` | `EventTrailRow`, `GlobalEventStrip`, `blocked` in all status maps, `taskMap` for blocking name lookup, updated expanded row priority                             |
+| `src/components/ui/badge.tsx`  | Added `blocked` variant (orange)                                                                                                                                 |
+| `~/.claude/settings.json`      | Added 10 new hook event types                                                                                                                                    |
+| `db.json`                      | Added `sessionEvents: []` collection                                                                                                                             |
 
 ### Director's Commentary: On Observability Layers
 
@@ -2247,8 +2253,8 @@ input; you constrain it before it touches anything that executes.
 ```typescript
 // The dangerous pattern:
 const data: Task[] = Array.isArray(rawTasks) ? rawTasks : [];
-computeBlockedState(data);   // mutates task.status in-place on the raw array
-setTasks(data);              // now sets state to the already-mutated object
+computeBlockedState(data); // mutates task.status in-place on the raw array
+setTasks(data); // now sets state to the already-mutated object
 ```
 
 `computeBlockedState` was designed to mutate tasks in-place (the comment even says so).
@@ -2264,10 +2270,8 @@ immutable. If you hand it a mutated reference, it can't detect the change.
 **The fix:** Clone before mutating:
 
 ```typescript
-const data: Task[] = Array.isArray(rawTasks)
-  ? rawTasks.map((t: Task) => ({ ...t }))
-  : [];
-computeBlockedState(data);   // mutates clones, not the raw parse
+const data: Task[] = Array.isArray(rawTasks) ? rawTasks.map((t: Task) => ({ ...t })) : [];
+computeBlockedState(data); // mutates clones, not the raw parse
 ```
 
 The spread `{ ...t }` creates a new object for each task, so React gets a fresh reference
@@ -2328,7 +2332,7 @@ camera take: you set the white balance once before you start rolling, not once p
 // The misplaced pattern — inside TaskTable, a display component:
 const [lightMode, setLightMode] = useState(false);
 
-useEffect(() => () => document.documentElement.classList.remove("light"), []);
+useEffect(() => () => document.documentElement.classList.remove('light'), []);
 ```
 
 `TaskTable` is a table renderer. It has no business owning global document state. The
@@ -2424,12 +2428,12 @@ you're within 60px of the bottom:
 
 ```typescript
 const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
-if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 ```
 
 The pattern made sense in theory: if the user has scrolled up to read older events, don't
 yank them back down. But in practice, the session strip is opened because you want to see
-what's happening *now*. Opening it and immediately seeing old events is confusing.
+what's happening _now_. Opening it and immediately seeing old events is confusing.
 
 **Final approach**: both `EventTrailRow` and `GlobalEventStrip` use unconditional scroll:
 
@@ -2449,10 +2453,14 @@ fires when the count changes, which is when you actually want to scroll.
 
 ```typescript
 // Correct — only fires when count changes
-useEffect(() => { el.scrollTop = el.scrollHeight; }, [events.length, open]);
+useEffect(() => {
+  el.scrollTop = el.scrollHeight;
+}, [events.length, open]);
 
 // Wrong — fires on every event mutation (status updates, timestamps)
-useEffect(() => { el.scrollTop = el.scrollHeight; }, [events, open]);
+useEffect(() => {
+  el.scrollTop = el.scrollHeight;
+}, [events, open]);
 ```
 
 ---
@@ -2623,17 +2631,19 @@ Here's how the three stages look in practice with your actual code:
 // GET /sessionEvents
 app.get('/sessionEvents', async (c) => {
   // ─────── STAGE 1: EXTRACT ───────
-  const sessionId = c.req.query('sessionId');  // ← Extract from URL (no try/catch)
+  const sessionId = c.req.query('sessionId'); // ← Extract from URL (no try/catch)
   console.log('GET /sessionEvents called with:', sessionId);
 
   // ─────── STAGE 2: VALIDATE ───────
-  if (!sessionId) {  // ← Validate it exists (if/else)
+  if (!sessionId) {
+    // ← Validate it exists (if/else)
     console.error('Missing required sessionId:', { hasSessionId: !!sessionId });
     return c.json({ error: 'sessionId required' }, 400);
   }
 
   // ─────── STAGE 3: QUERY DB ───────
-  try {  // ← Database operation (try/catch)
+  try {
+    // ← Database operation (try/catch)
     const rows = sessionId
       ? await db
           .select()
@@ -2653,7 +2663,8 @@ app.get('/sessionEvents', async (c) => {
         metadata: e.metadata ? JSON.parse(e.metadata) : undefined,
       })),
     );
-  } catch (error) {  // ← Catch unexpected DB errors
+  } catch (error) {
+    // ← Catch unexpected DB errors
     console.error('Query failed:', error.message);
     return c.json({ error: 'Database error' }, 500);
   }
@@ -2688,7 +2699,10 @@ app.post('/tasks', async (c) => {
 
   // Zone 3: Validate
   if (!body.name || !body.sessionId) {
-    console.error('Missing required fields:', { hasName: !!body.name, hasSessionId: !!body.sessionId });
+    console.error('Missing required fields:', {
+      hasName: !!body.name,
+      hasSessionId: !!body.sessionId,
+    });
     return c.json({ error: 'name and sessionId required' }, 400);
   }
 
@@ -2882,13 +2896,13 @@ app.delete('/tasks/:id', async (c) => {
 
 ### Quick Reference: HTTP Method Logging Cheat Sheet
 
-| Method | Input Zone | Log Entry | Log Success |
-|--------|-----------|-----------|-------------|
-| **GET /list** | Query params | "called with filters X" | "found N rows" |
-| **GET /:id** | URL param | "looking for ID X" | "found/not found" |
-| **POST** | Parse body | "received body with keys X" | "created ID X with status Y" |
-| **PATCH /:id** | Parse body + ID | "updating ID X with fields Y" | "updated, new status Z" |
-| **DELETE /:id** | URL param | "deleting ID X" | "deleted / not found" |
+| Method          | Input Zone      | Log Entry                     | Log Success                  |
+| --------------- | --------------- | ----------------------------- | ---------------------------- |
+| **GET /list**   | Query params    | "called with filters X"       | "found N rows"               |
+| **GET /:id**    | URL param       | "looking for ID X"            | "found/not found"            |
+| **POST**        | Parse body      | "received body with keys X"   | "created ID X with status Y" |
+| **PATCH /:id**  | Parse body + ID | "updating ID X with fields Y" | "updated, new status Z"      |
+| **DELETE /:id** | URL param       | "deleting ID X"               | "deleted / not found"        |
 
 **The pattern is always the same:** Log what enters, validate, execute with try/catch, log what
 results. Only the **details** of what to log change based on what the HTTP method does.
@@ -3151,7 +3165,7 @@ After running the test migration, verify:
 ```typescript
 // Validation example
 const tasks = await testDb.select().from(schema.tasksTable);
-const hasMissingSessionId = tasks.some(t => !t.sessionId);
+const hasMissingSessionId = tasks.some((t) => !t.sessionId);
 if (hasMissingSessionId) {
   throw new Error('ValidationError: sessionId is required');
 }
@@ -3509,9 +3523,9 @@ As you migrate the scripts, you'll notice they fall into two distinct patterns �
 
 **Hook Scripts** (`pre-tool-agent.ts`, `post-tool-agent.ts`, `session-event.ts`)
 
-- Called *by Claude Code*, not by humans
+- Called _by Claude Code_, not by humans
 - Receive JSON on **stdin** (pipe from Claude Code hook payload)
-- The `taskId` (or other IDs) come from the *input* — Claude Code provides them
+- The `taskId` (or other IDs) come from the _input_ — Claude Code provides them
 - Task metadata often gets **encoded in the description string** (`[parentId:abc]`, `[kind:work]`) because
   Claude Code doesn't have a structured field for passing arbitrary task context
 - Example from `post-tool-agent.ts`: parse the description with regex to extract metadata tags
@@ -3520,7 +3534,7 @@ As you migrate the scripts, you'll notice they fall into two distinct patterns �
 
 - Called by humans or orchestrators directly from the command line
 - Receive input as **process.argv** (plain command-line arguments)
-- Create new resources on the server and get IDs *back* in the response
+- Create new resources on the server and get IDs _back_ in the response
 - Input is clean and structured (name, description, priority as discrete args) — no encoding tricks
 - Example from `post-task.ts`: `POST /tasks`, parse `await res.json()` to extract the new `taskId`
 
@@ -3541,11 +3555,11 @@ const res = await fetch(`${API_BASE}/tasks/${agentId}`);
 The comment in the bash original even said _"agent_id == tool_use_id == task.id"_ — but that
 is wrong. There are **three distinct IDs** in play:
 
-| ID | What it is | Where it lives |
-|----|-----------|----------------|
-| `tool_use_id` (current hook) | ID of this specific tool call (Bash, Read, etc.) | Becomes `HookEvent.id` |
-| `task.id` | ID of the Agent tool call that spawned the subagent | Set by `pre-tool-agent.ts` from *its* `tool_use_id` |
-| `task.agentId` | The subagent's own identity | Patched in by `session-event.ts` at SubagentStart |
+| ID                           | What it is                                          | Where it lives                                      |
+| ---------------------------- | --------------------------------------------------- | --------------------------------------------------- |
+| `tool_use_id` (current hook) | ID of this specific tool call (Bash, Read, etc.)    | Becomes `HookEvent.id`                              |
+| `task.id`                    | ID of the Agent tool call that spawned the subagent | Set by `pre-tool-agent.ts` from _its_ `tool_use_id` |
+| `task.agentId`               | The subagent's own identity                         | Patched in by `session-event.ts` at SubagentStart   |
 
 `GET /tasks/:id` does a primary key lookup. Passing `agent_id` there fails silently —
 the server returns nothing and the hook exits without logging an event.
@@ -3583,10 +3597,12 @@ function extractSummary(result: ToolResult): string {
 // pre-tool-all.ts version — extracts from tool INPUT
 function extractSummary(toolName: string, toolInput: Record<string, any>): string {
   switch (toolName) {
-    case 'Bash': return (toolInput.command ?? '').slice(0, 120);
+    case 'Bash':
+      return (toolInput.command ?? '').slice(0, 120);
     case 'Read':
     case 'Write':
-    case 'Edit': return (toolInput.file_path ?? '').slice(0, 120);
+    case 'Edit':
+      return (toolInput.file_path ?? '').slice(0, 120);
     // ...
   }
   return '';
@@ -3595,8 +3611,8 @@ function extractSummary(toolName: string, toolInput: Record<string, any>): strin
 
 They have opposite signatures because they operate at **opposite ends of the tool lifecycle**:
 
-- `post-tool-agent` runs *after* — it summarizes what the agent *produced*
-- `pre-tool-all` runs *before* — it summarizes what the tool is *about to do*
+- `post-tool-agent` runs _after_ — it summarizes what the agent _produced_
+- `pre-tool-all` runs _before_ — it summarizes what the tool is _about to do_
 
 **The tell:** the call site. `extractSummary(payload.tool_name, payload.tool_input)` takes
 two args — that's the pre-hook shape. `extractSummary(result)` takes one — that's the
@@ -3613,7 +3629,7 @@ let existing: Task | null = null;
 // ... lookup logic ...
 
 if (existing) {
-  existing.id   // ← TypeScript knows this is Task here, not null
+  existing.id; // ← TypeScript knows this is Task here, not null
 }
 ```
 
@@ -3637,11 +3653,11 @@ The first draft of `buildSessionEvent` declared local variables inside each `cas
 ```typescript
 switch (eventType) {
   case 'SessionStart':
-    const model = payload.model ?? 'unknown';  // ← ERROR
+    const model = payload.model ?? 'unknown'; // ← ERROR
     summary = model;
     break;
   case 'Stop':
-    const model = 'gone';  // ← "already been declared"
+    const model = 'gone'; // ← "already been declared"
     break;
 }
 ```
@@ -3760,8 +3776,11 @@ Claude Code fires the same script for every session event. The only difference i
 ```json
 {
   "hooks": [
-    { "event": "UserPromptSubmit", "command": "bun session-event.ts --event-type UserPromptSubmit" },
-    { "event": "SessionStart",     "command": "bun session-event.ts --event-type SessionStart" }
+    {
+      "event": "UserPromptSubmit",
+      "command": "bun session-event.ts --event-type UserPromptSubmit"
+    },
+    { "event": "SessionStart", "command": "bun session-event.ts --event-type SessionStart" }
   ]
 }
 ```
@@ -3775,13 +3794,13 @@ Every case in the switch produces the same shape:
 
 ```typescript
 return {
-  type: eventType,       // always — the event name
-  timestamp,             // always — ISO string set before the switch
-  sessionId,             // always — from stdin
-  summary,               // always — human-readable one-liner
-  ...(agentId && { agentId }),   // conditional — only for subagent events
+  type: eventType, // always — the event name
+  timestamp, // always — ISO string set before the switch
+  sessionId, // always — from stdin
+  summary, // always — human-readable one-liner
+  ...(agentId && { agentId }), // conditional — only for subagent events
   ...(agentType && { agentType }),
-  ...extraFields,        // event-specific — model, prompt, toolName, etc.
+  ...extraFields, // event-specific — model, prompt, toolName, etc.
 };
 ```
 
@@ -3827,10 +3846,10 @@ db.update(tasksTable)
   .where(
     and(
       eq(tasksTable.id, id),
-      eq(tasksTable.status, 'unassigned'),  // ← the atomic guard
-    )
+      eq(tasksTable.status, 'unassigned'), // ← the atomic guard
+    ),
   )
-  .returning()
+  .returning();
 ```
 
 If the row was already claimed, `eq(tasksTable.status, 'unassigned')` is `false`. The
@@ -3844,3 +3863,182 @@ update** — the most reliable pattern for preventing double-claims in any SQL d
 **Film analogy:** Only one director can call action on a take. Instead of radioing "is
 someone already rolling?", you attach a "ROLLING" flag to the slate in the same motion as
 you call action. If the flag was already there, you know someone else got there first.
+
+---
+
+## 4g. Bloopers — Hook Silent Failures (2026-06-21)
+
+Both bugs in this section share the same root: the project has two runtimes that speak
+slightly different dialects. Vite handles the browser. Bun runs the hook scripts directly.
+They mostly agree, but not on path aliases, and not on what `:3001` serves.
+
+### 🎬 Blooper 30: The Alias That Vite Knew But Bun Didn't
+
+`session-event.ts` crashed on startup with:
+
+```
+error: Cannot find module '@/lib/SessionEventUtils'
+```
+
+The `@/` alias was set up in `tsconfig.app.json`:
+
+```json
+"paths": {
+  "@/*": ["./src/*"]
+}
+```
+
+But the root `tsconfig.json` uses `references:` — it delegates to child configs and has no
+`compilerOptions` of its own. Bun reads from the root. It never sees `tsconfig.app.json`.
+The alias was invisible to Bun.
+
+Vite uses `vite-tsconfig-paths` to read `tsconfig.app.json` directly, which is why the
+alias worked fine in the browser but exploded in the script.
+
+**The fix:** Switch to a relative import, which needs no alias resolution at all.
+
+```typescript
+// Before (broken for Bun direct execution)
+import { buildSessionEvent } from '@/lib/SessionEventUtils';
+
+// After
+import { buildSessionEvent } from '../src/lib/SessionEventUtils';
+```
+
+**The lesson:** `@/` aliases are a Vite feature, not a Bun feature. Any script that runs
+directly via `bun scripts/foo.ts` lives outside Vite's awareness. Relative paths are the
+universal language.
+
+**Film analogy:** The alias is an intercom system wired to the production office. Works
+great on set. But when you're working remotely from your car, you need to dial the actual
+phone number.
+
+---
+
+### 🎬 Blooper 31: The Wrong Door on the Same Building
+
+Even after fixing the import, hooks were silently doing nothing when the dashboard server
+was running. No log entries. No errors. Just silence.
+
+The culprit: the health check in all three hook scripts pointed to `/api/tasks`:
+
+```typescript
+const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: 'HEAD' })
+  .then((res) => res.ok) // 404 is NOT ok → false
+  .catch(() => false);
+
+if (!isServerUp) {
+  process.exit(0); // ← silent exit, no log
+}
+```
+
+Hono serves at `/tasks`. The `/api/` prefix only exists as a Vite proxy rewrite — when the
+browser hits `http://localhost:5173/api/tasks`, Vite rewrites it to
+`http://localhost:3001/tasks`. But hook scripts call Hono directly on port 3001. There is
+no `/api/` prefix there.
+
+So every hook was correctly detecting the server as "down" (404 ≠ 200), then silently
+exiting. All the while, `bun run dev` was running and Hono was serving fine. The
+health check was knocking on the right building, wrong door.
+
+```
+Hook script                Vite (5173)            Hono (3001)
+    │                          │                      │
+    ├──HEAD /api/tasks──────────────────────────────►│
+    │                          │              404 Not Found
+    │ isServerUp = false        │                      │
+    └──exit(0) [silent]        │                      │
+```
+
+After the fix:
+
+```
+Hook script                Vite (5173)            Hono (3001)
+    │                          │                      │
+    ├──HEAD /tasks──────────────────────────────────►│
+    │                          │              200 OK  │
+    │ isServerUp = true         │                      │
+    └──POST /sessionEvents ──────────────────────────►│
+```
+
+**The fix:** Change the health check path from `/api/tasks` to `/tasks` in all three
+scripts.
+
+**The lesson:** The Vite proxy is a browser-only convenience. Code that runs as a script
+talks to the real server at its real routes. Keep a mental model of who's in the room —
+browser-via-Vite, or script-direct-to-Hono.
+
+**Film analogy:** The proxy is like the studio switchboard. Calls from inside the lot go
+through it and get routed. But if you're calling from outside, you need the direct line.
+The scripts are calling from outside.
+
+---
+
+### Director's Commentary: The Two-Runtime Trap
+
+This project uses two JavaScript runtimes side-by-side: Vite compiles and serves the
+browser app, Bun executes the hook scripts directly. They share source files and
+TypeScript types, which creates the illusion of a single environment.
+
+But they diverge in two specific ways:
+
+**1. Path alias resolution.** Vite's `@/` alias is configured in `tsconfig.app.json` and
+activated by `vite-tsconfig-paths`. Bun reads from the root `tsconfig.json`. If the alias
+isn't in the root config's `compilerOptions.paths`, Bun can't see it.
+Use relative imports in anything Bun runs directly.
+
+**2. URL namespace.** The Vite dev server proxies `/api/*` → `localhost:3001/*`.
+This proxy is purely a browser convenience. Hook scripts bypass Vite entirely.
+Anything hitting port 3001 directly must use Hono's real routes (`/tasks`, `/sessionEvents`)
+with no `/api/` prefix.
+
+The dangerous part of this setup: both bugs produced zero errors from the server side.
+The alias crash happened in the script before any network call. The health check returned
+a clean 404. Nothing was broken from the server's perspective — the scripts were simply
+failing to start or silently bailing out. Silence is the hardest failure mode to debug.
+
+Both bugs were caught by building a tight feedback loop: start Hono, run the hook directly
+with a fake payload, check the log. The log either shows `OK:` or nothing — and "nothing"
+is itself a signal.
+
+---
+
+### 🎬 Blooper 32: The Log That Wrote to the Wrong Address (2026-06-21)
+
+After fixing the alias and health check bugs, hook logs were appearing in two places:
+`logs/hooks.log` (project root, correct) and `scripts/logs/hooks.log` (wrong).
+
+The culprit was this line, present in all three hook scripts:
+
+```typescript
+const DASHBOARD_DIR = process.cwd();
+const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
+```
+
+`process.cwd()` answers "where is the _caller_ standing?" — not "where does this script
+live?" When you run `bun run dev` from the project root, CWD is the project root and the
+log lands in the right place. When Claude Code fires the hook as a system process, it sets
+CWD to the `scripts/` directory. So `process.cwd() + "/logs/hooks.log"` becomes
+`scripts/logs/hooks.log` — a brand new directory that didn't exist before.
+
+The fix is to anchor the path to the script file itself, not the caller:
+
+```typescript
+// Before — path is relative to whoever calls the script
+const DASHBOARD_DIR = process.cwd();
+
+// After — path is relative to this file, always
+const DASHBOARD_DIR = new URL('..', import.meta.url).pathname;
+```
+
+`import.meta.url` is the script's own file URL: `file:///…/scripts/session-event.ts`.
+It never changes regardless of CWD. `".."` navigates one directory up from `scripts/`
+to the project root. The log path is now stable no matter who invokes the script.
+
+**The rule:** `process.cwd()` for paths that should follow the caller.
+`import.meta.url` for paths that should follow the file.
+Hook scripts are tools with a fixed home — they should use `import.meta.url`.
+
+**Film analogy:** `process.cwd()` is like addressing a letter to "wherever you're sitting
+right now." `import.meta.url` is like using the return address printed on the envelope —
+it's the same no matter who's holding it.

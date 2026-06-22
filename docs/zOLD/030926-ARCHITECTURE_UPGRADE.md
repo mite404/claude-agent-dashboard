@@ -90,13 +90,15 @@ Create an `AgentSummaryRow` component (modeled on `EventTrailRow` at lines 459â€
 
 ```tsx
 function AgentSummaryRow({ task }: { task: TaskNode }) {
-  if (!task.lastAssistantMessage) return null
+  if (!task.lastAssistantMessage) return null;
   return (
     <TableRow className="bg-stone-950/50">
       <TableCell colSpan={8} className="border-t border-stone-800 p-0">
         <div className="space-y-2">
-          <div className="px-3 pt-3 font-mono text-[10px] font-bold uppercase tracking-widest
-            text-stone-500">
+          <div
+            className="px-3 pt-3 font-mono text-[10px] font-bold uppercase tracking-widest
+            text-stone-500"
+          >
             Agent Summary
           </div>
           <div className="whitespace-pre-wrap p-3 font-mono text-[11px] text-stone-300">
@@ -105,19 +107,21 @@ function AgentSummaryRow({ task }: { task: TaskNode }) {
         </div>
       </TableCell>
     </TableRow>
-  )
+  );
 }
 ```
 
 Render it in the detail panel (where `LogDetailRow` and `EventTrailRow` are rendered):
 
 ```tsx
-{expandedLogs.has(task.id) && (
-  <>
-    {/* existing EventTrailRow, LogDetailRow ... */}
-    <AgentSummaryRow task={task} />
-  </>
-)}
+{
+  expandedLogs.has(task.id) && (
+    <>
+      {/* existing EventTrailRow, LogDetailRow ... */}
+      <AgentSummaryRow task={task} />
+    </>
+  );
+}
 ```
 
 ---
@@ -208,12 +212,12 @@ Add fields to both interfaces:
 ```typescript
 export interface SessionEvent {
   // ... existing fields ...
-  originatingSkill?: string  // /skill-name detected in UserPromptSubmit
+  originatingSkill?: string; // /skill-name detected in UserPromptSubmit
 }
 
 export interface Task {
   // ... existing fields ...
-  originatingSkill?: string  // skill that spawned this task's session
+  originatingSkill?: string; // skill that spawned this task's session
 }
 ```
 
@@ -223,12 +227,16 @@ export interface Task {
 (around line 558), after the summary span, conditionally render a skill badge:
 
 ```tsx
-{event.type === 'UserPromptSubmit' && event.originatingSkill && (
-  <span className="shrink-0 rounded bg-violet-950 px-1.5 py-0.5 font-mono text-[10px]
-    text-violet-300 border border-violet-700">
-    {event.originatingSkill}
-  </span>
-)}
+{
+  event.type === 'UserPromptSubmit' && event.originatingSkill && (
+    <span
+      className="shrink-0 rounded bg-violet-950 px-1.5 py-0.5 font-mono text-[10px]
+    text-violet-300 border border-violet-700"
+    >
+      {event.originatingSkill}
+    </span>
+  );
+}
 ```
 
 **TaskRow** â€” Add a tooltip to the task name showing which skill started the session:
@@ -376,11 +384,11 @@ Add `--arg kind "$TASK_KIND"` and include in the task JSON:
 ### TypeScript Changes: `src/types/task.ts`
 
 ```typescript
-export type TaskKind = 'work' | 'evaluation' | 'planning'
+export type TaskKind = 'work' | 'evaluation' | 'planning';
 
 export interface Task {
   // ... existing fields ...
-  taskKind?: TaskKind
+  taskKind?: TaskKind;
 }
 ```
 
@@ -389,7 +397,7 @@ export interface Task {
 Import Tabler icons:
 
 ```typescript
-import { IconMicroscope, IconRuler } from '@tabler/icons-react'
+import { IconMicroscope, IconRuler } from '@tabler/icons-react';
 ```
 
 Add a constant mapping task kinds to icons:
@@ -404,10 +412,12 @@ const TASK_KIND_ICON: Record<Exclude<TaskKind, 'work'>, React.ReactNode> = {
 In the task name cell (around line 691), render the icon conditionally:
 
 ```tsx
-<span className="truncate font-medium text-stone-100">{task.name}</span>
-{task.taskKind && task.taskKind !== 'work' && (
-  <span className="shrink-0 ml-2">{TASK_KIND_ICON[task.taskKind]}</span>
-)}
+<span className="truncate font-medium text-stone-100">{task.name}</span>;
+{
+  task.taskKind && task.taskKind !== 'work' && (
+    <span className="shrink-0 ml-2">{TASK_KIND_ICON[task.taskKind]}</span>
+  );
+}
 ```
 
 ---

@@ -181,7 +181,7 @@ we PATCH. If not (e.g., hook was just installed mid-session), we POST a fallback
 
 ```ts
 const existingRes = await fetch(`${API_BASE}/tasks/${taskId}`);
-const existing = existingRes.ok ? (await existingRes.json() as Task) : null;
+const existing = existingRes.ok ? ((await existingRes.json()) as Task) : null;
 ```
 
 `existingRes.ok` is `true` for any 2xx status. A 404 (task not found) gives `ok = false`,

@@ -27,24 +27,24 @@ json-server automatically exposes:
 
 ```typescript
 interface Task {
-  id: string              // Unique task ID (e.g., "task-001" or Claude tool_use_id)
-  name: string            // Human-readable task description
-  status: TaskStatus      // See below
-  agentType: string       // Agent subtype (e.g., "general-purpose", "Explore")
-  parentId: string | null // Parent task ID for subagent relationships; null = root
-  createdAt: string       // ISO 8601 timestamp
-  startedAt: string | null
-  completedAt: string | null
-  progressPercentage: number  // 0–100
-  logs: LogEntry[]
+  id: string; // Unique task ID (e.g., "task-001" or Claude tool_use_id)
+  name: string; // Human-readable task description
+  status: TaskStatus; // See below
+  agentType: string; // Agent subtype (e.g., "general-purpose", "Explore")
+  parentId: string | null; // Parent task ID for subagent relationships; null = root
+  createdAt: string; // ISO 8601 timestamp
+  startedAt: string | null;
+  completedAt: string | null;
+  progressPercentage: number; // 0–100
+  logs: LogEntry[];
 }
 
-type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'cancelled'
+type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'paused' | 'cancelled';
 
 interface LogEntry {
-  timestamp: string   // ISO 8601
-  level: 'info' | 'warn' | 'error' | 'debug'
-  message: string
+  timestamp: string; // ISO 8601
+  level: 'info' | 'warn' | 'error' | 'debug';
+  message: string;
 }
 ```
 

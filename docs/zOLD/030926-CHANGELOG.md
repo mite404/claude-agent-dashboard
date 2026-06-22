@@ -59,20 +59,25 @@ interface HookEvent {
 
 ```typescript
 interface SessionEvent {
-  id:           string;
-  type:         SessionEventType;   // see union below
-  timestamp:    string;
-  sessionId:    string;
-  summary:      string;
-  model?:       string;             // from SessionStart
-  tokenCount?:  number;             // from PreCompact
+  id: string;
+  type: SessionEventType; // see union below
+  timestamp: string;
+  sessionId: string;
+  summary: string;
+  model?: string; // from SessionStart
+  tokenCount?: number; // from PreCompact
 }
 
 type SessionEventType =
-  | "UserPromptSubmit" | "SessionStart"  | "Stop"
-  | "SubagentStart"    | "SubagentStop"
-  | "Notification"     | "PermissionRequest"
-  | "PreCompact"       | "PostToolUseFailure";
+  | 'UserPromptSubmit'
+  | 'SessionStart'
+  | 'Stop'
+  | 'SubagentStart'
+  | 'SubagentStop'
+  | 'Notification'
+  | 'PermissionRequest'
+  | 'PreCompact'
+  | 'PostToolUseFailure';
 ```
 
 ---
@@ -104,7 +109,7 @@ type SessionEventType =
 - Shell injection: `$SESSION_ID` sanitized with `tr -cd 'a-zA-Z0-9_-'` in all hook scripts
 - State mutation: raw fetch array shallow-cloned before `computeBlockedState()`
 - `handleBulkDelete` now has a `catch` block (errors were silently swallowed)
-- Log row keys changed from `key={i}` to `` key={`${entry.timestamp}-${i}`} ``
+- Log row keys changed from `key={i}` to ``key={`${entry.timestamp}-${i}`}``
 - `new Date()` in sort comparator replaced with `const now = Date.now()` captured once
 - `lightMode` state and theme toggle lifted from `TaskTable` → `Dashboard`
 
@@ -118,9 +123,9 @@ selected `sessionId` values; tasks without a `sessionId` are unaffected.
 
 ## Known Limitations
 
-| Limitation | Status |
-|-----------|--------|
-| Background tasks stay `running` indefinitely | Accepted — hook fires on return only |
-| Events attributed to sessions only — no per-agent attribution for parallel runs | Future |
-| `[dependsOn:...]` requires orchestrator prompt engineering | By design |
-| Ghostty new-window delay requires a 0.5s sleep in AppleScript | Future polish |
+| Limitation                                                                      | Status                               |
+| ------------------------------------------------------------------------------- | ------------------------------------ |
+| Background tasks stay `running` indefinitely                                    | Accepted — hook fires on return only |
+| Events attributed to sessions only — no per-agent attribution for parallel runs | Future                               |
+| `[dependsOn:...]` requires orchestrator prompt engineering                      | By design                            |
+| Ghostty new-window delay requires a 0.5s sleep in AppleScript                   | Future polish                        |

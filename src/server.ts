@@ -1,43 +1,43 @@
-import { Hono } from "hono";
-import { eq, and, sql, asc, inArray } from "drizzle-orm";
-import { db } from "./db/index";
+import { Hono } from 'hono';
+import { eq, and, sql, asc, inArray } from 'drizzle-orm';
+import { db } from './db/index';
 import {
   tasksTable,
   sessionEventsTable,
   sessionsTable,
   logsTable,
   hookEventsTable,
-} from "./db/schema";
+} from './db/schema';
 
 const app = new Hono();
 
 const VALID_STATUSES = [
-  "unassigned",
-  "claimed",
-  "running",
-  "completed",
-  "failed",
-  "paused",
-  "cancelled",
-  "blocked",
+  'unassigned',
+  'claimed',
+  'running',
+  'completed',
+  'failed',
+  'paused',
+  'cancelled',
+  'blocked',
 ];
 
 // -- TASKS
 // GET /tasks - list all, optionally filtered by ?status, ?sessionId, ?agentId
-app.get("/tasks", async (c) => {
-  const status = c.req.query("status");
-  const sessionId = c.req.query("sessionId");
-  const agentId = c.req.query("agentId");
+app.get('/tasks', async (c) => {
+  const status = c.req.query('status');
+  const sessionId = c.req.query('sessionId');
+  const agentId = c.req.query('agentId');
 
-  console.log("GET /tasks called with:", {
+  console.log('GET /tasks called with:', {
     status: status,
     sessionId: sessionId,
     agentId: agentId,
   });
 
   if (status && !VALID_STATUSES.includes(status)) {
-    console.error("Invalid status:", { status, valid: VALID_STATUSES });
-    return c.json({ error: `status must be one of: ${VALID_STATUSES.join(", ")}` }, 400);
+    console.error('Invalid status:', { status, valid: VALID_STATUSES });
+    return c.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, 400);
   }
 
   try {
@@ -51,7 +51,7 @@ app.get("/tasks", async (c) => {
       .from(tasksTable)
       .where(conditions.length ? and(...conditions) : undefined);
 
-    console.log("Query returned:", {
+    console.log('Query returned:', {
       count: rows.length,
       id: rows[0]?.id,
       status: rows[0]?.status,
@@ -64,8 +64,8 @@ app.get("/tasks", async (c) => {
 
     return c.json(rows);
   } catch (error) {
-    console.error("Failed to get task:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to get task:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
@@ -73,40 +73,40 @@ app.get("/tasks", async (c) => {
 // Input: {}
 // Output: { Array<Task> }
 // Errors: server 500 (DB error)
-app.get("/tasks/pool", async (c) => {
+app.get('/tasks/pool', async (c) => {
   let rows;
 
   try {
     rows = await db
       .select()
       .from(tasksTable)
-      .where(eq(tasksTable.status, "unassigned"))
+      .where(eq(tasksTable.status, 'unassigned'))
       .orderBy(
         sql`CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`,
         asc(tasksTable.createdAt),
       );
 
     if (!Array.isArray(rows)) {
-      console.error("ERROR: database returned non-array:", typeof rows);
-      return c.json({ error: "Database error" }, 500);
+      console.error('ERROR: database returned non-array:', typeof rows);
+      return c.json({ error: 'Database error' }, 500);
     }
 
     console.log(`GET /tasks/pool -> ${rows.length} unassigned tasks`);
     return c.json({ data: rows });
   } catch (error) {
-    console.error("GET /tasks/pool failed:", error);
-    return c.json({ error: "Server error" }, 500);
+    console.error('GET /tasks/pool failed:', error);
+    return c.json({ error: 'Server error' }, 500);
   }
 });
 
-app.post("/tasks/:id/claim", async (c) => {
+app.post('/tasks/:id/claim', async (c) => {
   // parse
-  const id = c.req.param("id");
+  const id = c.req.param('id');
   const body = await c.req.json().catch(() => null);
 
   // validate
   if (!body?.claimedBy) {
-    return c.json({ error: "claimedBy required" }, 400);
+    return c.json({ error: 'claimedBy required' }, 400);
   }
 
   // query DB
@@ -114,35 +114,35 @@ app.post("/tasks/:id/claim", async (c) => {
   try {
     result = await db
       .update(tasksTable)
-      .set({ status: "claimed", claimedBy: body.claimedBy, claimedAt: new Date().toISOString() })
-      .where(and(eq(tasksTable.id, id), eq(tasksTable.status, "unassigned")))
+      .set({ status: 'claimed', claimedBy: body.claimedBy, claimedAt: new Date().toISOString() })
+      .where(and(eq(tasksTable.id, id), eq(tasksTable.status, 'unassigned')))
       .returning();
 
     if (!result.length) {
       const existing = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
-      if (!existing.length) return c.json({ error: "task not found" }, 404);
-      return c.json({ error: "task already claimed", claimedBy: existing[0].claimedBy }, 409);
+      if (!existing.length) return c.json({ error: 'task not found' }, 404);
+      return c.json({ error: 'task already claimed', claimedBy: existing[0].claimedBy }, 409);
     }
   } catch (error) {
     console.error(`Failed to find task: ${id}`, error);
-    return c.json({ error: "Server error" }, 500);
+    return c.json({ error: 'Server error' }, 500);
   }
 
   return c.json(result[0], 200);
 });
 
 // GET /tasks/:id
-app.get("/tasks/:id", async (c) => {
-  const id = c.req.param("id");
-  console.log("GET task for id:", id);
+app.get('/tasks/:id', async (c) => {
+  const id = c.req.param('id');
+  console.log('GET task for id:', id);
 
   if (!id) {
-    return c.json({ error: "id required" }, 400);
+    return c.json({ error: 'id required' }, 400);
   }
 
   try {
     const rows = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
-    console.log("Query returned:", {
+    console.log('Query returned:', {
       count: rows.length,
       id: rows[0]?.id,
       status: rows[0]?.status,
@@ -150,36 +150,36 @@ app.get("/tasks/:id", async (c) => {
     const task = rows[0];
 
     if (!task) {
-      console.error("Task not found:", id);
-      return c.json({ error: "task not found" }, 404);
+      console.error('Task not found:', id);
+      return c.json({ error: 'task not found' }, 404);
     }
 
     return c.json(task);
   } catch (error) {
-    console.error("Failed to get task:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to get task:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
 // POST /tasks - called by pre-tool-agent.sh
-app.post("/tasks", async (c) => {
+app.post('/tasks', async (c) => {
   let body;
 
   try {
     body = await c.req.json();
   } catch (error) {
-    console.error("Malformed JSON request", error);
-    return c.json({ error: "Bad request" }, 400);
+    console.error('Malformed JSON request', error);
+    return c.json({ error: 'Bad request' }, 400);
   }
 
-  console.log("POST /tasks has been called with:", { name: body.name, sessionId: body.sessionId });
+  console.log('POST /tasks has been called with:', { name: body.name, sessionId: body.sessionId });
 
   if (!body.name || !body.sessionId) {
-    console.error("Missing required name and sessionId:", {
+    console.error('Missing required name and sessionId:', {
       hasName: Boolean(body.name),
       hasSessionId: Boolean(body.sessionId),
     });
-    return c.json({ error: "name and sessionId required" }, 400);
+    return c.json({ error: 'name and sessionId required' }, 400);
   }
 
   try {
@@ -188,8 +188,8 @@ app.post("/tasks", async (c) => {
       .insert(sessionsTable)
       .values({
         id: body.sessionId,
-        type: "auto",
-        status: "active",
+        type: 'auto',
+        status: 'active',
         createdAt: new Date().toISOString(),
       })
       .onConflictDoNothing();
@@ -198,14 +198,14 @@ app.post("/tasks", async (c) => {
     const { logs, events, dependencies, ...safeFields } = body;
     const taskId = body.id || crypto.randomUUID();
 
-    console.log("Inserting task:", { id: taskId, name: body.name, sessionId: body.sessionId });
+    console.log('Inserting task:', { id: taskId, name: body.name, sessionId: body.sessionId });
     const result = await db
       .insert(tasksTable)
       .values({
         id: taskId,
         name: body.name,
         sessionId: body.sessionId,
-        status: body.status || "unassigned",
+        status: body.status || 'unassigned',
         createdAt: new Date().toISOString(),
         ...safeFields, // includes agentType, parentId, etc if provided
       })
@@ -219,76 +219,76 @@ app.post("/tasks", async (c) => {
           id: crypto.randomUUID(),
           taskId: taskId,
           timestamp: logs[0].timestamp || new Date().toISOString(),
-          level: logs[0].level || "info",
+          level: logs[0].level || 'info',
           message: logs[0].message,
         })
-        .catch((err) => console.error("Failed to insert log:", err));
+        .catch((err) => console.error('Failed to insert log:', err));
     }
 
-    console.log("Task inserted successfully:", { id: result[0].id, status: result[0].status });
+    console.log('Task inserted successfully:', { id: result[0].id, status: result[0].status });
     return c.json(result[0], 201);
   } catch (error) {
-    console.error("Failed to insert task:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to insert task:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
 // Shared handler for PATCH and PUT /tasks/:id
 async function handleTaskUpdate(c: any) {
-  const id = c.req.param("id");
+  const id = c.req.param('id');
   let body;
 
   try {
     body = await c.req.json();
   } catch (error) {
-    console.error("Malformed JSON response", error);
-    return c.json({ error: "Bad request" }, 400);
+    console.error('Malformed JSON response', error);
+    return c.json({ error: 'Bad request' }, 400);
   }
 
   if (!id) {
-    console.error("Missing required id:", { hasId: Boolean(body.id) });
-    return c.json({ error: "id required" }, 400);
+    console.error('Missing required id:', { hasId: Boolean(body.id) });
+    return c.json({ error: 'id required' }, 400);
   }
 
   try {
     // Whitelist valid schema columns (exclude logs, events, dependencies, etc)
     const { logs, events, dependencies, ...safeFields } = body;
     const validCols = [
-      "name",
-      "description",
-      "status",
-      "kind",
-      "priority",
-      "progressPercentage",
-      "startedAt",
-      "completedAt",
-      "claimedAt",
-      "agentId",
-      "agentType",
-      "originatingSkill",
-      "taskKind",
-      "parentId",
+      'name',
+      'description',
+      'status',
+      'kind',
+      'priority',
+      'progressPercentage',
+      'startedAt',
+      'completedAt',
+      'claimedAt',
+      'agentId',
+      'agentType',
+      'originatingSkill',
+      'taskKind',
+      'parentId',
     ];
     const update = Object.fromEntries(
       Object.entries(safeFields).filter(([k]) => validCols.includes(k)),
     );
 
     if (Object.keys(update).length === 0) {
-      console.log("No valid fields to update for task:", id);
+      console.log('No valid fields to update for task:', id);
       const current = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
-      if (!current.length) return c.json({ error: "no task found for that id" }, 404);
+      if (!current.length) return c.json({ error: 'no task found for that id' }, 404);
       return c.json(current[0], 200);
     }
 
-    console.log("Updating task:", {
+    console.log('Updating task:', {
       id,
       fieldsToUpdate: Object.keys(update),
     });
     const result = await db.update(tasksTable).set(update).where(eq(tasksTable.id, id)).returning();
 
     if (!result.length) {
-      console.error("Task not found:", id);
-      return c.json({ error: "no task found for that id" }, 404);
+      console.error('Task not found:', id);
+      return c.json({ error: 'no task found for that id' }, 404);
     }
 
     // Persist hook events if provided (pre-hook sends status='running', post-hook upserts to 'completed'/'failed')
@@ -311,55 +311,55 @@ async function handleTaskUpdate(c: any) {
               target: hookEventsTable.id,
               set: { status: sql`excluded.status`, completedAt: sql`excluded.completed_at` },
             })
-            .catch((err: any) => console.error("Failed to insert hook event:", err)),
+            .catch((err: any) => console.error('Failed to insert hook event:', err)),
         ),
       );
     }
 
     return c.json(result[0], 200);
   } catch (error) {
-    console.error("Failed to update task:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to update task:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 }
 
 // PATCH /tasks/:id - called by post-tool-agent.sh
-app.patch("/tasks/:id", handleTaskUpdate);
+app.patch('/tasks/:id', handleTaskUpdate);
 
 // PUT /tasks/:id - alias for PATCH (for backward compat with shell scripts)
-app.put("/tasks/:id", handleTaskUpdate);
+app.put('/tasks/:id', handleTaskUpdate);
 
 // DELETE /tasks/:id
-app.delete("/tasks/:id", async (c) => {
-  const id = c.req.param("id");
-  console.log("DELETE tasks/:id called with:", { id });
+app.delete('/tasks/:id', async (c) => {
+  const id = c.req.param('id');
+  console.log('DELETE tasks/:id called with:', { id });
 
   if (!id) {
-    console.error("Missing ID param");
-    return c.json({ error: "id required" }, 400);
+    console.error('Missing ID param');
+    return c.json({ error: 'id required' }, 400);
   }
 
   try {
     const result = await db.delete(tasksTable).where(eq(tasksTable.id, id)).returning();
 
     if (!result.length) {
-      console.error("Task not found to delete:", id);
-      return c.json({ error: "no task found to delete" }, 404);
+      console.error('Task not found to delete:', id);
+      return c.json({ error: 'no task found to delete' }, 404);
     }
-    console.log("Task deleted:", id);
+    console.log('Task deleted:', id);
 
     return c.json({ ok: true });
   } catch (error) {
-    console.error("Failed to delete task", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to delete task', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
 // -- SESSION EVENTS
 // GET /sessionEvents
-app.get("/sessionEvents", async (c) => {
-  const sessionId = c.req.query("sessionId");
-  console.log("GET /sessionEvents called with:", sessionId);
+app.get('/sessionEvents', async (c) => {
+  const sessionId = c.req.query('sessionId');
+  console.log('GET /sessionEvents called with:', sessionId);
 
   // select rows based on param: sessionId or all if no param sent in req
   try {
@@ -369,7 +369,7 @@ app.get("/sessionEvents", async (c) => {
           .from(sessionEventsTable)
           .where(eq(sessionEventsTable.sessionId, sessionId))
       : await db.select().from(sessionEventsTable);
-    console.log("Query returned:", {
+    console.log('Query returned:', {
       rows: rows.length,
       id: rows[0]?.id,
       sessionId: rows[0]?.id,
@@ -386,32 +386,32 @@ app.get("/sessionEvents", async (c) => {
       200,
     );
   } catch (error) {
-    console.error("Query failed:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Query failed:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
 // POST /sessionEvents - called by session-event.sh
-app.post("/sessionEvents", async (c) => {
+app.post('/sessionEvents', async (c) => {
   let body;
 
   try {
     body = await c.req.json();
   } catch (error) {
-    console.error("Malformed JSON response", error);
-    return c.json({ error: "Bad request" }, 400);
+    console.error('Malformed JSON response', error);
+    return c.json({ error: 'Bad request' }, 400);
   }
 
   if (!body.sessionId || !body.type) {
-    console.error("Missing required fields:", {
+    console.error('Missing required fields:', {
       hasSessionId: Boolean(body.sessionId),
       hasType: Boolean(body.type),
     });
-    return c.json({ error: "sessionId and type required" }, 400);
+    return c.json({ error: 'sessionId and type required' }, 400);
   }
 
   try {
-    console.log("Inserting sessionEvent:", {
+    console.log('Inserting sessionEvent:', {
       sessionId: body.sessionId,
       type: body.type,
       summary: body.summary,
@@ -424,7 +424,7 @@ app.post("/sessionEvents", async (c) => {
         metadata: body.metadata || null,
       })
       .returning();
-    console.log("Inserted sessionEvent successfully:", {
+    console.log('Inserted sessionEvent successfully:', {
       id: result[0]?.id,
       sessionId: result[0]?.sessionId,
       type: result[0]?.type,
@@ -434,15 +434,15 @@ app.post("/sessionEvents", async (c) => {
 
     return c.json(result[0], 201);
   } catch (error) {
-    console.error("Failed to insert sessionEvent:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to insert sessionEvent:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
 // DELETE /sessionEvents - clear all session events
-app.delete("/sessionEvents", async (c) => {
-  const sessionId = c.req.query("sessionId");
-  console.log("DELETE /sessionEvents called with:", { sessionId });
+app.delete('/sessionEvents', async (c) => {
+  const sessionId = c.req.query('sessionId');
+  console.log('DELETE /sessionEvents called with:', { sessionId });
 
   try {
     const conditions = sessionId ? [eq(sessionEventsTable.sessionId, sessionId)] : [];
@@ -451,22 +451,22 @@ app.delete("/sessionEvents", async (c) => {
       .where(conditions.length ? and(...conditions) : undefined)
       .returning();
 
-    console.log("Deleted session events:", { count: result.length, sessionId });
+    console.log('Deleted session events:', { count: result.length, sessionId });
 
     return c.json({ ok: true, deleted: result.length });
   } catch (error) {
-    console.error("Failed to delete session events:", error);
-    return c.json({ error: "Database error" }, 500);
+    console.error('Failed to delete session events:', error);
+    return c.json({ error: 'Database error' }, 500);
   }
 });
 
-app.get("/debug/sessions", async (c) => {
+app.get('/debug/sessions', async (c) => {
   const sessions = await db.select().from(sessionsTable);
 
   return c.json({ sessions });
 });
 
-const PORT = parseInt(Bun.env.PORT || "3000");
+const PORT = parseInt(Bun.env.PORT || '3000');
 
 export default {
   fetch: app.fetch,

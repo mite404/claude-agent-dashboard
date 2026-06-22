@@ -1,7 +1,7 @@
 $kind: http-request
 name: Update Task
 method: PATCH
-url: "{{baseUrl}}/tasks/{{taskId}}"
+url: '{{baseUrl}}/tasks/{{taskId}}'
 order: 6000
 headers:
   Content-Type: application/json

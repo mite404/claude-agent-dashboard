@@ -10,11 +10,11 @@ All documentation now reflects the actual code state. Code is the authority; doc
 
 ### **Files Updated**
 
-| File | Changes | Status |
-|------|---------|--------|
-| **`CLAUDE.md`** | Hook script names corrected (generic → agent-specific); Key Files updated; Session events gotcha added | ✅ |
-| **`docs/IMPLEMENTATION.md`** | Phase 12 (Hook Expansion) added; Skill attribution marked [x] completed (v1 MVP); Phase numbering adjusted; modification date updated to 2026-03-10 | ✅ |
-| **`docs/HOOK_EXPANSION.md`** | No changes needed — already accurate and comprehensive | ✅ |
+| File                         | Changes                                                                                                                                             | Status |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| **`CLAUDE.md`**              | Hook script names corrected (generic → agent-specific); Key Files updated; Session events gotcha added                                              | ✅     |
+| **`docs/IMPLEMENTATION.md`** | Phase 12 (Hook Expansion) added; Skill attribution marked [x] completed (v1 MVP); Phase numbering adjusted; modification date updated to 2026-03-10 | ✅     |
+| **`docs/HOOK_EXPANSION.md`** | No changes needed — already accurate and comprehensive                                                                                              | ✅     |
 
 ---
 

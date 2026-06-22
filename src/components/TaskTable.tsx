@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   IconSearch,
   IconRefresh,
@@ -22,7 +22,7 @@ import {
   IconMoon,
   IconPlayerPause,
   IconCircleX,
-} from "@tabler/icons-react";
+} from '@tabler/icons-react';
 import {
   Table,
   TableHeader,
@@ -30,10 +30,10 @@ import {
   TableRow,
   TableHead,
   TableCell,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,11 +41,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn, formatElapsed, formatTimestamp } from "@/lib/utils";
-import { StatusBadge } from "@/components/ui/badge";
-import { GlobalEventStrip } from "@/components/GlobalEventStrip";
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn, formatElapsed, formatTimestamp } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui/badge';
+import { GlobalEventStrip } from '@/components/GlobalEventStrip';
 import {
   ALL_STATUSES,
   STATUS_ORDER,
@@ -63,7 +63,7 @@ import {
   TASK_KIND_ICON,
   HIDEABLE_COLS,
   type HideableCol,
-} from "@/lib/taskConfig";
+} from '@/lib/taskConfig';
 import {
   sortNodes,
   flattenVisible,
@@ -72,9 +72,17 @@ import {
   type FlatTask,
   type SortCol,
   type SortState,
-} from "@/lib/taskUtils";
-import { patchTask, deleteTask, clearAllSessionEvents } from "@/lib/taskApi";
-import type { TaskNode, TaskStatus, LogEntry, HookEvent, SessionEvent, SessionEventType, TaskKind } from "@/types/task";
+} from '@/lib/taskUtils';
+import { patchTask, deleteTask, clearAllSessionEvents } from '@/lib/taskApi';
+import type {
+  TaskNode,
+  TaskStatus,
+  LogEntry,
+  HookEvent,
+  SessionEvent,
+  SessionEventType,
+  TaskKind,
+} from '@/types/task';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,21 +115,21 @@ function FilterPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5 h-8">
+        <Button variant="outline" size="sm" className="h-8 gap-1.5">
           <IconFilter size={13} />
           {label}
           {selected.size > 0 && (
-            <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-600 px-1 text-[10px] font-semibold tabular-nums text-stone-100">
+            <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-600 px-1 text-[10px] font-semibold text-stone-100 tabular-nums">
               {selected.size}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-44 p-2 space-y-0.5">
+      <PopoverContent className="w-44 space-y-0.5 p-2">
         {selected.size > 0 && (
           <button
             onClick={onClear}
-            className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-400 hover:text-stone-300 hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+            className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-400 hover:bg-stone-800 hover:text-stone-300 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
           >
             <IconX size={11} />
             Clear filter
@@ -131,10 +139,10 @@ function FilterPopover({
           <button
             key={opt}
             onClick={() => onToggle(opt)}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
           >
             <Checkbox checked={selected.has(opt)} className="pointer-events-none" />
-            <span className="capitalize text-stone-300">{opt}</span>
+            <span className="text-stone-300 capitalize">{opt}</span>
           </button>
         ))}
       </PopoverContent>
@@ -154,13 +162,13 @@ function LogDetailRow({ logs = [], colSpan }: { logs?: LogEntry[]; colSpan: numb
     const el = scrollRef.current;
     if (!el) return;
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
-    if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [logs]);
 
   const copyLogs = () => {
     const text = logs
       .map((e) => `${formatTimestamp(e.timestamp)}  ${LOG_LEVEL_LABEL[e.level]}  ${e.message}`)
-      .join("\n");
+      .join('\n');
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
@@ -168,21 +176,24 @@ function LogDetailRow({ logs = [], colSpan }: { logs?: LogEntry[]; colSpan: numb
   };
 
   return (
-    <TableRow className="hover:bg-transparent border-b-0">
+    <TableRow className="border-b-0 hover:bg-transparent">
       <TableCell colSpan={colSpan} className="p-0">
-        <div ref={scrollRef} className="mx-7.5 mb-2 overflow-auto rounded-(--radius) bg-stone-950 border border-stone-800 font-mono text-xs leading-relaxed max-h-96">
+        <div
+          ref={scrollRef}
+          className="mx-7.5 mb-2 max-h-96 overflow-auto rounded-(--radius) border border-stone-800 bg-stone-950 font-mono text-xs leading-relaxed"
+        >
           {/* Header bar */}
           <div className="sticky top-0 flex items-center gap-2 border-b border-stone-800 bg-stone-900/80 px-3 py-1.5">
             <IconTerminal2 size={15} aria-hidden="true" className="text-stone-500" />
-            <span className="text-stone-500 uppercase tracking-widest text-[10px] font-bold">
+            <span className="text-[10px] font-bold tracking-widest text-stone-500 uppercase">
               Logs
             </span>
-            <span className="ml-auto text-stone-500 text-[10px]">{logs.length} lines</span>
+            <span className="ml-auto text-[10px] text-stone-500">{logs.length} lines</span>
             <button
               onClick={copyLogs}
               title="Copy logs"
-              aria-label={copied ? "Logs copied" : "Copy logs"}
-              className="ml-1 text-stone-500 hover:text-stone-300 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded"
+              aria-label={copied ? 'Logs copied' : 'Copy logs'}
+              className="ml-1 rounded text-stone-500 transition-colors hover:text-stone-300 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
             >
               {copied ? <IconCheck size={13} className="text-stone-400" /> : <IconCopy size={13} />}
             </button>
@@ -193,21 +204,26 @@ function LogDetailRow({ logs = [], colSpan }: { logs?: LogEntry[]; colSpan: numb
                 <tr
                   key={`${entry.timestamp}-${i}`}
                   className={cn(
-                    "group hover:bg-stone-900/60 transition-colors",
-                    entry.level === "error" && "bg-red-950/20",
-                    entry.level === "warn" && "bg-amber-950/20",
+                    'group hover:bg-stone-900/60 transition-colors',
+                    entry.level === 'error' && 'bg-red-950/20',
+                    entry.level === 'warn' && 'bg-amber-950/20',
                   )}
                 >
-                  <td className="select-none px-2 py-0.5 text-right text-[10px] text-stone-600 w-8">
+                  <td className="w-8 px-2 py-0.5 text-right text-[10px] text-stone-600 select-none">
                     {i + 1}
                   </td>
-                  <td className="px-2 py-0.5 text-stone-500 whitespace-nowrap w-24">
+                  <td className="w-24 px-2 py-0.5 whitespace-nowrap text-stone-500">
                     {formatTimestamp(entry.timestamp)}
                   </td>
-                  <td className={cn("px-2 py-0.5 font-bold w-12", LOG_LEVEL_STYLE[entry.level])}>
+                  <td className={cn('px-2 py-0.5 font-bold w-12', LOG_LEVEL_STYLE[entry.level])}>
                     {LOG_LEVEL_LABEL[entry.level]}
                   </td>
-                  <td className={cn("px-2 py-0.5 pr-4 break-all whitespace-pre-wrap", LOG_LEVEL_STYLE[entry.level])}>
+                  <td
+                    className={cn(
+                      'px-2 py-0.5 pr-4 break-all whitespace-pre-wrap',
+                      LOG_LEVEL_STYLE[entry.level],
+                    )}
+                  >
                     {entry.message}
                   </td>
                 </tr>
@@ -224,23 +240,32 @@ function LogDetailRow({ logs = [], colSpan }: { logs?: LogEntry[]; colSpan: numb
 
 function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
   return (
-    <TableRow className="hover:bg-transparent border-b-0">
+    <TableRow className="border-b-0 hover:bg-transparent">
       <TableCell colSpan={colSpan} className="p-0">
-        <div className="mx-7.5 mb-2 rounded-(--radius) border border-stone-800 bg-stone-950 text-xs overflow-hidden">
+        <div className="mx-7.5 mb-2 overflow-hidden rounded-(--radius) border border-stone-800 bg-stone-950 text-xs">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-stone-800/60 bg-stone-900/60 px-3 py-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+            <span className="font-mono text-[10px] font-bold tracking-widest text-stone-500 uppercase">
               Subtasks
             </span>
             <span className="font-mono text-[10px] text-stone-600">
-              {task.children.filter(c => c.status === "completed").length}/{task.children.length} done
+              {task.children.filter((c) => c.status === 'completed').length}/{task.children.length}{' '}
+              done
             </span>
           </div>
           {/* Checkpoint list */}
           <div className="divide-y divide-stone-800/40">
             {task.children.map((child) => (
-              <div key={child.id} className="flex items-center gap-3 px-3 py-2 hover:bg-stone-900/40 transition-colors">
-                <span className={cn("w-3 shrink-0 text-center font-mono font-bold", CHECKPOINT_COLOR[child.status])}>
+              <div
+                key={child.id}
+                className="flex items-center gap-3 px-3 py-2 transition-colors hover:bg-stone-900/40"
+              >
+                <span
+                  className={cn(
+                    'w-3 shrink-0 text-center font-mono font-bold',
+                    CHECKPOINT_COLOR[child.status],
+                  )}
+                >
                   {CHECKPOINT_ICON[child.status]}
                 </span>
                 <span className="flex-1 truncate text-stone-200">{child.name}</span>
@@ -261,15 +286,15 @@ function CheckpointRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
 
 function AgentSummaryRow({ message, colSpan }: { message: string; colSpan: number }) {
   return (
-    <TableRow className="hover:bg-transparent border-b-0">
+    <TableRow className="border-b-0 hover:bg-transparent">
       <TableCell colSpan={colSpan} className="p-0">
         <div className="mx-7.5 mb-2 rounded-(--radius) border border-stone-800 bg-stone-950">
           <div className="border-b border-stone-800/60 bg-stone-900/60 px-3 py-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+            <span className="font-mono text-[10px] font-bold tracking-widest text-stone-500 uppercase">
               Agent Summary
             </span>
           </div>
-          <div className="whitespace-pre-wrap p-3 font-mono text-[11px] text-stone-300">
+          <div className="p-3 font-mono text-[11px] whitespace-pre-wrap text-stone-300">
             {message}
           </div>
         </div>
@@ -292,28 +317,28 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
   }, [events.length]);
 
   return (
-    <TableRow className="hover:bg-transparent border-b-0">
+    <TableRow className="border-b-0 hover:bg-transparent">
       <TableCell colSpan={colSpan} className="p-0">
-        <div className="mx-7.5 mb-2 rounded-(--radius) border border-stone-800 bg-stone-950 text-xs overflow-hidden">
+        <div className="mx-7.5 mb-2 overflow-hidden rounded-(--radius) border border-stone-800 bg-stone-950 text-xs">
           <div className="flex items-center justify-between border-b border-stone-800/60 bg-stone-900/60 px-3 py-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-stone-500">
+            <span className="font-mono text-[10px] font-bold tracking-widest text-stone-500 uppercase">
               Event Trail
             </span>
             <span className="font-mono text-[10px] text-stone-600">
-              {events.filter((e) => e.status === "completed").length}/{events.length} done
+              {events.filter((e) => e.status === 'completed').length}/{events.length} done
             </span>
           </div>
-          <div ref={scrollRef} className="divide-y divide-stone-800/40 max-h-60 overflow-y-auto">
+          <div ref={scrollRef} className="max-h-60 divide-y divide-stone-800/40 overflow-y-auto">
             {events.length === 0 ? (
               <div className="px-3 py-2 text-[11px] text-stone-600 italic">No tool events yet…</div>
             ) : (
               events.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-center gap-2 px-3 py-1.5 hover:bg-stone-900/40 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 transition-colors hover:bg-stone-900/40"
                 >
-                  <span className="shrink-0 w-5 text-center select-none" aria-hidden="true">
-                    {TOOL_EMOJI[event.toolName] ?? "⚡"}
+                  <span className="w-5 shrink-0 text-center select-none" aria-hidden="true">
+                    {TOOL_EMOJI[event.toolName] ?? '⚡'}
                   </span>
                   <span className="w-16 shrink-0 font-mono text-[10px] text-stone-500">
                     {event.toolName}
@@ -324,10 +349,15 @@ function EventTrailRow({ task, colSpan }: { task: TaskNode; colSpan: number }) {
                   >
                     {event.summary}
                   </span>
-                  <span className={cn("shrink-0 font-mono text-[10px]", EVENT_STATUS_COLOR[event.status])}>
+                  <span
+                    className={cn(
+                      'shrink-0 font-mono text-[10px]',
+                      EVENT_STATUS_COLOR[event.status],
+                    )}
+                  >
                     {event.status}
                   </span>
-                  <span className="shrink-0 w-14 text-right font-mono text-[10px] text-stone-600">
+                  <span className="w-14 shrink-0 text-right font-mono text-[10px] text-stone-600">
                     {formatElapsed(event.timestamp, event.completedAt)}
                   </span>
                 </div>
@@ -357,7 +387,7 @@ interface TaskRowProps {
   onToggleLogs: () => void;
   onToggleSelect: () => void;
   onFilterByAgent: (agentType: string) => void;
-  onAction: (action: "cancel" | "pause" | "resume" | "retry") => void;
+  onAction: (action: 'cancel' | 'pause' | 'resume' | 'retry') => void;
 }
 
 function TaskRow({
@@ -377,28 +407,33 @@ function TaskRow({
   onFilterByAgent,
   onAction,
 }: TaskRowProps) {
-  const isTerminal = task.status === "completed" || task.status === "cancelled";
-  const isPaused = task.status === "paused";
-  const isFailed = task.status === "failed";
+  const isTerminal = task.status === 'completed' || task.status === 'cancelled';
+  const isPaused = task.status === 'paused';
+  const isFailed = task.status === 'failed';
   const elapsed = formatElapsed(task.startedAt, task.completedAt);
 
-  const hasDetail = (task.events?.length ?? 0) > 0 || task.children.length > 0 || (task.logs?.length ?? 0) > 0;
+  const hasDetail =
+    (task.events?.length ?? 0) > 0 || task.children.length > 0 || (task.logs?.length ?? 0) > 0;
 
   // For blocked tasks: look up the names of the tasks causing the block
-  const blockingNames = task.blockedBy
-    ?.map((id) => taskMap.get(id)?.name ?? id)
-    .slice(0, 2) // show at most 2 names inline
+  const blockingNames = task.blockedBy?.map((id) => taskMap.get(id)?.name ?? id).slice(0, 2); // show at most 2 names inline
   return (
     <TableRow
-      data-state={selected ? "selected" : undefined}
+      data-state={selected ? 'selected' : undefined}
       onClick={hasDetail ? onToggleLogs : undefined}
-      onKeyDown={hasDetail ? (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggleLogs(); } } : undefined}
+      onKeyDown={
+        hasDetail
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onToggleLogs();
+              }
+            }
+          : undefined
+      }
       tabIndex={hasDetail ? 0 : undefined}
       aria-expanded={hasDetail ? logsOpen : undefined}
-      className={cn(
-        hasDetail ? "cursor-pointer" : undefined,
-        isNew && "animate-row-fade-in",
-      )}
+      className={cn(hasDetail ? 'cursor-pointer' : undefined, isNew && 'animate-row-fade-in')}
     >
       {/* Select */}
       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
@@ -406,120 +441,141 @@ function TaskRow({
       </TableCell>
 
       {/* Name */}
-      {!hiddenCols.has("task") && <TableCell>
-        <div
-          className="flex items-center gap-1.5"
-          style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}
-        >
-          {/* Expand/collapse children toggle */}
-          {hasChildren ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleExpand();
-              }}
-              className="shrink-0 flex h-5 w-5 items-center justify-center rounded hover:bg-stone-700 text-stone-500 hover:text-stone-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 p-2 -m-2"
-              aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
-              aria-expanded={expanded}
-            >
-              <IconChevronRight
-                size={13}
-                className={cn("transition-transform duration-150", expanded && "rotate-90")}
-              />
-            </button>
-          ) : depth > 0 ? (
-            <span className="shrink-0 w-5 text-center text-stone-700 text-xs select-none">└</span>
-          ) : (
-            <span className="shrink-0 w-5" />
-          )}
-
-          {/* Task name */}
-          <span
-            className="truncate font-medium text-stone-100"
-            title={task.originatingSkill ? `initiated by ${task.originatingSkill}` : undefined}
+      {!hiddenCols.has('task') && (
+        <TableCell>
+          <div
+            className="flex items-center gap-1.5"
+            style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}
           >
-            {task.name}
-          </span>
-          {task.taskKind && TASK_KIND_ICON[task.taskKind] && (
-            <span className="shrink-0 ml-2">
-              {TASK_KIND_ICON[task.taskKind]}
+            {/* Expand/collapse children toggle */}
+            {hasChildren ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleExpand();
+                }}
+                className="-m-2 flex h-5 w-5 shrink-0 items-center justify-center rounded p-2 text-stone-500 transition-colors hover:bg-stone-700 hover:text-stone-200 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
+                aria-label={expanded ? 'Collapse subtasks' : 'Expand subtasks'}
+                aria-expanded={expanded}
+              >
+                <IconChevronRight
+                  size={13}
+                  className={cn('transition-transform duration-150', expanded && 'rotate-90')}
+                />
+              </button>
+            ) : depth > 0 ? (
+              <span className="w-5 shrink-0 text-center text-xs text-stone-700 select-none">└</span>
+            ) : (
+              <span className="w-5 shrink-0" />
+            )}
+
+            {/* Task name */}
+            <span
+              className="truncate font-medium text-stone-100"
+              title={task.originatingSkill ? `initiated by ${task.originatingSkill}` : undefined}
+            >
+              {task.name}
             </span>
-          )}
-        </div>
-      </TableCell>}
+            {task.taskKind && TASK_KIND_ICON[task.taskKind] && (
+              <span className="ml-2 shrink-0">{TASK_KIND_ICON[task.taskKind]}</span>
+            )}
+          </div>
+        </TableCell>
+      )}
 
       {/* Agent Type */}
-      {!hiddenCols.has("agent") && <TableCell className="w-32" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={() => onFilterByAgent(task.agentType)}
-          className="rounded-sm bg-stone-800 px-1.5 py-0.5 text-[11px] text-stone-400 font-medium hover:bg-stone-700 hover:text-stone-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
-          title={`Filter by ${task.agentType}`}
-        >
-          {task.agentType}
-        </button>
-      </TableCell>}
+      {!hiddenCols.has('agent') && (
+        <TableCell className="w-32" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onFilterByAgent(task.agentType)}
+            className="rounded-sm bg-stone-800 px-1.5 py-0.5 text-[11px] font-medium text-stone-400 transition-colors hover:bg-stone-700 hover:text-stone-200 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
+            title={`Filter by ${task.agentType}`}
+          >
+            {task.agentType}
+          </button>
+        </TableCell>
+      )}
 
       {/* Agent ID — patched from SubagentStart hook, matches agentId in GlobalEventStrip */}
-      {!hiddenCols.has("id") && <TableCell className="w-40 font-mono text-[11px] text-stone-500" onClick={(e) => e.stopPropagation()}>
-        {task.agentId
-          ? <span title={`Matches agentId in session events`} className="truncate block">{task.agentId}</span>
-          : <span className="text-stone-700 italic">—</span>
-        }
-      </TableCell>}
+      {!hiddenCols.has('id') && (
+        <TableCell
+          className="w-40 font-mono text-[11px] text-stone-500"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {task.agentId ? (
+            <span title={`Matches agentId in session events`} className="block truncate">
+              {task.agentId}
+            </span>
+          ) : (
+            <span className="text-stone-700 italic">—</span>
+          )}
+        </TableCell>
+      )}
 
       {/* Status */}
-      {!hiddenCols.has("status") && <TableCell className="w-28">
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-1.5">
-            {STATUS_ICON[task.status]}
-            <span className={cn("text-sm", STATUS_TEXT[task.status])}>
-              {STATUS_LABEL[task.status]}
-            </span>
+      {!hiddenCols.has('status') && (
+        <TableCell className="w-28">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              {STATUS_ICON[task.status]}
+              <span className={cn('text-sm', STATUS_TEXT[task.status])}>
+                {STATUS_LABEL[task.status]}
+              </span>
+            </div>
+            {task.status === 'blocked' && blockingNames && blockingNames.length > 0 && (
+              <span
+                className="max-w-24 truncate text-[10px] text-stone-500"
+                title={blockingNames.join(', ')}
+              >
+                waiting for: {blockingNames.join(', ')}
+              </span>
+            )}
           </div>
-          {task.status === "blocked" && blockingNames && blockingNames.length > 0 && (
-            <span className="text-[10px] text-stone-500 truncate max-w-24" title={blockingNames.join(", ")}>
-              waiting for: {blockingNames.join(", ")}
-            </span>
-          )}
-        </div>
-      </TableCell>}
+        </TableCell>
+      )}
 
       {/* Subtasks */}
-      {!hiddenCols.has("subtasks") && <TableCell className="w-20">
-        {task.children.length > 0 ? (
-          <span className="font-mono text-[11px] tabular-nums text-stone-400">
-            {task.children.filter(c => c.status === "completed").length}/{task.children.length}
-          </span>
-        ) : (
-          <span className="text-stone-700 text-[11px]">—</span>
-        )}
-      </TableCell>}
+      {!hiddenCols.has('subtasks') && (
+        <TableCell className="w-20">
+          {task.children.length > 0 ? (
+            <span className="font-mono text-[11px] text-stone-400 tabular-nums">
+              {task.children.filter((c) => c.status === 'completed').length}/{task.children.length}
+            </span>
+          ) : (
+            <span className="text-[11px] text-stone-700">—</span>
+          )}
+        </TableCell>
+      )}
 
       {/* Progress */}
-      {!hiddenCols.has("progress") && <TableCell className="w-36">
-        <div className="flex items-center gap-2">
-          <div className="h-1.5 flex-1 rounded-full bg-stone-800 min-w-0">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-500",
-                PROGRESS_BAR[task.status],
-              )}
-              style={{ width: `${task.progressPercentage}%` }}
-              role="progressbar"
-              aria-valuenow={task.progressPercentage}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Task progress"
-            />
+      {!hiddenCols.has('progress') && (
+        <TableCell className="w-36">
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 min-w-0 flex-1 rounded-full bg-stone-800">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-500',
+                  PROGRESS_BAR[task.status],
+                )}
+                style={{ width: `${task.progressPercentage}%` }}
+                role="progressbar"
+                aria-valuenow={task.progressPercentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Task progress"
+              />
+            </div>
+            <span className="w-8 shrink-0 text-right text-xs text-stone-500 tabular-nums">
+              {task.progressPercentage}%
+            </span>
           </div>
-          <span className="shrink-0 w-8 text-right text-xs tabular-nums text-stone-500">
-            {task.progressPercentage}%
-          </span>
-        </div>
-      </TableCell>}
+        </TableCell>
+      )}
 
       {/* Duration */}
-      {!hiddenCols.has("duration") && <TableCell className="w-20 text-xs tabular-nums text-stone-500">{elapsed}</TableCell>}
+      {!hiddenCols.has('duration') && (
+        <TableCell className="w-20 text-xs text-stone-500 tabular-nums">{elapsed}</TableCell>
+      )}
 
       {/* Actions */}
       <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
@@ -541,7 +597,7 @@ function TaskRow({
 
             {/* Pause / Resume */}
             <DropdownMenuItem
-              onClick={() => onAction(isPaused ? "resume" : "pause")}
+              onClick={() => onAction(isPaused ? 'resume' : 'pause')}
               disabled={isTerminal || !task.status.match(/^(running|paused)$/)}
             >
               {isPaused ? (
@@ -559,8 +615,8 @@ function TaskRow({
 
             {/* Retry */}
             <DropdownMenuItem
-              onClick={() => onAction("retry")}
-              disabled={!isFailed && task.status !== "cancelled"}
+              onClick={() => onAction('retry')}
+              disabled={!isFailed && task.status !== 'cancelled'}
             >
               <IconRotateDot size={13} />
               Retry
@@ -570,7 +626,7 @@ function TaskRow({
 
             {/* Cancel */}
             <DropdownMenuItem
-              onClick={() => onAction("cancel")}
+              onClick={() => onAction('cancel')}
               disabled={isTerminal}
               className="text-red-400 focus:text-red-300"
             >
@@ -596,19 +652,24 @@ function SortHeader({
   col: SortCol;
   label: string;
   sort: SortState;
-  onSort: (col: SortCol, dir: "asc" | "desc") => void;
+  onSort: (col: SortCol, dir: 'asc' | 'desc') => void;
   onHide: (col: HideableCol) => void;
 }) {
   const isActive = sort.col === col;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1 px-1.5 text-stone-400 hover:text-stone-200 transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500 rounded">
+        <button className="group flex items-center gap-1 rounded px-1.5 text-stone-400 transition-colors hover:text-stone-200 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none">
           {label}
-          <span className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-40 group-hover:opacity-100")}>
-            {isActive && sort.dir === "asc" ? (
+          <span
+            className={cn(
+              'transition-opacity',
+              isActive ? 'opacity-100' : 'opacity-40 group-hover:opacity-100',
+            )}
+          >
+            {isActive && sort.dir === 'asc' ? (
               <IconArrowUp size={12} />
-            ) : isActive && sort.dir === "desc" ? (
+            ) : isActive && sort.dir === 'desc' ? (
               <IconArrowDown size={12} />
             ) : (
               <IconArrowsSort size={12} />
@@ -617,11 +678,11 @@ function SortHeader({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-36">
-        <DropdownMenuItem onClick={() => onSort(col, "asc")}>
+        <DropdownMenuItem onClick={() => onSort(col, 'asc')}>
           <IconArrowUp size={13} />
           Asc
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onSort(col, "desc")}>
+        <DropdownMenuItem onClick={() => onSort(col, 'desc')}>
           <IconArrowDown size={13} />
           Desc
         </DropdownMenuItem>
@@ -652,8 +713,8 @@ export function TaskTable({
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<TaskStatus>>(new Set());
   const [agentFilter, setAgentFilter] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortState>({ col: null, dir: "asc" });
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortState>({ col: null, dir: 'asc' });
   const [hiddenCols, setHiddenCols] = useState<Set<HideableCol>>(new Set());
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [sessionFilter, setSessionFilter] = useState<Set<string>>(new Set());
@@ -737,24 +798,25 @@ export function TaskTable({
         if (!task.name.toLowerCase().includes(q) && !task.id.toLowerCase().includes(q))
           return false;
       }
-      if (sessionFilter.size > 0 && task.sessionId && !sessionFilter.has(task.sessionId)) return false;
+      if (sessionFilter.size > 0 && task.sessionId && !sessionFilter.has(task.sessionId))
+        return false;
       return true;
     });
   }, [tree, expandedRows, statusFilter, agentFilter, search, sort, sessionFilter]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  const handleAction = async (taskId: string, action: "cancel" | "pause" | "resume" | "retry") => {
+  const handleAction = async (taskId: string, action: 'cancel' | 'pause' | 'resume' | 'retry') => {
     setBusy((prev) => ({ ...prev, [taskId]: action }));
     try {
       const patch =
-        action === "cancel"
-          ? { status: "cancelled" as TaskStatus }
-          : action === "pause"
-            ? { status: "paused" as TaskStatus }
-            : action === "resume"
-              ? { status: "running" as TaskStatus }
-              : { status: "running" as TaskStatus, progressPercentage: 0 };
+        action === 'cancel'
+          ? { status: 'cancelled' as TaskStatus }
+          : action === 'pause'
+            ? { status: 'paused' as TaskStatus }
+            : action === 'resume'
+              ? { status: 'running' as TaskStatus }
+              : { status: 'running' as TaskStatus, progressPercentage: 0 };
       await patchTask(taskId, patch);
       onStatusChange?.(taskId, patch.status);
     } catch (err) {
@@ -770,7 +832,7 @@ export function TaskTable({
 
   // ── Bulk Actions ───────────────────────────────────────────────────────────
 
-  const handleBulkAction = async (action: "cancel" | "pause" | "retry") => {
+  const handleBulkAction = async (action: 'cancel' | 'pause' | 'retry') => {
     setBusy((prev) => {
       const n = { ...prev };
       for (const id of selectedRows) n[id] = action;
@@ -778,11 +840,11 @@ export function TaskTable({
     });
     try {
       const patch =
-        action === "cancel"
-          ? { status: "cancelled" as TaskStatus }
-          : action === "pause"
-            ? { status: "paused" as TaskStatus }
-            : { status: "running" as TaskStatus, progressPercentage: 0 };
+        action === 'cancel'
+          ? { status: 'cancelled' as TaskStatus }
+          : action === 'pause'
+            ? { status: 'paused' as TaskStatus }
+            : { status: 'running' as TaskStatus, progressPercentage: 0 };
       await Promise.all([...selectedRows].map((id) => patchTask(id, patch)));
       setSelectedRows(new Set());
       onRefresh();
@@ -798,7 +860,7 @@ export function TaskTable({
   const handleBulkDelete = async () => {
     setBusy((prev) => {
       const n = { ...prev };
-      for (const id of selectedRows) n[id] = "delete";
+      for (const id of selectedRows) n[id] = 'delete';
       return n;
     });
     try {
@@ -806,7 +868,7 @@ export function TaskTable({
       setSelectedRows(new Set());
       onRefresh();
     } catch (err) {
-      console.error("Bulk delete failed:", err);
+      console.error('Bulk delete failed:', err);
     } finally {
       setBusy((prev) => {
         const n = { ...prev };
@@ -818,7 +880,7 @@ export function TaskTable({
 
   const handleClearCompleted = async () => {
     const done = collectAllTasks(tree).filter(
-      (t) => t.status === "completed" || t.status === "cancelled",
+      (t) => t.status === 'completed' || t.status === 'cancelled',
     );
     await Promise.all(done.map((t) => deleteTask(t.id)));
     onRefresh();
@@ -829,7 +891,7 @@ export function TaskTable({
   const visibleIds = flatTasks.map((f) => f.task.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedRows.has(id));
   const someSelected = visibleIds.some((id) => selectedRows.has(id));
-  const headerChecked = allSelected ? true : someSelected ? "indeterminate" : false;
+  const headerChecked = allSelected ? true : someSelected ? 'indeterminate' : false;
 
   const toggleAll = () => {
     setSelectedRows((prev) => {
@@ -904,21 +966,26 @@ export function TaskTable({
 
   // ── Sort & column visibility ───────────────────────────────────────────────
 
-  const handleSort = (col: SortCol, dir: "asc" | "desc") => setSort({ col, dir });
+  const handleSort = (col: SortCol, dir: 'asc' | 'desc') => setSort({ col, dir });
 
   const hideCol = (col: HideableCol) => {
     setHiddenCols((prev) => new Set([...prev, col]));
-    if (sort.col === col) setSort({ col: null, dir: "asc" });
+    if (sort.col === col) setSort({ col: null, dir: 'asc' });
   };
 
   const showCol = (col: HideableCol) =>
-    setHiddenCols((prev) => { const next = new Set(prev); next.delete(col); return next; });
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      next.delete(col);
+      return next;
+    });
 
   const totalCols = 9 - hiddenCols.size;
 
-  const hasFilters = statusFilter.size > 0 || agentFilter.size > 0 || search !== "" || sessionFilter.size > 0;
+  const hasFilters =
+    statusFilter.size > 0 || agentFilter.size > 0 || search !== '' || sessionFilter.size > 0;
   const hasCompletedTasks = collectAllTasks(tree).some(
-    (t) => t.status === "completed" || t.status === "cancelled",
+    (t) => t.status === 'completed' || t.status === 'cancelled',
   );
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -926,18 +993,18 @@ export function TaskTable({
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-48 max-w-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative max-w-sm min-w-48 flex-1">
           <IconSearch
             size={13}
             aria-hidden="true"
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none"
+            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-stone-500"
           />
           <Input
             placeholder="Filter tasks…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8"
+            className="h-8 pl-8"
             aria-label="Filter tasks"
           />
         </div>
@@ -959,21 +1026,21 @@ export function TaskTable({
         {sessionOptions.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-8">
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
                 <IconClockPlay size={13} />
                 Session
                 {sessionFilter.size > 0 && (
-                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-600 px-1 text-[10px] font-semibold tabular-nums text-stone-100">
+                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded bg-stone-600 px-1 text-[10px] font-semibold text-stone-100 tabular-nums">
                     {sessionFilter.size}
                   </span>
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-56 p-2 space-y-0.5">
+            <PopoverContent className="w-56 space-y-0.5 p-2">
               {sessionFilter.size > 0 && (
                 <button
                   onClick={() => setSessionFilter(new Set())}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-400 hover:text-stone-300 hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-xs text-stone-400 hover:bg-stone-800 hover:text-stone-300 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
                 >
                   <IconX size={11} />
                   Clear filter
@@ -985,14 +1052,20 @@ export function TaskTable({
                   onClick={() =>
                     setSessionFilter((prev) => {
                       const next = new Set(prev);
-                      next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+                      if (next.has(s.id)) {
+                        next.delete(s.id);
+                      } else {
+                        next.add(s.id);
+                      }
                       return next;
                     })
                   }
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-stone-800 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
                 >
                   <Checkbox checked={sessionFilter.has(s.id)} className="pointer-events-none" />
-                  <span className="truncate text-stone-300" title={s.label}>{s.label}</span>
+                  <span className="truncate text-stone-300" title={s.label}>
+                    {s.label}
+                  </span>
                 </button>
               ))}
             </PopoverContent>
@@ -1006,7 +1079,7 @@ export function TaskTable({
             onClick={() => {
               setStatusFilter(new Set());
               setAgentFilter(new Set());
-              setSearch("");
+              setSearch('');
               setSessionFilter(new Set());
             }}
           >
@@ -1015,7 +1088,7 @@ export function TaskTable({
           </Button>
         )}
 
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="ml-auto flex items-center gap-1">
           {hasCompletedTasks && (
             <Button
               variant="ghost"
@@ -1032,7 +1105,7 @@ export function TaskTable({
             size="sm"
             className="gap-1.5"
             onClick={() =>
-              fetch("http://localhost:3002/spawn", { method: "POST" }).catch(console.error)
+              fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error)
             }
           >
             <IconTerminal2 size={13} />
@@ -1053,8 +1126,8 @@ export function TaskTable({
                 return (
                   <button
                     key={col}
-                    onClick={() => visible ? hideCol(col) : showCol(col)}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-stone-300 hover:bg-stone-800 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-stone-500"
+                    onClick={() => (visible ? hideCol(col) : showCol(col))}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-stone-300 transition-colors hover:bg-stone-800 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
                   >
                     <span className="w-3.5 shrink-0">
                       {visible && <IconCheck size={13} className="text-stone-400" />}
@@ -1072,14 +1145,14 @@ export function TaskTable({
             disabled={loading}
             className="gap-1.5"
           >
-            <IconRefresh size={13} className={loading ? "animate-spin" : ""} />
+            <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
             Refresh
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={onThemeToggle}
-            aria-label={lightMode ? "Switch to dark mode" : "Switch to light mode"}
+            aria-label={lightMode ? 'Switch to dark mode' : 'Switch to light mode'}
           >
             {lightMode ? <IconMoon size={14} /> : <IconSun size={14} />}
           </Button>
@@ -1090,14 +1163,14 @@ export function TaskTable({
       {selectedRows.size > 0 && (
         <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
           <span className="text-xs text-stone-400 tabular-nums">{selectedRows.size} selected</span>
-          <div className="flex items-center gap-1 ml-2">
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("cancel")}>
+          <div className="ml-2 flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('cancel')}>
               Cancel
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("pause")}>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('pause')}>
               Pause
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("retry")}>
+            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('retry')}>
               Retry
             </Button>
             <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
@@ -1116,34 +1189,90 @@ export function TaskTable({
       )}
 
       {/* Table */}
-      <div className="rounded-md border border-stone-800 overflow-hidden">
+      <div className="overflow-hidden rounded-md border border-stone-800">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-stone-900/60 bg-stone-900/60">
+            <TableRow className="bg-stone-900/60 hover:bg-stone-900/60">
               <TableHead className="w-10">
                 <Checkbox checked={headerChecked} onChange={toggleAll} />
               </TableHead>
-              {!hiddenCols.has("task") && <TableHead>
-                <SortHeader col="task" label="Task" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
-              {!hiddenCols.has("agent") && <TableHead className="w-32">
-                <SortHeader col="agent" label="Agent" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
-              {!hiddenCols.has("id") && <TableHead className="w-40">
-                <SortHeader col="id" label="Agent ID" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
-              {!hiddenCols.has("status") && <TableHead className="w-28">
-                <SortHeader col="status" label="Status" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
-              {!hiddenCols.has("subtasks") && <TableHead className="w-20">
-                <SortHeader col="subtasks" label="Subtasks" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
-              {!hiddenCols.has("progress") && <TableHead className="w-36">
-                <SortHeader col="progress" label="Progress" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
-              {!hiddenCols.has("duration") && <TableHead className="w-20">
-                <SortHeader col="duration" label="Duration" sort={sort} onSort={handleSort} onHide={hideCol} />
-              </TableHead>}
+              {!hiddenCols.has('task') && (
+                <TableHead>
+                  <SortHeader
+                    col="task"
+                    label="Task"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
+              {!hiddenCols.has('agent') && (
+                <TableHead className="w-32">
+                  <SortHeader
+                    col="agent"
+                    label="Agent"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
+              {!hiddenCols.has('id') && (
+                <TableHead className="w-40">
+                  <SortHeader
+                    col="id"
+                    label="Agent ID"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
+              {!hiddenCols.has('status') && (
+                <TableHead className="w-28">
+                  <SortHeader
+                    col="status"
+                    label="Status"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
+              {!hiddenCols.has('subtasks') && (
+                <TableHead className="w-20">
+                  <SortHeader
+                    col="subtasks"
+                    label="Subtasks"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
+              {!hiddenCols.has('progress') && (
+                <TableHead className="w-36">
+                  <SortHeader
+                    col="progress"
+                    label="Progress"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
+              {!hiddenCols.has('duration') && (
+                <TableHead className="w-20">
+                  <SortHeader
+                    col="duration"
+                    label="Duration"
+                    sort={sort}
+                    onSort={handleSort}
+                    onHide={hideCol}
+                  />
+                </TableHead>
+              )}
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -1153,8 +1282,8 @@ export function TaskTable({
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={totalCols} className="h-32 text-center text-stone-500">
                   {tree.length === 0
-                    ? "No tasks yet — start a Claude Code agent session to see tasks appear here."
-                    : "No tasks match the current filters."}
+                    ? 'No tasks yet — start a Claude Code agent session to see tasks appear here.'
+                    : 'No tasks match the current filters.'}
                 </TableCell>
               </TableRow>
             ) : (
@@ -1179,14 +1308,16 @@ export function TaskTable({
                   />
                   {expandedLogs.has(task.id) && (
                     <>
-                      {(task.events?.length ?? 0) > 0
-                        ? <EventTrailRow task={task} colSpan={totalCols} />
-                        : task.children.length > 0
-                          ? <CheckpointRow task={task} colSpan={totalCols} />
-                          : (task.logs?.length ?? 0) > 0
-                            ? <LogDetailRow logs={task.logs} colSpan={totalCols} />
-                            : null}
-                      {task.lastAssistantMessage && <AgentSummaryRow message={task.lastAssistantMessage} colSpan={totalCols} />}
+                      {(task.events?.length ?? 0) > 0 ? (
+                        <EventTrailRow task={task} colSpan={totalCols} />
+                      ) : task.children.length > 0 ? (
+                        <CheckpointRow task={task} colSpan={totalCols} />
+                      ) : (task.logs?.length ?? 0) > 0 ? (
+                        <LogDetailRow logs={task.logs} colSpan={totalCols} />
+                      ) : null}
+                      {task.lastAssistantMessage && (
+                        <AgentSummaryRow message={task.lastAssistantMessage} colSpan={totalCols} />
+                      )}
                     </>
                   )}
                 </React.Fragment>
@@ -1201,16 +1332,13 @@ export function TaskTable({
         <span>
           {selectedRows.size > 0
             ? `${selectedRows.size} of ${flatTasks.length} selected`
-            : `${flatTasks.length} task${flatTasks.length !== 1 ? "s" : ""}`}
+            : `${flatTasks.length} task${flatTasks.length !== 1 ? 's' : ''}`}
         </span>
-        <span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Connecting…"}</span>
+        <span>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : 'Connecting…'}</span>
       </div>
 
       {/* Global session event strip */}
-      <GlobalEventStrip
-        events={sessionEvents}
-        onClearAllEvents={clearAllSessionEvents}
-      />
+      <GlobalEventStrip events={sessionEvents} onClearAllEvents={clearAllSessionEvents} />
     </div>
   );
 }

@@ -24,8 +24,8 @@ type TaskStatus = 'running' | 'paused' | 'completed';
 
 // This compiles — all three keys present
 const STATUS_LABEL: Record<TaskStatus, string> = {
-  running:   'Running',
-  paused:    'Paused',
+  running: 'Running',
+  paused: 'Paused',
   completed: 'Done',
 };
 ```
@@ -42,8 +42,8 @@ type TaskStatus = 'running' | 'paused' | 'completed' | 'unassigned';
 // Property 'unassigned' is missing in type '{ running: string; paused: string;
 // completed: string; }' but required in type 'Record<TaskStatus, string>'
 const STATUS_LABEL: Record<TaskStatus, string> = {
-  running:   'Running',
-  paused:    'Paused',
+  running: 'Running',
+  paused: 'Paused',
   completed: 'Done',
   // ← 'unassigned' missing here
 };
@@ -57,22 +57,22 @@ no obvious error message. TypeScript catches this at build time instead.
 
 Every `Record<TaskStatus, ...>` in `src/lib/taskConfig.tsx` enforces this rule:
 
-| Constant | What it powers |
-|---|---|
-| `STATUS_LABEL` | Badge display name |
-| `STATUS_ICON` | Icon next to status |
-| `STATUS_TEXT` | Text color class |
-| `STATUS_ORDER` | Sort priority in the table |
-| `PROGRESS_BAR` | Progress bar color |
-| `CHECKPOINT_ICON` | Symbol in the subtask list |
-| `CHECKPOINT_COLOR` | Color of that symbol |
+| Constant           | What it powers             |
+| ------------------ | -------------------------- |
+| `STATUS_LABEL`     | Badge display name         |
+| `STATUS_ICON`      | Icon next to status        |
+| `STATUS_TEXT`      | Text color class           |
+| `STATUS_ORDER`     | Sort priority in the table |
+| `PROGRESS_BAR`     | Progress bar color         |
+| `CHECKPOINT_ICON`  | Symbol in the subtask list |
+| `CHECKPOINT_COLOR` | Color of that symbol       |
 
 And `src/components/ui/badge.tsx` has two more:
 
-| Constant | What it powers |
-|---|---|
-| `badgeVariants` (the `variant` key) | Badge background/border/text |
-| `statusDot` | The colored dot inside the badge |
+| Constant                            | What it powers                   |
+| ----------------------------------- | -------------------------------- |
+| `badgeVariants` (the `variant` key) | Badge background/border/text     |
+| `statusDot`                         | The colored dot inside the badge |
 
 When `'unassigned'` and `'claimed'` were added to the `TaskStatus` union but not
 to these eight objects, there were eight TypeScript errors blocking `bun run build`.
@@ -95,13 +95,13 @@ Open `src/components/KanbanBoard.tsx` and find this interface:
 
 ```typescript
 interface ColumnConfig {
-  id:          string;       // used as the droppable zone ID
-  label:       string;       // column header text
-  statuses:    TaskStatus[]; // which task statuses appear here
-  dropStatus:  TaskStatus;   // status written when a card is dropped here
-  readonly?:   boolean;      // can't be dragged into (computed status)
-  terminal?:   boolean;      // can't be dragged out (completed/cancelled)
-  showNewCard?: boolean;     // shows the + card at the bottom
+  id: string; // used as the droppable zone ID
+  label: string; // column header text
+  statuses: TaskStatus[]; // which task statuses appear here
+  dropStatus: TaskStatus; // status written when a card is dropped here
+  readonly?: boolean; // can't be dragged into (computed status)
+  terminal?: boolean; // can't be dragged out (completed/cancelled)
+  showNewCard?: boolean; // shows the + card at the bottom
 }
 ```
 
@@ -113,9 +113,9 @@ which moves are legal when a card is dragged between columns:
 ```typescript
 const VALID_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> = {
   unassigned: ['claimed', 'cancelled'],
-  claimed:    ['running', 'unassigned', 'cancelled'],
-  running:    ['completed', 'cancelled'],
-  blocked:    ['running', 'cancelled'],
+  claimed: ['running', 'unassigned', 'cancelled'],
+  running: ['completed', 'cancelled'],
+  blocked: ['running', 'cancelled'],
 };
 ```
 

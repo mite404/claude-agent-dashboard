@@ -69,24 +69,24 @@ Fires when an Agent tool call **starts**. Creates a `running` task in `db.json`.
 
 **Stdin fields used:**
 
-| Field | Used as |
-|-------|---------|
-| `.tool_use_id` | task `id` |
-| `.tool_input.description` | task `name` |
+| Field                       | Used as          |
+| --------------------------- | ---------------- |
+| `.tool_use_id`              | task `id`        |
+| `.tool_input.description`   | task `name`      |
 | `.tool_input.subagent_type` | task `agentType` |
 
 **Task record created:**
 
 ```json
 {
-  "id":                 "<tool_use_id>",
-  "name":               "<description or 'Unnamed task'>",
-  "status":             "running",
-  "agentType":          "<subagent_type or 'general-purpose'>",
-  "parentId":           null,
-  "createdAt":          "<now>",
-  "startedAt":          "<now>",
-  "completedAt":        null,
+  "id": "<tool_use_id>",
+  "name": "<description or 'Unnamed task'>",
+  "status": "running",
+  "agentType": "<subagent_type or 'general-purpose'>",
+  "parentId": null,
+  "createdAt": "<now>",
+  "startedAt": "<now>",
+  "completedAt": null,
   "progressPercentage": 0,
   "logs": [{ "timestamp": "<now>", "level": "info", "message": "Task started: <name>" }]
 }
@@ -102,20 +102,20 @@ Fires when an Agent tool call **ends**. Updates the existing task in `db.json`.
 
 **Stdin fields used:**
 
-| Field | Used as |
-|-------|---------|
-| `.tool_use_id` | identifies which task to update |
-| `.tool_input.run_in_background` | if `true`, task is still running — don't mark complete |
-| `.tool_response // .tool_result` | completion content for the log message |
-| `.tool_response.is_error` | `true` if the agent failed |
+| Field                            | Used as                                                |
+| -------------------------------- | ------------------------------------------------------ |
+| `.tool_use_id`                   | identifies which task to update                        |
+| `.tool_input.run_in_background`  | if `true`, task is still running — don't mark complete |
+| `.tool_response // .tool_result` | completion content for the log message                 |
+| `.tool_response.is_error`        | `true` if the agent failed                             |
 
 **Status logic:**
 
-| Condition | Status | Progress |
-|-----------|--------|----------|
-| `run_in_background == true` | `running` | unchanged |
-| `is_error == true` | `failed` | 0 |
-| otherwise | `completed` | 100 |
+| Condition                   | Status      | Progress  |
+| --------------------------- | ----------- | --------- |
+| `run_in_background == true` | `running`   | unchanged |
+| `is_error == true`          | `failed`    | 0         |
+| otherwise                   | `completed` | 100       |
 
 **Fields updated on the existing record:**
 
@@ -135,7 +135,7 @@ best-effort data so the dashboard still shows something.
 
 ## Notes
 
-- **Background tasks** — PostToolUse fires when the task is *dispatched*, not when it
+- **Background tasks** — PostToolUse fires when the task is _dispatched_, not when it
   finishes. The post-hook detects `run_in_background: true` and leaves status as `running`.
   Phase 7 will add completion tracking for background tasks.
 - **Atomic writes** — scripts always write to `db.json.tmp` then `mv` it into place.

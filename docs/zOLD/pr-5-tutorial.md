@@ -64,11 +64,11 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
       checked={checked}
       onCheckedChange={onChange ?? onCheckedChange}
       className={cn(
-        "h-4 w-4 shrink-0 rounded-sm border-2 bg-transparent",
+        'h-4 w-4 shrink-0 rounded-sm border-2 bg-transparent',
         // ❌ Fix these: use CSS variables, not Tailwind colors
-        "[border-color:___________]",
-        "data-state-checked:[border-color:___________] data-state-checked:[background-color:___________]",
-        "data-state-indeterminate:[border-color:___________] data-state-indeterminate:[background-color:___________]",
+        '[border-color:___________]',
+        'data-state-checked:[border-color:___________] data-state-checked:[background-color:___________]',
+        'data-state-indeterminate:[border-color:___________] data-state-indeterminate:[background-color:___________]',
         className,
       )}
       {...props}
@@ -134,21 +134,20 @@ const handleBulkAction = async (action: 'cancel' | 'pause' | 'retry') => {
     // - 'cancel' → { status: 'cancelled' as TaskStatus }
     // - 'pause' → { status: 'paused' as TaskStatus }
     // - 'retry' → { status: 'running' as TaskStatus, progressPercentage: 0 }
-
     // TODO: Promise.all all patchTask calls
     // TODO: setSelectedRows(new Set())
     // TODO: onRefresh()
   } finally {
     // TODO: Clean up busy state for all selectedRows
   }
-}
+};
 
 const handleBulkDelete = async () => {
   // TODO: Same pattern but:
   // - Set busy as 'delete' for all rows
   // - Call deleteTask() for each row
   // - Clear and refresh on success
-}
+};
 ```
 
 **Questions to answer:**
@@ -186,7 +185,9 @@ The "New Agent" button fires a POST to `http://localhost:3002/spawn`.
 **In the toolbar (around line 686):**
 
 ```tsx
-{/* Right cluster — with ml-auto */}
+{
+  /* Right cluster — with ml-auto */
+}
 <div className="flex items-center gap-1 ml-auto">
   {/* TODO: New Agent button
       - variant="ghost" size="sm"
@@ -195,17 +196,11 @@ The "New Agent" button fires a POST to `http://localhost:3002/spawn`.
       - Text: "New Agent"
   */}
 
-  <Button
-    variant="ghost"
-    size="sm"
-    onClick={onRefresh}
-    disabled={loading}
-    className="gap-1.5"
-  >
-    <IconRefresh size={13} className={loading ? "animate-spin" : ""} />
+  <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading} className="gap-1.5">
+    <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
     Refresh
   </Button>
-</div>
+</div>;
 ```
 
 **Between toolbar and table (around line 704):**
@@ -263,33 +258,33 @@ The dev script uses `concurrently` to run three processes in parallel.
 ```typescript
 // ❌ Fill in the blanks
 
-const PORT = ___
+const PORT = ___;
 const cors = {
   'Access-Control-Allow-Origin': '___________',
   'Access-Control-Allow-Methods': '___________',
-}
+};
 
 Bun.serve({
   port: PORT,
   fetch(req) {
     // TODO: Handle OPTIONS (CORS preflight)
-    if (req.method === 'OPTIONS') return new Response(null, { status: ___ , headers: cors })
+    if (req.method === 'OPTIONS') return new Response(null, { status: ___, headers: cors });
 
     // TODO: Handle POST /spawn
     if (req.method === 'POST' && new URL(req.url).pathname === '/spawn') {
       // Spawn: open -a Ghostty --args --command claude
-      Bun.spawn([___, ___, ___, ___, ___])
+      Bun.spawn([___, ___, ___, ___, ___]);
 
       // Return JSON response
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
-      })
+      });
     }
 
-    return new Response('Not found', { status: 404 })
+    return new Response('Not found', { status: 404 });
   },
-})
-console.log(`Spawn server on http://localhost:${PORT}`)
+});
+console.log(`Spawn server on http://localhost:${PORT}`);
 ```
 
 **`package.json` dev script:**
@@ -322,16 +317,16 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
       checked={checked}
       onCheckedChange={onChange ?? onCheckedChange}
       className={cn(
-        "h-4 w-4 shrink-0 rounded-sm border-2 bg-transparent",
-        "[border-color:var(--color-border-muted)]",
-        "data-state-checked:[border-color:var(--color-text-secondary)] data-state-checked:[background-color:var(--color-text-secondary)]",
-        "data-state-indeterminate:[border-color:var(--color-text-secondary)] data-state-indeterminate:[background-color:var(--color-text-secondary)]",
+        'h-4 w-4 shrink-0 rounded-sm border-2 bg-transparent',
+        '[border-color:var(--color-border-muted)]',
+        'data-state-checked:[border-color:var(--color-text-secondary)] data-state-checked:[background-color:var(--color-text-secondary)]',
+        'data-state-indeterminate:[border-color:var(--color-text-secondary)] data-state-indeterminate:[background-color:var(--color-text-secondary)]',
         className,
       )}
       {...props}
     >
       <CheckboxPrimitive.Indicator className="flex items-center justify-center text-white">
-        {checked === "indeterminate" ? (
+        {checked === 'indeterminate' ? (
           <IconMinus size={10} stroke={3} />
         ) : (
           <IconCheck size={10} stroke={3} />
@@ -354,34 +349,53 @@ const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
 
 ```typescript
 async function deleteTask(id: string) {
-  const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
-  if (!res.ok) throw new Error(`DELETE ${id} failed: HTTP ${res.status}`)
+  const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`DELETE ${id} failed: HTTP ${res.status}`);
 }
 
 const handleBulkAction = async (action: 'cancel' | 'pause' | 'retry') => {
-  setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) n[id] = action; return n })
+  setBusy((prev) => {
+    const n = { ...prev };
+    for (const id of selectedRows) n[id] = action;
+    return n;
+  });
   try {
-    const patch = action === 'cancel' ? { status: 'cancelled' as TaskStatus }
-                : action === 'pause'  ? { status: 'paused'    as TaskStatus }
-                : { status: 'running' as TaskStatus, progressPercentage: 0 }
-    await Promise.all([...selectedRows].map(id => patchTask(id, patch)))
-    setSelectedRows(new Set())
-    onRefresh()
+    const patch =
+      action === 'cancel'
+        ? { status: 'cancelled' as TaskStatus }
+        : action === 'pause'
+          ? { status: 'paused' as TaskStatus }
+          : { status: 'running' as TaskStatus, progressPercentage: 0 };
+    await Promise.all([...selectedRows].map((id) => patchTask(id, patch)));
+    setSelectedRows(new Set());
+    onRefresh();
   } finally {
-    setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) delete n[id]; return n })
+    setBusy((prev) => {
+      const n = { ...prev };
+      for (const id of selectedRows) delete n[id];
+      return n;
+    });
   }
-}
+};
 
 const handleBulkDelete = async () => {
-  setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) n[id] = 'delete'; return n })
+  setBusy((prev) => {
+    const n = { ...prev };
+    for (const id of selectedRows) n[id] = 'delete';
+    return n;
+  });
   try {
-    await Promise.all([...selectedRows].map(id => deleteTask(id)))
-    setSelectedRows(new Set())
-    onRefresh()
+    await Promise.all([...selectedRows].map((id) => deleteTask(id)));
+    setSelectedRows(new Set());
+    onRefresh();
   } finally {
-    setBusy(prev => { const n = { ...prev }; for (const id of selectedRows) delete n[id]; return n })
+    setBusy((prev) => {
+      const n = { ...prev };
+      for (const id of selectedRows) delete n[id];
+      return n;
+    });
   }
-}
+};
 ```
 
 **Key points:**
@@ -408,13 +422,7 @@ const handleBulkDelete = async () => {
     <IconTerminal2 size={13} />
     New Agent
   </Button>
-  <Button
-    variant="ghost"
-    size="sm"
-    onClick={onRefresh}
-    disabled={loading}
-    className="gap-1.5"
-  >
+  <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading} className="gap-1.5">
     <IconRefresh size={13} className={loading ? 'animate-spin' : ''} />
     Refresh
   </Button>
@@ -424,28 +432,35 @@ const handleBulkDelete = async () => {
 **Bulk action bar (between toolbar and table):**
 
 ```tsx
-{selectedRows.size > 0 && (
-  <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
-    <span className="text-xs text-stone-400 tabular-nums">{selectedRows.size} selected</span>
-    <div className="flex items-center gap-1 ml-2">
-      <Button variant="ghost" size="sm" onClick={() => handleBulkAction('cancel')}>
-        Cancel
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => handleBulkAction('pause')}>
-        Pause
-      </Button>
-      <Button variant="ghost" size="sm" onClick={() => handleBulkAction('retry')}>
-        Retry
-      </Button>
-      <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-        Delete
+{
+  selectedRows.size > 0 && (
+    <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
+      <span className="text-xs text-stone-400 tabular-nums">{selectedRows.size} selected</span>
+      <div className="flex items-center gap-1 ml-2">
+        <Button variant="ghost" size="sm" onClick={() => handleBulkAction('cancel')}>
+          Cancel
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => handleBulkAction('pause')}>
+          Pause
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => handleBulkAction('retry')}>
+          Retry
+        </Button>
+        <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+          Delete
+        </Button>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setSelectedRows(new Set())}
+        className="ml-auto gap-1"
+      >
+        <IconX size={12} /> Clear
       </Button>
     </div>
-    <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto gap-1">
-      <IconX size={12} /> Clear
-    </Button>
-  </div>
-)}
+  );
+}
 ```
 
 **Key points:**
@@ -462,26 +477,26 @@ const handleBulkDelete = async () => {
 **`scripts/spawn-terminal.ts`:**
 
 ```typescript
-const PORT = 3002
+const PORT = 3002;
 const cors = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+};
 
 Bun.serve({
   port: PORT,
   fetch(req) {
-    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (req.method === 'POST' && new URL(req.url).pathname === '/spawn') {
-      Bun.spawn(['open', '-a', 'Ghostty', '--args', '--command', 'claude'])
+      Bun.spawn(['open', '-a', 'Ghostty', '--args', '--command', 'claude']);
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
-      })
+      });
     }
-    return new Response('Not found', { status: 404 })
+    return new Response('Not found', { status: 404 });
   },
-})
-console.log(`Spawn server on http://localhost:${PORT}`)
+});
+console.log(`Spawn server on http://localhost:${PORT}`);
 ```
 
 **`package.json`:**

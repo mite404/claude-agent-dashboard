@@ -4,11 +4,11 @@
 // was it a background task?
 // does the task row exist yet?
 
-import type { Task } from "../src/types/task";
+import type { Task } from '../src/types/task';
 
-const DASHBOARD_DIR = process.cwd();
+const DASHBOARD_DIR = new URL('..', import.meta.url).pathname;
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
-const API_BASE = "http://localhost:3001";
+const API_BASE = 'http://localhost:3001';
 
 // stdin paylod
 interface ToolResult {
@@ -29,7 +29,7 @@ interface PostToolPayload {
   tool_result?: ToolResult;
 }
 
-const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: "HEAD" })
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
   .then((r) => r.ok)
   .catch(() => false);
 
@@ -41,11 +41,11 @@ if (!isServerUp) {
 const raw = await Bun.stdin.text();
 const payload: PostToolPayload = JSON.parse(raw);
 const {
-  session_id: sessionId = "",
-  tool_use_id: taskId = "unknown",
+  session_id: sessionId = '',
+  tool_use_id: taskId = 'unknown',
   tool_input: {
-    description: taskName = "Unnamed task",
-    subagent_type: subagentType = "general-purpose",
+    description: taskName = 'Unnamed task',
+    subagent_type: subagentType = 'general-purpose',
     run_in_background: isBg = false,
   } = {},
 } = payload;
@@ -53,18 +53,18 @@ const {
 // normalize the 2 possible result field names into 1 var
 const result = payload.tool_response ?? payload.tool_result ?? {};
 const isError = result.is_error ?? false;
-const lastMsg = result.last_assistant_message ?? "";
+const lastMsg = result.last_assistant_message ?? '';
 const now = new Date().toISOString();
 
 // caller can embed metadata directly in the task description string using bracket tags: [parentId:abc123]
 // this parses metadata tags out of task name
 const parentId = taskName.match(/\[parentId:([^\]]+)\]/)?.[1] ?? null;
-const dependsOnRaw = taskName.match(/\[dependsOn:([^\]]+)\]/)?.[1] ?? "";
-const dependsOn = dependsOnRaw ? dependsOnRaw.split(",").map((id) => id.trim()) : [];
+const dependsOnRaw = taskName.match(/\[dependsOn:([^\]]+)\]/)?.[1] ?? '';
+const dependsOn = dependsOnRaw ? dependsOnRaw.split(',').map((id) => id.trim()) : [];
 const kind = taskName.match(/\[kind:([^\]]+)\]/)?.[1] ?? null;
 
 // strip all three tags from the display name
-const displayName = taskName.replace(/\s*\[(?:parentId|dependsOn|kind):[^\]]*\]/g, "").trim();
+const displayName = taskName.replace(/\s*\[(?:parentId|dependsOn|kind):[^\]]*\]/g, '').trim();
 
 // background tasks: agent tool returns immediately but the agent is still running
 // the SubagentStop event (session-event.sh) will mark it complete when actualy finished
@@ -73,32 +73,32 @@ if (isBg) {
   process.exit(0);
 }
 
-const status = isError ? "failed" : "completed";
+const status = isError ? 'failed' : 'completed';
 const progress = isError ? 0 : 100;
 
 function extractSummary(result: ToolResult): string {
   // content of non consistent type
   // null/undefined
-  if (typeof result.content === "undefined") {
-    return "";
+  if (typeof result.content === 'undefined') {
+    return '';
   }
   // account for string
-  if (typeof result.content === "string") {
+  if (typeof result.content === 'string') {
     return result.content;
   }
   // array of content blocks: [{ text: "..." }, ...]
   if (Array.isArray(result.content)) {
-    return result.content[0]?.text ?? "";
+    return result.content[0]?.text ?? '';
   }
-  return ""; // exhausted all known shapes of data
+  return ''; // exhausted all known shapes of data
 }
 
 const summary = extractSummary(result);
-const logMessage = `Task ${isError ? "failed" : "completed"}: ${summary}`;
+const logMessage = `Task ${isError ? 'failed' : 'completed'}: ${summary}`;
 
 const newLog = {
   timestamp: now,
-  level: isError ? "error" : "info",
+  level: isError ? 'error' : 'info',
   message: logMessage,
 };
 
@@ -108,7 +108,7 @@ async function log(msg: string) {
 
   // append to log file if missing
   const file = Bun.file(LOG_FILE);
-  const existing = (await file.exists()) ? await file.text() : "";
+  const existing = (await file.exists()) ? await file.text() : '';
   await Bun.write(file, existing + line);
 }
 
@@ -117,19 +117,19 @@ const existing = existingRes.ok ? ((await existingRes.json()) as Task) : null;
 
 function inferKind(agentType: string): string {
   const lower = agentType.toLowerCase();
-  if (lower.includes("code-reviewer") || lower.includes("reviewer")) {
-    return "evaluation";
+  if (lower.includes('code-reviewer') || lower.includes('reviewer')) {
+    return 'evaluation';
   }
-  if (lower.includes("architect") || lower.includes("planner") || lower.includes("plan")) {
-    return "planning";
+  if (lower.includes('architect') || lower.includes('planner') || lower.includes('plan')) {
+    return 'planning';
   }
-  return "work";
+  return 'work';
 }
 
 // infer the kind of task if no [kind:...] tag was provided - derived from 'agent type name'
 // this shapes the visual badge in dashboard
 const finalKind = kind ?? inferKind(subagentType);
-const safeSessId = sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+const safeSessId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '');
 
 /* Two temp files are written:
  -  /tmp/cc-agent-task-${safeSid} — stores taskId for the SubagentStart hook to read
@@ -154,8 +154,8 @@ if (existing) {
   };
 
   const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
   });
 
@@ -184,8 +184,8 @@ if (!existing) {
   };
 
   const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(post),
   });
 

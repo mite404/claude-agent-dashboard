@@ -89,7 +89,7 @@ app.get('/tasks/pool', async (c) => {
     .where(eq(tasksTable.status, 'unassigned'))
     .orderBy(
       sql`CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`,
-      asc(tasksTable.createdAt)
+      asc(tasksTable.createdAt),
     );
   return c.json({ data: rows });
 });
@@ -132,7 +132,7 @@ Posts an unassigned task to the pool. Usage: `post-task.sh "<name>" "<descriptio
 Key considerations:
 
 - `sessionId` has a NOT NULL FK to `sessions`. Use `$KANBAN_SESSION_ID` env var;
-script should create a stub orchestrator session row if the var is unset.
+  script should create a stub orchestrator session row if the var is unset.
 - Output the task ID to stdout so callers can capture it.
 - Log to `logs/hooks.log` with `[post-task]` prefix.
 
@@ -149,7 +149,7 @@ Flow:
 5. Write `TASK_CONTEXT.md` to worktree root (name, priority, description)
 6. `cd <worktree> && claude --dangerously-skip-permissions -p "$(cat TASK_CONTEXT.md)"`
 7. On exit: `PATCH /tasks/:id` → `{ status: 'completed' | 'failed', completedAt,
-   progressPercentage }`
+progressPercentage }`
 
 Branch naming: `agent/<first-8-of-task-id>-<name-slug-max-30-chars>`
 Worktree path: `<project-root>/worktrees/agent/<branch-name>`
@@ -163,8 +163,8 @@ Guard: `which claude || { log "ERROR: claude not found on PATH"; exit 1; }`
 Add status dot + badge variants for `unassigned` and `claimed`:
 
 ```tsx
-unassigned: 'bg-stone-900/60 text-stone-500 border border-stone-700/50'
-claimed:    'bg-violet-950/60 text-violet-300 border border-violet-800/50'
+unassigned: 'bg-stone-900/60 text-stone-500 border border-stone-700/50';
+claimed: 'bg-violet-950/60 text-violet-300 border border-violet-800/50';
 ```
 
 ---
@@ -226,20 +226,20 @@ Add: `worktrees/`
 
 ## Files Changed
 
-| File | Change |
-| --- | --- |
-| `src/hooks/useTaskPolling.ts` | Fix `{ data: [] }` envelope on line 72 |
-| `src/types/task.ts` | Add `'unassigned'`, `'claimed'` to `TaskStatus`; add `TaskPriority`; extend `Task` interface |
-| `src/db/schema.ts` | Add `worktreePath` column to `tasksTable` |
-| `drizzle/0001_kanban_worktree.sql` | New migration — `ALTER TABLE tasks ADD COLUMN worktree_path text` |
-| `src/server.ts` | Add `GET /tasks/pool` (before `:id`) + `POST /tasks/:id/claim` |
-| `src/components/ui/badge.tsx` | `unassigned` + `claimed` variants |
-| `src/components/TaskTable.tsx` | Status constant maps + view toggle UI |
-| `src/components/KanbanBoard.tsx` | **New** — full Kanban board component |
-| `src/components/Dashboard.tsx` | `viewMode` state, render switch, props to TaskTable |
-| `scripts/post-task.sh` | **New** — orchestrator task posting script |
-| `scripts/claim-task.sh` | **New** — atomic claim + worktree + Claude launch script |
-| `.gitignore` | Add `worktrees/` |
+| File                               | Change                                                                                       |
+| ---------------------------------- | -------------------------------------------------------------------------------------------- |
+| `src/hooks/useTaskPolling.ts`      | Fix `{ data: [] }` envelope on line 72                                                       |
+| `src/types/task.ts`                | Add `'unassigned'`, `'claimed'` to `TaskStatus`; add `TaskPriority`; extend `Task` interface |
+| `src/db/schema.ts`                 | Add `worktreePath` column to `tasksTable`                                                    |
+| `drizzle/0001_kanban_worktree.sql` | New migration — `ALTER TABLE tasks ADD COLUMN worktree_path text`                            |
+| `src/server.ts`                    | Add `GET /tasks/pool` (before `:id`) + `POST /tasks/:id/claim`                               |
+| `src/components/ui/badge.tsx`      | `unassigned` + `claimed` variants                                                            |
+| `src/components/TaskTable.tsx`     | Status constant maps + view toggle UI                                                        |
+| `src/components/KanbanBoard.tsx`   | **New** — full Kanban board component                                                        |
+| `src/components/Dashboard.tsx`     | `viewMode` state, render switch, props to TaskTable                                          |
+| `scripts/post-task.sh`             | **New** — orchestrator task posting script                                                   |
+| `scripts/claim-task.sh`            | **New** — atomic claim + worktree + Claude launch script                                     |
+| `.gitignore`                       | Add `worktrees/`                                                                             |
 
 ---
 
@@ -247,11 +247,11 @@ Add: `worktrees/`
 
 1. `bun run dev` — confirm dashboard loads with tasks visible (Step 0 fix)
 2. `bash scripts/post-task.sh "Fix login bug" "The OAuth flow fails on Safari" high`
-→ task appears in Kanban Unassigned column on next poll
+   → task appears in Kanban Unassigned column on next poll
 3. Click **Claim** on a card → card moves to Claimed column
 4. `bash scripts/claim-task.sh <task-id>` → confirm worktree created at
-`worktrees/agent/<id>-<slug>`, TASK_CONTEXT.md present, task moves to In Progress
+   `worktrees/agent/<id>-<slug>`, TASK_CONTEXT.md present, task moves to In Progress
 5. Race condition test: two terminal tabs both run `claim-task.sh <same-id>` simultaneously
-→ only one succeeds; the other logs `WARN: could not claim task`
+   → only one succeeds; the other logs `WARN: could not claim task`
 6. `bun run test` — existing tests pass; add a test for `computeBlockedState` with
-`'unassigned'` dependency status
+   `'unassigned'` dependency status

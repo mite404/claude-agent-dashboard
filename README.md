@@ -35,14 +35,14 @@ wires into all 18 of those event types and displays the resulting data in real t
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 19 + TypeScript + Tailwind v4 (CSS-first `@theme {}`) |
-| API | [Hono](https://hono.dev/) REST server with typed handlers |
+| Layer    | Technology                                                              |
+| -------- | ----------------------------------------------------------------------- |
+| Frontend | React 19 + TypeScript + Tailwind v4 (CSS-first `@theme {}`)             |
+| API      | [Hono](https://hono.dev/) REST server with typed handlers               |
 | Database | SQLite via [Drizzle ORM](https://orm.drizzle.team/) (snake_case schema) |
-| Runtime | [Bun](https://bun.sh/) (server, scripts, package manager) |
-| Build | Vite 6 with `vite-tsconfig-paths` for `@/` aliases |
-| Hooks | Bash scripts reading stdin JSON from Claude Code's hook runner |
+| Runtime  | [Bun](https://bun.sh/) (server, scripts, package manager)               |
+| Build    | Vite 6 with `vite-tsconfig-paths` for `@/` aliases                      |
+| Hooks    | Bash scripts reading stdin JSON from Claude Code's hook runner          |
 
 ---
 
