@@ -4042,3 +4042,61 @@ Hook scripts are tools with a fixed home — they should use `import.meta.url`.
 **Film analogy:** `process.cwd()` is like addressing a letter to "wherever you're sitting
 right now." `import.meta.url` is like using the return address printed on the envelope —
 it's the same no matter who's holding it.
+
+---
+
+## Director's Commentary: Arrow Functions vs Function Declarations (2026-06-21)
+
+You noticed that `smoke-test.ts` uses arrow function expressions for local helpers:
+
+```typescript
+const fmtOk = (msg: string) => `  ${G}✓${X} ${msg}`;
+const ok = (msg: string) => { console.log(fmtOk(msg)); passed++; };
+```
+
+But `function` declarations for the main logic:
+
+```typescript
+function buildPrePayload(testId: string): string { ... }
+async function checkEndpoint(url: string): Promise<boolean> { ... }
+```
+
+This is intentional, not stylistic preference.
+
+**Arrow expressions** (`const name = (...) => ...`) signal three things:
+
+1. **File-local scope** — These helpers only exist inside this script. They are not exported,
+   not reused, and not part of any public API. An arrow expression is a variable assignment,
+   which visually reinforces "this is local state."
+
+2. **Closure capture** — Arrow functions inherit `this` and surrounding scope lexically.
+   `ok()` and `fail()` mutate `passed++` and `failed++`. The arrow syntax makes it clear they
+   are closures over the outer scope, not standalone units with their own binding context.
+
+3. **Script mentality** — In bash, helper functions are defined inline and called inline.
+   Arrow expressions mimic that brevity: `const ok = () => { ... }` reads like `ok() { ... }`.
+
+**Function declarations** (`function name() {}`) signal the opposite:
+
+1. **Stable contract** — `buildPrePayload` and `checkEndpoint` are the script's public
+   interface, even if not exported. A declaration is hoisted and visible to the whole file,
+   which matches their role as reusable building blocks.
+
+2. **Self-documenting signature** — Declarations appear in stack traces with their name and
+   parameter list. When `checkEndpoint` throws, you see `at checkEndpoint (smoke-test.ts:67)`.
+   Arrow expressions assigned to `const` show the variable name, but the distinction matters
+   for debugging complex call stacks.
+
+3. **Hoisting safety** — `main()` can call `checkEndpoint()` before its declaration because
+   function declarations are hoisted. Arrow expressions are not — the `const` must be evaluated
+   before use. For a script that reads top-to-bottom, this enforces the leaf-to-tree rule
+   naturally.
+
+**The rule:** Use arrow expressions for local, stateful helpers that close over their
+environment. Use function declarations for reusable, stateless calculations and actions that
+form the script's backbone.
+
+**Film analogy:** Arrow expressions are like on-set runners — they live in the moment, grab
+what they need from the surrounding crew, and vanish when the scene wraps. Function
+declarations are like the call sheet — formal, named, referenced by everyone, and stable
+from the first page to the last.

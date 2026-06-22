@@ -2,7 +2,7 @@
 # Smoke test for the Claude Agent Dashboard signal chain.
 #
 # Tests every link between Claude Code hooks and the dashboard UI:
-#   1. json-server REST API is up on :3001
+#   1. Hono REST API is up on :3001
 #   2. Vite dev server proxy is up on :5173
 #   3. pre-hook creates a task as "running"
 #   4. post-hook updates it to "completed" and appends a log entry
@@ -48,14 +48,14 @@ echo -e "\n${BOLD}Claude Agent Dashboard — Smoke Test${RESET}"
 echo    "────────────────────────────────────"
 info "Test task ID: $TEST_ID"
 
-# ── Step 1: json-server ───────────────────────────────────────────────────────
-header "Step 1: json-server (:3001)"
+# ── Step 1: Hono server ───────────────────────────────────────────────────────
+header "Step 1: Hono server (:3001)"
 
 TASKS_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/tasks)
 if [ "$TASKS_RESPONSE" = "200" ]; then
   pass "GET /tasks → HTTP 200"
 else
-  fail "GET /tasks → HTTP $TASKS_RESPONSE (is json-server running? try: bun run dev)"
+  fail "GET /tasks → HTTP $TASKS_RESPONSE (is Hono server running? try: bun run dev)"
 fi
 
 # ── Step 2: Vite proxy ────────────────────────────────────────────────────────
