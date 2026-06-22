@@ -17,24 +17,14 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 ### P1 — Silent Data Loss (Fix Before Adding Features)
 
-- [ ] **`HookEvent` table is missing from the SQLite schema.**
-      `pre-tool-all.sh` and `post-tool-all.sh` PATCH tasks with an `events: [HookEvent]` array, but
-      `server.ts` destructures that field out before every Drizzle UPDATE
-      (`const { logs, events, ... } = body`). The scripts were written against the old json-server
-      API that stored events as embedded arrays in `db.json`. With SQLite there is no `hook_events`
-      table — the data is silently dropped on every write. Fix:
+- [x] **`HookEvent` table added to SQLite schema** (`hookEventsTable` in `src/db/schema.ts`).
+      The PATCH `/tasks/:id` handler now inserts `HookEvent` rows via `onConflictDoUpdate`.
 
-  1. Add `hookEventsTable` to `src/db/schema.ts` (columns: `id`, `taskId`, `toolName`, `phase`,
-     `status`, `summary`, `timestamp`, `completedAt`)
-  2. Run `bunx drizzle-kit push` to apply the schema change
-  3. Update the PATCH `/tasks/:id` handler to insert `HookEvent` rows instead of ignoring them
-  4. Update `GET /tasks` (or add `GET /tasks/:id/events`) to join hook events into the response
-
-- [ ] **`EventTrailRow` always renders empty — depends on the above fix.**
-      `EventTrailRow` in `TaskTable.tsx` reads `task.events` to show the Bash/Read/Write call
-      timeline. Because events are stripped before reaching SQLite, `task.events` is always
-      `undefined`. This todo closes automatically once the `hookEventsTable` fix lands and `GET
-/tasks` includes the events array.
+- [ ] **`EventTrailRow` still renders empty in practice.**
+      The schema and server handler are correct, but `GET /tasks` does not yet JOIN hook events
+      into the response payload. `task.events` arrives as `undefined` in the frontend.
+      Fix: fetch all `hook_events` for the returned task IDs (use `inArray`) and attach as
+      `task.events[]`. A `TODO(human)` placeholder exists in `src/server.ts` `GET /tasks`.
 
 ### P2 — Data Accuracy
 
@@ -54,24 +44,10 @@ relationships, logs, and control buttons (cancel/pause/retry).
 
 ### P3 — Developer Experience
 
-- [ ] **Migrate bash hook scripts to TypeScript.**
-      All 5 scripts (`pre-tool-agent.sh`, `post-tool-agent.sh`, `pre-tool-all.sh`,
-      `post-tool-all.sh`, `session-event.sh`) can be ported to TypeScript and run directly with
-      `bun`. Benefits: shared types from `src/types/task.ts`, native `fetch()` instead of `curl`,
-      readable regex instead of `grep -oE`/`sed`, and real error objects instead of exit codes.
-      Steps:
-
-  1. Add `#!/opt/homebrew/bin/bun` shebang (absolute path — hooks run outside your login shell,
-     so `PATH` may not include `/opt/homebrew/bin`)
-  2. Replace `INPUT=$(cat)` + `jq -r '.field'` calls with `JSON.parse(await
-Bun.stdin.text())`
-  3. Replace `curl -X POST` calls with `fetch()`
-  4. Replace tag-parsing `sed`/`grep` chains with `name.match(/\[parentId:([^\]]+)\]/)`
-  5. Import shared types: `import type { Task, HookEvent } from '../src/types/task'`
-  6. Update hook commands in `~/.claude/settings.json` to point to `.ts` files (same absolute
-     paths, shebang handles the rest)
-
-  Port `pre-tool-agent.sh` first — it has the most logic. Others follow the same pattern.
+- [x] **Hook scripts migrated to TypeScript.**
+      All hook scripts (`pre-tool-agent.ts`, `post-tool-agent.ts`, `pre-tool-all.ts`,
+      `post-tool-all.ts`, `session-event.ts`) run via `#!/opt/homebrew/bin/bun` shebang.
+      Shared types from `src/types/task.ts`, native `fetch()`, no `jq` or `curl` required.
 
 ### P4 — Future Features
 
@@ -86,7 +62,7 @@ Bun.stdin.text())`
 
 ---
 
-## Current Status (as of 2026-04-30)
+## Current Status (as of 2026-06-22)
 
 ### ✅ Completed
 
@@ -971,14 +947,78 @@ The UI "Return to pool" action in the ⋮ dropdown does the same thing.
 
 The PR watcher and similar daemons follow this cost model:
 
-```
-cheap bun/bash script polls for trigger (zero AI cost between checks)
-  ↓ trigger detected (new commit, new task, etc.)
-    → POST /tasks to pre-populate the board
-    → spawn Claude Code agent: "claim task <id> and work on it"
-    → agent executes, updates task status via PATCH
+```mermaid
+flowchart LR
+    POLL[bun polling script\nzero AI cost between checks]
+    POLL -->|trigger detected| CREATE[POST /tasks]
+    CREATE --> SPAWN[spawn claude agent]
+    SPAWN -->|PATCH /tasks| DONE([task completed])
 ```
 
 Never use `/loop` (Claude Code skill) as the polling mechanism — each tick burns API credits
 even when nothing changed. Use a dumb script as the sentinel; only invoke Claude when there
 is actual work to do.
+
+---
+
+## Phase 14 (✅ Completed 2026-06-22): PR Watcher + Automated Code Review
+
+`scripts/pr-watcher.ts` — a long-lived polling daemon that watches a GitHub PR for new commits
+and spawns a Claude Code review agent when one lands.
+
+### Architecture
+
+```mermaid
+flowchart TD
+    PW[pr-watcher.ts] -->|poll every N seconds| GH[gh pr view\n--json headRefOid]
+    GH -->|SHA unchanged| WAIT([wait, loop])
+    GH -->|new SHA detected| POST[POST /tasks\nstatus: unassigned]
+    POST --> CLAIM[POST /tasks/:id/claim\nstatus: claimed]
+    CLAIM --> SPAWN[spawn claude\nsonnet-4-6]
+    SPAWN --> DIFF[gh pr diff]
+    DIFF --> SKILLS[compound-engineering skills\ncorrectness · api-contract · reliability]
+    SKILLS --> REVIEW[gh pr review --comment]
+    REVIEW --> PATCH1[PATCH /tasks/:id\ndescription: outcome summary]
+    PATCH1 --> DONE[PATCH /tasks/:id\nstatus: completed]
+    DONE --> SAVE[save lastSha to state file]
+    SAVE --> WAIT
+```
+
+### Key design decisions
+
+- **Model pinned to `claude-sonnet-4-6`** — prevents accidentally burning Opus tokens on
+  background polling.
+- **`--allowedTools Bash,Read,Edit,Skill`** — strict whitelist; agent cannot prompt for
+  permissions. Avoids the `--dangerously-skip-permissions` flag (blocked by auto classifier).
+- **Exit code gate** — `lastSha` only advances if the review agent exits with code `0`.
+  Failed reviews retry on the next poll.
+- **No `git push`** — self-correct mode commits locally (`git add -u && git commit`).
+  User reviews in GitButler and pushes when ready. Two simultaneous agents can't race.
+- **State file per repo** — `.pr-watcher-{repoSlug}-{pr}.json` in `scripts/`.
+  Slug derived from `--repo` last segment or CWD basename. No cross-repo collisions.
+- **Prompt injection defense** — first line of review prompt instructs the agent to treat
+  fetched diff content as data, not instructions.
+
+### Cross-repo usage
+
+Run from the target repo's CWD with `--repo`. The dashboard backend stays local.
+
+```bash
+cd /path/to/other-repo
+bun /path/to/claude-agent-dashboard/scripts/pr-watcher.ts \
+  --pr 3 \
+  --repo your-username/other-repo \
+  --context /path/to/other-repo/SPEC.md \
+  --interval 60
+```
+
+### Long-term roadmap
+
+- **Webhook trigger** — replace polling with a GitHub webhook so reviews fire instantly
+  without sleeping between polls.
+- **`--workdir` flag** — explicit local path for self-correct mode, so CWD doesn't need to
+  match the target repo.
+- **Skill selection UI** — dashboard card or CLI flag to pick reviewer profile
+  (security, performance, accessibility) at invocation time.
+- **Multi-PR watching** — run multiple watcher instances (one per PR) sharing a single
+  dashboard backend. State files are already namespaced to prevent collisions.
