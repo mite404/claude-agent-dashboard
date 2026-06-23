@@ -35,12 +35,12 @@ if (!isServerUp) {
 
 // stdin parsing
 const raw = await Bun.stdin.text();
-const payload: ClaudePreToolPayload = JSON.parse(raw);
+const payload = JSON.parse(raw) as ClaudePreToolPayload;
 
-const toolName = payload.tool_name ?? '';
-const eventId = payload.tool_use_id ?? 'unknown';
+const toolName = payload.tool_name;
+const eventId = payload.tool_use_id;
 const agentId = payload.agent_id ?? '';
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
 
 if (toolName === 'Agent' || toolName === 'Task') process.exit(0);
 
@@ -106,30 +106,28 @@ if (!existingTask) {
   process.exit(0);
 }
 
-if (existingTask) {
-  const newEvent: HookEvent = {
-    id: payload.tool_use_id,
-    toolName: payload.tool_name,
-    phase: 'pre',
-    status: 'running',
-    summary: extractSummary(payload.tool_name, payload.tool_input),
-    timestamp: new Date().toISOString(),
-  };
+const newEvent: HookEvent = {
+  id: payload.tool_use_id,
+  toolName: payload.tool_name,
+  phase: 'pre',
+  status: 'running',
+  summary: extractSummary(payload.tool_name, payload.tool_input),
+  timestamp: new Date().toISOString(),
+};
 
-  const newTask: Task = {
-    ...existingTask,
-    events: [...(existingTask.events ?? []), newEvent],
-  };
+const newTask: Task = {
+  ...existingTask,
+  events: [...(existingTask.events ?? []), newEvent],
+};
 
-  const res = await fetch(`${API_BASE}/tasks/${existingTask.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newTask),
-  });
+const res = await fetch(`${API_BASE}/tasks/${existingTask.id}`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(newTask),
+});
 
-  if (res.ok) {
-    await log(`OK: updated task ${existingTask.id} -> ${existingTask.status}`);
-  } else {
-    await log(`ERROR: PATCH /tasks/${existingTask.id} failed (HTTP ${res.status})`);
-  }
+if (res.ok) {
+  await log(`OK: updated task ${existingTask.id} -> ${existingTask.status}`);
+} else {
+  await log(`ERROR: PATCH /tasks/${existingTask.id} failed (HTTP ${res.status})`);
 }

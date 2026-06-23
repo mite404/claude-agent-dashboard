@@ -1050,7 +1050,7 @@ export function TaskTable({
 
         <FilterPopover
           label="Status"
-          options={ALL_STATUSES}
+          options={ALL_STATUSES as string[]}
           selected={statusFilter}
           onToggle={toggleStatusFilter}
           onClear={() => setStatusFilter(new Set())}

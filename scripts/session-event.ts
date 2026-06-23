@@ -28,8 +28,8 @@ const API_BASE = 'http://localhost:3001';
 
 // TODO parse
 const raw = await Bun.stdin.text();
-const payload: ClaudeSessionEventPayload = JSON.parse(raw);
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+const payload = JSON.parse(raw) as ClaudeSessionEventPayload;
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
 
 // log fn
 async function log(msg: string) {
@@ -104,7 +104,7 @@ const sessionEvent = buildSessionEvent(eventType, payload, timestamp, sessionId)
 const httpCode = await retryPost(`${API_BASE}/sessionEvents`, sessionEvent);
 
 if (httpCode === 201) {
-  await log(`OK: ${eventType} - ${sessionEvent.summary}`);
+  await log(`OK: ${eventType} - ${String(sessionEvent.summary)}`);
 } else {
   await log(`ERROR: POST /sessionEvents failed (HTTP ${httpCode})`);
 }

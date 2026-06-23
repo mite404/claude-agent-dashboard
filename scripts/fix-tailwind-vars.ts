@@ -20,7 +20,7 @@ async function fixFile(filepath: string) {
 
   // Fix 2: data-[attributeName] → data-attributeName
   //        data-[state=open] → data-state-open (replace = with -)
-  content = content.replace(/data-\[([^\]]+)\]/g, (match, attr) => {
+  content = content.replace(/data-\[([^\]]+)\]/g, (_match, attr: string) => {
     return `data-${attr.replace('=', '-')}`;
   });
 

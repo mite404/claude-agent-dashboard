@@ -134,8 +134,8 @@ async function verifyTask(
   label: string,
 ): Promise<void> {
   const res = await fetch(`${API}/tasks/${TEST_ID}`);
-  const data = await res.json();
-  const actual = data?.[field] ?? 'missing';
+  const data = (await res.json()) as Record<string, unknown>;
+  const actual = data[field] ?? 'missing';
   const detail = ` — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
 
   if (actual === expected) {
@@ -195,7 +195,7 @@ async function main() {
   head('Step 5: Task visible through Vite proxy');
   const proxyRes = await fetch(`${PROXY}/api/tasks/${TEST_ID}`);
   const proxyData = (await proxyRes.json()) as Record<string, unknown>;
-  const proxyStatus = proxyData?.status ?? 'missing';
+  const proxyStatus = String(proxyData.status ?? 'missing');
   if (proxyStatus === 'completed') {
     ok('Task visible via Vite proxy with correct status');
   } else {

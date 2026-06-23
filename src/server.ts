@@ -141,20 +141,19 @@ app.get('/tasks/:id', async (c) => {
   }
 
   try {
-    const rows: Task[] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
+    const rows = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
     console.log('Query returned:', {
       count: rows.length,
       id: rows[0]?.id,
       status: rows[0]?.status,
     });
-    const task = rows[0];
 
-    if (!task) {
+    if (rows.length === 0) {
       console.error('Task not found:', id);
       return c.json({ error: 'task not found' }, 404);
     }
 
-    return c.json(task);
+    return c.json(rows[0]);
   } catch (error) {
     console.error('Failed to get task:', error);
     return c.json({ error: 'Database error' }, 500);

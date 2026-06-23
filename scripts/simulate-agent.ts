@@ -353,8 +353,9 @@ async function main() {
   console.log(`\nCheck the dashboard at http://localhost:5173`);
 }
 
-main().catch(async (err) => {
-  console.error(err.message);
-  await log(`ERROR: ${err.message}`);
+main().catch(async (err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(msg);
+  await log(`ERROR: ${msg}`);
   process.exit(1);
 });

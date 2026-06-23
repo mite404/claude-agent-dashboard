@@ -39,7 +39,7 @@ if (!isServerUp) {
 
 // stdin parsing
 const raw = await Bun.stdin.text();
-const payload: PostToolPayload = JSON.parse(raw);
+const payload = JSON.parse(raw) as PostToolPayload;
 const {
   session_id: sessionId = '',
   tool_use_id: taskId = 'unknown',

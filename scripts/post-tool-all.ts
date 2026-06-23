@@ -35,7 +35,7 @@ if (!isServerUp) {
 
 // stdin parsing
 const raw = await Bun.stdin.text();
-const payload: PostToolAllPayload = JSON.parse(raw);
+const payload = JSON.parse(raw) as PostToolAllPayload;
 
 const toolName = payload.tool_name ?? ''; // what tool was it?
 const eventId = payload.tool_use_id ?? 'unknown'; // which event fired?
@@ -94,7 +94,7 @@ if (!existing) {
 }
 
 const events =
-  ((existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>) ?? [];
+  (existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>;
 
 const updatedEvents = events.map((e) =>
   e.id === eventId ? { ...e, phase: 'post', status: finalStatus, completedAt: now } : e,
@@ -102,21 +102,19 @@ const updatedEvents = events.map((e) =>
 
 const taskId = existing.id;
 
-if (existing) {
-  const patch = {
-    ...existing,
-    events: updatedEvents,
-  };
+const patch = {
+  ...existing,
+  events: updatedEvents,
+};
 
-  const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
+const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(patch),
+});
 
-  if (res.ok) {
-    await log(`OK: updated event ${toolName} -> ${finalStatus}`);
-  } else {
-    await log(`ERROR: PATCH /tasks/${taskId} failed (HTTP ${res.status}) for event ${eventId}`);
-  }
+if (res.ok) {
+  await log(`OK: updated event ${toolName} -> ${finalStatus}`);
+} else {
+  await log(`ERROR: PATCH /tasks/${taskId} failed (HTTP ${res.status}) for event ${eventId}`);
 }
