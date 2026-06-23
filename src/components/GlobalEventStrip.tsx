@@ -64,7 +64,7 @@ export function GlobalEventStrip({
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleClearAll}
+            onClick={() => void handleClearAll()}
             disabled={clearing}
             className="shrink-0 gap-1.5 bg-rose-500 text-white hover:bg-rose-400"
           >

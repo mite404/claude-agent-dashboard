@@ -52,7 +52,7 @@ if (!isServerUp) {
 
 await log(`started sessionId: ${sessionId}`);
 
-async function retryPost(url: string, data: Record<string, any>): Promise<number> {
+async function retryPost(url: string, data: Record<string, unknown>): Promise<number> {
   const maxAttempts = 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

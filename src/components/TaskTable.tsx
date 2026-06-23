@@ -49,9 +49,7 @@ import { cn, formatElapsed, formatTimestamp } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui/badge';
 import { GlobalEventStrip } from '@/components/GlobalEventStrip';
 import {
-  ALL_STATUSES,
   AGENT_TYPE_OPTIONS,
-  STATUS_ORDER,
   STATUS_ICON,
   STATUS_LABEL,
   STATUS_TEXT,
@@ -62,7 +60,6 @@ import {
   CHECKPOINT_COLOR,
   TOOL_EMOJI,
   EVENT_STATUS_COLOR,
-  SESSION_EVENT_EMOJI,
   TASK_KIND_ICON,
   HIDEABLE_COLS,
   type HideableCol,
@@ -72,7 +69,6 @@ import {
   flattenVisible,
   collectAllTasks,
   collectIds,
-  type FlatTask,
   type SortCol,
   type SortState,
 } from '@/lib/taskUtils';
@@ -81,10 +77,7 @@ import type {
   TaskNode,
   TaskStatus,
   LogEntry,
-  HookEvent,
   SessionEvent,
-  SessionEventType,
-  TaskKind,
 } from '@/types/task';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -172,7 +165,7 @@ function LogDetailRow({ logs = [], colSpan }: { logs?: LogEntry[]; colSpan: numb
     const text = logs
       .map((e) => `${formatTimestamp(e.timestamp)}  ${LOG_LEVEL_LABEL[e.level]}  ${e.message}`)
       .join('\n');
-    navigator.clipboard.writeText(text).then(() => {
+    void navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
@@ -793,7 +786,8 @@ export function TaskTable({
     for (const task of allTasks) {
       if (!task.sessionId) continue;
       if (!groups.has(task.sessionId)) groups.set(task.sessionId, []);
-      groups.get(task.sessionId)!.push(task);
+      const group = groups.get(task.sessionId);
+      if (group) group.push(task);
     }
     return [...groups.entries()]
       .map(([sid, tasks]) => {
@@ -1148,7 +1142,7 @@ export function TaskTable({
                 placeholder="Task name *"
                 value={newTaskForm.name}
                 onChange={(e) => setNewTaskForm((prev) => ({ ...prev, name: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleCreateTask(); }}
                 className="h-8"
                 autoFocus
               />
@@ -1185,7 +1179,7 @@ export function TaskTable({
               <Button
                 size="sm"
                 className="w-full"
-                onClick={handleCreateTask}
+                onClick={() => void handleCreateTask()}
                 disabled={creatingTask || !newTaskForm.name.trim()}
               >
                 Create
@@ -1197,7 +1191,7 @@ export function TaskTable({
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleClearCompleted}
+              onClick={() => void handleClearCompleted()}
               className="gap-1.5 bg-rose-500 text-white hover:bg-rose-400"
             >
               <IconTrash size={13} />
@@ -1208,9 +1202,9 @@ export function TaskTable({
             variant="ghost"
             size="sm"
             className="gap-1.5"
-            onClick={() =>
-              fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error)
-            }
+            onClick={() => {
+              void fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error);
+            }}
           >
             <IconTerminal2 size={13} />
             New Agent
@@ -1268,16 +1262,16 @@ export function TaskTable({
         <div className="flex items-center gap-2 rounded-(--radius) border border-stone-800 bg-stone-900/80 px-3 py-1.5">
           <span className="text-xs text-stone-400 tabular-nums">{selectedRows.size} selected</span>
           <div className="ml-2 flex items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('cancel')}>
+            <Button variant="ghost" size="sm" onClick={() => void handleBulkAction('cancel')}>
               Cancel
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('pause')}>
+            <Button variant="ghost" size="sm" onClick={() => void handleBulkAction('pause')}>
               Pause
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction('retry')}>
+            <Button variant="ghost" size="sm" onClick={() => void handleBulkAction('retry')}>
               Retry
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+            <Button variant="destructive" size="sm" onClick={() => void handleBulkDelete()}>
               Delete
             </Button>
           </div>
@@ -1408,7 +1402,7 @@ export function TaskTable({
                     onToggleLogs={() => toggleLogs(task.id)}
                     onToggleSelect={() => toggleRow(task.id)}
                     onFilterByAgent={toggleAgentFilter}
-                    onAction={(action) => handleAction(task.id, action)}
+                    onAction={(action) => void handleAction(task.id, action)}
                   />
                   {expandedLogs.has(task.id) && (
                     <>

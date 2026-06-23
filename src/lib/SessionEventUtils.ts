@@ -23,11 +23,11 @@ export function buildSessionEvent(
   payload: ClaudeSessionEventPayload,
   timestamp: string,
   sessionId: string,
-): Record<string, any> {
+): Record<string, unknown> {
   const agentId = payload.agent_id ?? '';
   const agentType = payload.agent_type ?? '';
   let summary = '';
-  let extraFields: Record<string, any> = {};
+  let extraFields: Record<string, unknown> = {};
 
   switch (eventType) {
     case 'UserPromptSubmit': {

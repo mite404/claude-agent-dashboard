@@ -1,5 +1,5 @@
 #!/opt/homebrew/bin/bun
-import type { Task, TaskKind } from '../src/types/task';
+import type { Task } from '../src/types/task';
 
 interface PreToolPayload {
   session_id: string;

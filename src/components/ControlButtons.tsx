@@ -50,7 +50,7 @@ export function ControlButtons({ taskId, status, onStatusChange }: ControlButton
       <Button
         variant="destructive"
         size="sm"
-        onClick={() => handle('cancel')}
+        onClick={() => void handle('cancel')}
         disabled={isTerminal || busy !== null}
         title="Cancel task"
       >
@@ -62,7 +62,7 @@ export function ControlButtons({ taskId, status, onStatusChange }: ControlButton
       <Button
         variant="warning"
         size="sm"
-        onClick={() => handle(isPaused ? 'retry' : 'pause')}
+        onClick={() => void handle(isPaused ? 'retry' : 'pause')}
         disabled={isTerminal || (!isRunning && !isPaused) || busy !== null}
         title={isPaused ? 'Resume task' : 'Pause task'}
       >
@@ -74,7 +74,7 @@ export function ControlButtons({ taskId, status, onStatusChange }: ControlButton
       <Button
         variant="default"
         size="sm"
-        onClick={() => handle('retry')}
+        onClick={() => void handle('retry')}
         disabled={(status !== 'failed' && status !== 'cancelled') || busy !== null}
         title="Retry task"
       >
