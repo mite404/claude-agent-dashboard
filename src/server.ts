@@ -1,5 +1,5 @@
-import { Hono } from 'hono';
-import { eq, and, sql, asc, inArray } from 'drizzle-orm';
+import { Hono, type Context } from 'hono';
+import { eq, and, sql, asc } from 'drizzle-orm';
 import { db } from './db/index';
 import {
   tasksTable,
@@ -8,6 +8,8 @@ import {
   logsTable,
   hookEventsTable,
 } from './db/schema';
+
+import type { Task } from './types/task';
 
 const app = new Hono();
 
@@ -46,7 +48,7 @@ app.get('/tasks', async (c) => {
     if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
     if (agentId) conditions.push(eq(tasksTable.agentId, agentId));
 
-    const rows = await db
+    const rows: Task[] = await db
       .select()
       .from(tasksTable)
       .where(conditions.length ? and(...conditions) : undefined);
@@ -74,10 +76,8 @@ app.get('/tasks', async (c) => {
 // Output: { Array<Task> }
 // Errors: server 500 (DB error)
 app.get('/tasks/pool', async (c) => {
-  let rows;
-
   try {
-    rows = await db
+    const rows: Task[] = await db
       .select()
       .from(tasksTable)
       .where(eq(tasksTable.status, 'unassigned'))
@@ -102,10 +102,10 @@ app.get('/tasks/pool', async (c) => {
 app.post('/tasks/:id/claim', async (c) => {
   // parse
   const id = c.req.param('id');
-  const body = await c.req.json().catch(() => null);
+  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
 
   // validate
-  if (!body?.claimedBy) {
+  if (!body?.claimedBy || typeof body.claimedBy !== 'string') {
     return c.json({ error: 'claimedBy required' }, 400);
   }
 
@@ -147,14 +147,13 @@ app.get('/tasks/:id', async (c) => {
       id: rows[0]?.id,
       status: rows[0]?.status,
     });
-    const task = rows[0];
 
-    if (!task) {
+    if (rows.length === 0) {
       console.error('Task not found:', id);
       return c.json({ error: 'task not found' }, 404);
     }
 
-    return c.json(task);
+    return c.json(rows[0]);
   } catch (error) {
     console.error('Failed to get task:', error);
     return c.json({ error: 'Database error' }, 500);
@@ -163,21 +162,27 @@ app.get('/tasks/:id', async (c) => {
 
 // POST /tasks - called by pre-tool-agent.sh
 app.post('/tasks', async (c) => {
-  let body;
+  let body: Record<string, unknown>;
 
   try {
-    body = await c.req.json();
+    body = (await c.req.json()) as Record<string, unknown>;
   } catch (error) {
     console.error('Malformed JSON request', error);
     return c.json({ error: 'Bad request' }, 400);
   }
 
-  console.log('POST /tasks has been called with:', { name: body.name, sessionId: body.sessionId });
+  console.log('POST /tasks has been called with:', {
+    name: body.name,
+    sessionId: body.sessionId,
+  });
 
-  if (!body.name || !body.sessionId) {
+  const name = typeof body.name === 'string' ? body.name : '';
+  const sessionId = typeof body.sessionId === 'string' ? body.sessionId : '';
+
+  if (!name || !sessionId) {
     console.error('Missing required name and sessionId:', {
-      hasName: Boolean(body.name),
-      hasSessionId: Boolean(body.sessionId),
+      hasName: Boolean(name),
+      hasSessionId: Boolean(sessionId),
     });
     return c.json({ error: 'name and sessionId required' }, 400);
   }
@@ -187,7 +192,7 @@ app.post('/tasks', async (c) => {
     await db
       .insert(sessionsTable)
       .values({
-        id: body.sessionId,
+        id: sessionId,
         type: 'auto',
         status: 'active',
         createdAt: new Date().toISOString(),
@@ -195,32 +200,34 @@ app.post('/tasks', async (c) => {
       .onConflictDoNothing();
 
     // Strip logs and events (not schema columns) and preserve incoming id if provided
-    const { logs, events, dependencies, ...safeFields } = body;
-    const taskId = body.id || crypto.randomUUID();
+    const { logs: _logs, events: _events, dependencies: _dependencies, ...safeFields } = body;
+    const taskId = typeof body.id === 'string' ? body.id : crypto.randomUUID();
 
-    console.log('Inserting task:', { id: taskId, name: body.name, sessionId: body.sessionId });
+    console.log('Inserting task:', { id: taskId, name, sessionId });
     const result = await db
       .insert(tasksTable)
       .values({
         id: taskId,
-        name: body.name,
-        sessionId: body.sessionId,
-        status: body.status || 'unassigned',
+        name,
+        sessionId,
+        status: typeof body.status === 'string' ? body.status : 'unassigned',
         createdAt: new Date().toISOString(),
         ...safeFields, // includes agentType, parentId, etc if provided
       })
       .returning();
 
     // Insert first log entry separately if provided
-    if (logs?.[0]) {
+    const firstLog = Array.isArray(_logs) ? (_logs[0] as Record<string, unknown>) : null;
+    if (firstLog) {
       await db
         .insert(logsTable)
         .values({
           id: crypto.randomUUID(),
           taskId: taskId,
-          timestamp: logs[0].timestamp || new Date().toISOString(),
-          level: logs[0].level || 'info',
-          message: logs[0].message,
+          timestamp:
+            typeof firstLog.timestamp === 'string' ? firstLog.timestamp : new Date().toISOString(),
+          level: typeof firstLog.level === 'string' ? firstLog.level : 'info',
+          message: typeof firstLog.message === 'string' ? firstLog.message : null,
         })
         .catch((err) => console.error('Failed to insert log:', err));
     }
@@ -234,12 +241,12 @@ app.post('/tasks', async (c) => {
 });
 
 // Shared handler for PATCH and PUT /tasks/:id
-async function handleTaskUpdate(c: any) {
+async function handleTaskUpdate(c: Context) {
   const id = c.req.param('id');
-  let body;
+  let body: Record<string, unknown>;
 
   try {
-    body = await c.req.json();
+    body = (await c.req.json()) as Record<string, unknown>;
   } catch (error) {
     console.error('Malformed JSON response', error);
     return c.json({ error: 'Bad request' }, 400);
@@ -252,7 +259,7 @@ async function handleTaskUpdate(c: any) {
 
   try {
     // Whitelist valid schema columns (exclude logs, events, dependencies, etc)
-    const { logs, events, dependencies, ...safeFields } = body;
+    const { logs: _logs2, events: _events2, dependencies: _dependencies2, ...safeFields } = body;
     const validCols = [
       'name',
       'description',
@@ -285,7 +292,11 @@ async function handleTaskUpdate(c: any) {
       id,
       fieldsToUpdate: Object.keys(update),
     });
-    const result = await db.update(tasksTable).set(update).where(eq(tasksTable.id, id)).returning();
+    const result = await db
+      .update(tasksTable)
+      .set(update as Record<string, unknown>)
+      .where(eq(tasksTable.id, id))
+      .returning();
 
     if (!result.length) {
       console.error('Task not found:', id);
@@ -293,26 +304,30 @@ async function handleTaskUpdate(c: any) {
     }
 
     // Persist hook events if provided (pre-hook sends status='running', post-hook upserts to 'completed'/'failed')
-    if (Array.isArray(events) && events.length > 0) {
+    if (Array.isArray(_events2) && _events2.length > 0) {
       await Promise.all(
-        events.map((e: any) =>
+        _events2.map((e: Record<string, unknown>) =>
           db
             .insert(hookEventsTable)
             .values({
-              id: e.id,
+              id: String(e.id),
               taskId: id,
-              toolName: e.toolName ?? null,
-              phase: e.phase ?? null,
-              status: e.status,
-              summary: e.summary ?? null,
-              timeStamp: e.timestamp ?? null,
-              completedAt: e.completedAt ?? null,
+              toolName: e.toolName !== null && e.toolName !== undefined ? String(e.toolName) : null,
+              phase: e.phase !== null && e.phase !== undefined ? String(e.phase) : null,
+              status: String(e.status),
+              summary: e.summary !== null && e.summary !== undefined ? String(e.summary) : null,
+              timeStamp:
+                e.timestamp !== null && e.timestamp !== undefined ? String(e.timestamp) : null,
+              completedAt:
+                e.completedAt !== null && e.completedAt !== undefined
+                  ? String(e.completedAt)
+                  : null,
             })
             .onConflictDoUpdate({
               target: hookEventsTable.id,
               set: { status: sql`excluded.status`, completedAt: sql`excluded.completed_at` },
             })
-            .catch((err: any) => console.error('Failed to insert hook event:', err)),
+            .catch((err: unknown) => console.error('Failed to insert hook event:', err)),
         ),
       );
     }
@@ -394,16 +409,21 @@ app.get('/sessionEvents', async (c) => {
 
 // POST /sessionEvents - called by session-event.sh
 app.post('/sessionEvents', async (c) => {
-  let body;
+  let body: Record<string, unknown>;
 
   try {
-    body = await c.req.json();
+    body = (await c.req.json()) as Record<string, unknown>;
   } catch (error) {
     console.error('Malformed JSON response', error);
     return c.json({ error: 'Bad request' }, 400);
   }
 
-  if (!body.sessionId || !body.type) {
+  if (
+    !body.sessionId ||
+    !body.type ||
+    typeof body.sessionId !== 'string' ||
+    typeof body.type !== 'string'
+  ) {
     console.error('Missing required fields:', {
       hasSessionId: Boolean(body.sessionId),
       hasType: Boolean(body.type),
@@ -467,7 +487,7 @@ app.get('/debug/sessions', async (c) => {
   return c.json({ sessions });
 });
 
-const PORT = parseInt(Bun.env.PORT || '3000');
+const PORT = typeof Bun.env.PORT === 'string' ? parseInt(Bun.env.PORT) : 3000;
 
 export default {
   fetch: app.fetch,

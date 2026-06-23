@@ -21,7 +21,7 @@ interface ClaudePreToolPayload {
   session_id: string;
   tool_name: string;
   tool_use_id: string;
-  tool_input: Record<string, any>;
+  tool_input: Record<string, unknown>;
   agent_id?: string;
 }
 
@@ -35,12 +35,12 @@ if (!isServerUp) {
 
 // stdin parsing
 const raw = await Bun.stdin.text();
-const payload: ClaudePreToolPayload = JSON.parse(raw);
+const payload = JSON.parse(raw) as ClaudePreToolPayload;
 
-const toolName = payload.tool_name ?? '';
-const eventId = payload.tool_use_id ?? 'unknown';
+const toolName = payload.tool_name;
+const eventId = payload.tool_use_id;
 const agentId = payload.agent_id ?? '';
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
 
 if (toolName === 'Agent' || toolName === 'Task') process.exit(0);
 
@@ -81,23 +81,24 @@ if (agentId) {
   lookupMethod = 'sessionId';
 }
 
-function extractSummary(toolName: string, toolInput: Record<string, any>): string {
+function extractSummary(toolName: string, toolInput: Record<string, unknown>): string {
+  const str = (v: unknown) => (typeof v === 'string' ? v : '').slice(0, 120);
   switch (toolName) {
     case 'Bash':
-      return (toolInput.command ?? toolInput.cmd ?? '').slice(0, 120);
+      return str(toolInput.command ?? toolInput.cmd);
     case 'Read':
     case 'Write':
     case 'Edit':
-      return (toolInput.file_path ?? toolInput.path ?? '').slice(0, 120);
+      return str(toolInput.file_path ?? toolInput.path);
     case 'Grep':
     case 'Glob':
-      return (toolInput.pattern ?? '').slice(0, 120);
+      return str(toolInput.pattern);
     case 'WebFetch':
-      return (toolInput.url ?? '').slice(0, 120);
+      return str(toolInput.url);
     case 'WebSearch':
-      return (toolInput.query ?? '').slice(0, 120);
+      return str(toolInput.query);
   }
-  return ''.slice(0, 120); // exhausted all known shapes of data
+  return '';
 }
 
 if (!existingTask) {
@@ -105,30 +106,28 @@ if (!existingTask) {
   process.exit(0);
 }
 
-if (existingTask) {
-  const newEvent: HookEvent = {
-    id: payload.tool_use_id,
-    toolName: payload.tool_name,
-    phase: 'pre',
-    status: 'running',
-    summary: extractSummary(payload.tool_name, payload.tool_input),
-    timestamp: new Date().toISOString(),
-  };
+const newEvent: HookEvent = {
+  id: payload.tool_use_id,
+  toolName: payload.tool_name,
+  phase: 'pre',
+  status: 'running',
+  summary: extractSummary(payload.tool_name, payload.tool_input),
+  timestamp: new Date().toISOString(),
+};
 
-  const newTask: Task = {
-    ...existingTask,
-    events: [...(existingTask.events ?? []), newEvent],
-  };
+const newTask: Task = {
+  ...existingTask,
+  events: [...(existingTask.events ?? []), newEvent],
+};
 
-  const res = await fetch(`${API_BASE}/tasks/${existingTask.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(newTask),
-  });
+const res = await fetch(`${API_BASE}/tasks/${existingTask.id}`, {
+  method: 'PATCH',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(newTask),
+});
 
-  if (res.ok) {
-    await log(`OK: updated task ${existingTask.id} -> ${existingTask.status}`);
-  } else {
-    await log(`ERROR: PATCH /tasks/${existingTask.id} failed (HTTP ${res.status})`);
-  }
+if (res.ok) {
+  await log(`OK: updated task ${existingTask.id} -> ${existingTask.status}`);
+} else {
+  await log(`ERROR: PATCH /tasks/${existingTask.id} failed (HTTP ${res.status})`);
 }

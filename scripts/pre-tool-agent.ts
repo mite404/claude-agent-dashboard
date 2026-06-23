@@ -1,5 +1,4 @@
 #!/opt/homebrew/bin/bun
-import type { Task, TaskKind } from '../src/types/task';
 
 interface PreToolPayload {
   session_id: string;
@@ -27,7 +26,7 @@ if (!isServerUp) {
 // CC pipes a JSON blob into stdin. 'sync slate' of the scene. who's running, what kind of agent, uniqueId
 // instead of cat + jq, we tap into Bun's native stdin reader
 const raw = await Bun.stdin.text();
-const payload: PreToolPayload = JSON.parse(raw);
+const payload = JSON.parse(raw) as PreToolPayload;
 const {
   session_id: sessionId = '',
   tool_use_id: taskId = '',

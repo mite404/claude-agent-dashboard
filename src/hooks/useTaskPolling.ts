@@ -68,7 +68,7 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
       ]);
       if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
 
-      const rawTasks = await tasksRes.json();
+      const rawTasks = (await tasksRes.json()) as Array<Task>;
       const data: Task[] = Array.isArray(rawTasks) ? rawTasks.map((t: Task) => ({ ...t })) : [];
 
       // Compute blocked state before building tree so tree inherits updated statuses
@@ -77,8 +77,8 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
       setTree(buildTree(data));
 
       if (eventsRes.ok) {
-        const rawEvents = await eventsRes.json();
-        const eventsArray = rawEvents?.data ?? rawEvents;
+        const rawEvents = (await eventsRes.json()) as { data?: SessionEvent[] } | SessionEvent[];
+        const eventsArray = Array.isArray(rawEvents) ? rawEvents : (rawEvents.data ?? []);
         setSessionEvents(Array.isArray(eventsArray) ? eventsArray : []);
       }
 
@@ -92,10 +92,10 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
   }, []);
 
   useEffect(() => {
-    fetch_();
-    const timer = setInterval(fetch_, intervalMs);
+    void fetch_();
+    const timer = setInterval(() => { void fetch_(); }, intervalMs);
     return () => clearInterval(timer);
   }, [fetch_, intervalMs]);
 
-  return { tasks, tree, sessionEvents, loading, lastUpdated, error, refresh: fetch_ };
+  return { tasks, tree, sessionEvents, loading, lastUpdated, error, refresh: () => { void fetch_(); } };
 }
