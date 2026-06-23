@@ -132,4 +132,97 @@ describe('buildSessionEvent', () => {
     expect(() => buildSessionEvent('Notification', minimalPayload, 'ts', 'sess')).not.toThrow();
     expect(() => buildSessionEvent('PreCompact', minimalPayload, 'ts', 'sess')).not.toThrow();
   });
+
+  // ─── Additional event type coverage ───────────────────────────────────────────
+
+  it('builds SubagentStop summary with agent id', () => {
+    const result = buildSessionEvent('SubagentStop', basePayload, 'ts', 'sess');
+    expect(result.summary).toContain('agent-456');
+    expect(result.summary).toContain('finished');
+  });
+
+  it('builds TeammateIdle summary with agent id', () => {
+    const result = buildSessionEvent('TeammateIdle', basePayload, 'ts', 'sess');
+    expect(result.summary).toContain('agent-456');
+    expect(result.summary).toContain('idle');
+  });
+
+  it('builds ConfigChange summary and extraFields', () => {
+    const result = buildSessionEvent(
+      'ConfigChange',
+      { ...basePayload, file_path: 'settings.json', source: 'user' },
+      'ts',
+      'sess',
+    );
+    expect(result.summary).toContain('settings.json');
+    expect(result.filePath).toBe('settings.json');
+    expect(result.source).toBe('user');
+  });
+
+  it('builds WorktreeRemove summary and branch field', () => {
+    const result = buildSessionEvent(
+      'WorktreeRemove',
+      { ...basePayload, branch: 'feat/cleanup' },
+      'ts',
+      'sess',
+    );
+    expect(result.summary).toContain('feat/cleanup');
+    expect(result.summary).toContain('removed');
+    expect(result.branch).toBe('feat/cleanup');
+  });
+
+  it('builds TaskCompleted with task_id fallback when task_title is absent', () => {
+    const result = buildSessionEvent(
+      'TaskCompleted',
+      { ...basePayload, task_id: 'tid-99' },
+      'ts',
+      'sess',
+    );
+    expect(result.taskTitle).toBe('tid-99');
+    expect(result.summary).toContain('tid-99');
+  });
+
+  it('builds TaskCompleted with "unknown" when both task_title and task_id are absent', () => {
+    const result = buildSessionEvent('TaskCompleted', basePayload, 'ts', 'sess');
+    expect(result.taskTitle).toBe('unknown');
+    expect(result.summary).toContain('unknown');
+  });
+
+  it('builds SessionEnd summary including the reason', () => {
+    const result = buildSessionEvent(
+      'SessionEnd',
+      { ...basePayload, reason: 'timeout' },
+      'ts',
+      'sess',
+    );
+    expect(result.summary).toContain('timeout');
+    expect(result.reason).toBe('timeout');
+  });
+
+  it('builds SessionEnd with "unknown" reason when reason absent', () => {
+    const result = buildSessionEvent('SessionEnd', basePayload, 'ts', 'sess');
+    expect(result.reason).toBe('unknown');
+  });
+
+  it('builds PermissionRequest summary and toolName with fallback to unknown', () => {
+    const result = buildSessionEvent('PermissionRequest', basePayload, 'ts', 'sess');
+    expect(result.toolName).toBe('unknown');
+    expect(result.summary).toContain('unknown');
+  });
+
+  it('truncates TaskCompleted title at 80 chars', () => {
+    const longTitle = 'T'.repeat(100);
+    const result = buildSessionEvent(
+      'TaskCompleted',
+      { ...basePayload, task_title: longTitle },
+      'ts',
+      'sess',
+    );
+    expect(result.summary).toBe(`task completed: ${'T'.repeat(80)}`);
+  });
+
+  it('includes sessionId in the returned object', () => {
+    const result = buildSessionEvent('Stop', basePayload, 'ts', 'my-session-id');
+    expect(result.sessionId).toBe('my-session-id');
+  });
 });
