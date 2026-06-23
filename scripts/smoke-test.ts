@@ -104,8 +104,8 @@ const info = (msg: string) => console.log(fmtInfo(msg));
 const head = (msg: string) => console.log(fmtHead(msg));
 
 // Cleanup: delete the test task on exit (provided — action: network + process)
-process.on('ext', async () => {
-  await fetch(`${API}/tasks/${TEST_ID}`, { method: 'DELETE' }).catch(() => {});
+process.on('ext', () => {
+  void fetch(`${API}/tasks/${TEST_ID}`, { method: 'DELETE' }).catch(() => {});
 });
 
 // ── Stub C: checkEndpoint ─────────────────────────────────────────────────────
@@ -155,8 +155,8 @@ async function runHook(scriptPath: string, payload: string): Promise<void> {
     stderr: 'inherit',
     cwd: DASHBOARD_DIR,
   });
-  proc.stdin.write(payload);
-  proc.stdin.end();
+  void proc.stdin.write(payload);
+  void proc.stdin.end();
   await proc.exited;
 }
 
@@ -218,4 +218,4 @@ async function main() {
   }
 }
 
-main();
+void main();

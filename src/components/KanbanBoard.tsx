@@ -170,7 +170,7 @@ function KanbanCard({ task, overlay = false, onClaim }: KanbanCardProps) {
             size="sm"
             variant="outline"
             className="mt-1 h-6 w-full text-xs"
-            onClick={() => onClaim(task.id)}
+            onClick={() => void onClaim(task.id)}
           >
             Claim
           </Button>
@@ -259,7 +259,7 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
         value={form.name}
         onChange={set('name')}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSubmit();
+          if (e.key === 'Enter') void handleSubmit();
           if (e.key === 'Escape') { setOpen(false); setForm({ name: '', agentType: '', priority: 'normal', description: '' }); }
         }}
         placeholder="Task name *"
@@ -298,7 +298,7 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
           size="sm"
           className="h-6 flex-1 text-xs"
           disabled={busy || !form.name.trim()}
-          onClick={handleSubmit}
+          onClick={() => void handleSubmit()}
         >
           Add
         </Button>
@@ -455,7 +455,7 @@ export function KanbanBoard({ tasks, sessionId, onRefresh }: KanbanBoardProps) {
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
       onDragOver={({ over }) => setDragTargetColumn((over?.id as string) ?? null)}
-      onDragEnd={handleDragEnd}
+      onDragEnd={(e) => void handleDragEnd(e)}
       onDragCancel={() => {
         setActiveTask(null);
         setDragTargetColumn(null);

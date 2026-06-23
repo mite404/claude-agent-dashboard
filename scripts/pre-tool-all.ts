@@ -21,7 +21,7 @@ interface ClaudePreToolPayload {
   session_id: string;
   tool_name: string;
   tool_use_id: string;
-  tool_input: Record<string, any>;
+  tool_input: Record<string, unknown>;
   agent_id?: string;
 }
 
@@ -81,23 +81,24 @@ if (agentId) {
   lookupMethod = 'sessionId';
 }
 
-function extractSummary(toolName: string, toolInput: Record<string, any>): string {
+function extractSummary(toolName: string, toolInput: Record<string, unknown>): string {
+  const str = (v: unknown) => (typeof v === 'string' ? v : '').slice(0, 120);
   switch (toolName) {
     case 'Bash':
-      return (toolInput.command ?? toolInput.cmd ?? '').slice(0, 120);
+      return str(toolInput.command ?? toolInput.cmd);
     case 'Read':
     case 'Write':
     case 'Edit':
-      return (toolInput.file_path ?? toolInput.path ?? '').slice(0, 120);
+      return str(toolInput.file_path ?? toolInput.path);
     case 'Grep':
     case 'Glob':
-      return (toolInput.pattern ?? '').slice(0, 120);
+      return str(toolInput.pattern);
     case 'WebFetch':
-      return (toolInput.url ?? '').slice(0, 120);
+      return str(toolInput.url);
     case 'WebSearch':
-      return (toolInput.query ?? '').slice(0, 120);
+      return str(toolInput.query);
   }
-  return ''.slice(0, 120); // exhausted all known shapes of data
+  return '';
 }
 
 if (!existingTask) {

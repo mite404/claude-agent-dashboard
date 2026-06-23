@@ -36,7 +36,7 @@ const res = await fetch(`${API_BASE}/tasks`, {
   body: JSON.stringify(post),
 });
 
-const data = await res.json();
+const data = (await res.json()) as { id: string };
 const taskId = data.id;
 
 if (res.ok) {

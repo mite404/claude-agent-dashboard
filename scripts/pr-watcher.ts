@@ -29,7 +29,8 @@ const DEFAULT_SKILLS = [
 
 function parseArgs() {
   const args = Bun.argv.slice(2);
-  const isValue = (s: string | undefined): s is string => s !== undefined && s !== '' && !s.startsWith('-');
+  const isValue = (s: string | undefined): s is string =>
+    s !== undefined && s !== '' && !s.startsWith('-');
   const get = (flag: string) => {
     const i = args.indexOf(flag);
     const v = args[i + 1];
@@ -37,7 +38,10 @@ function parseArgs() {
   };
   // getAll collects every value for a repeatable flag, e.g. --context a --context b → ['a', 'b']
   const getAll = (flag: string) =>
-    args.flatMap((a, i) => { const v = args[i + 1]; return a === flag && isValue(v) ? [v] : []; });
+    args.flatMap((a, i) => {
+      const v = args[i + 1];
+      return a === flag && isValue(v) ? [v] : [];
+    });
   const pr = get('--pr');
   if (!pr) {
     console.error(
@@ -270,10 +274,14 @@ while (true) {
   const proc = Bun.spawn(
     [
       CLAUDE,
-      '--model', 'claude-sonnet-4-6',
-      '--allowedTools', 'Bash,Read,Edit,Skill',
-      '--max-turns', '30',
-      '-p', reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect, repo),
+      '--model',
+      'claude-sonnet-4-6',
+      '--allowedTools',
+      'Bash,Read,Edit,Skill',
+      '--max-turns',
+      '30',
+      '-p',
+      reviewPrompt(taskId, pr, sha, skills, contextFiles, selfCorrect, repo),
     ],
     {
       stdout: 'inherit',

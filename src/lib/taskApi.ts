@@ -51,7 +51,8 @@ export async function createTask(fields: {
     body: JSON.stringify({ status: 'unassigned', ...fields }),
   });
   if (!res.ok) throw new Error(`POST /tasks failed: HTTP ${res.status}`);
-  return res.json();
+  const data = (await res.json()) as { id: string };
+  return data;
 }
 
 /**
@@ -67,7 +68,7 @@ export async function claimTask(
     body: JSON.stringify({ claimedBy }),
   });
   if (res.status === 409) {
-    const body = await res.json();
+    const body = (await res.json()) as { claimedBy?: string };
     return { ok: false, status: 409, claimedBy: body.claimedBy ?? 'unknown' };
   }
   if (!res.ok) throw new Error(`POST /tasks/${taskId}/claim failed: HTTP ${res.status}`);

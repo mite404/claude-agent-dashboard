@@ -56,7 +56,7 @@ function wrapLine(line) {
   let current = '';
 
   for (const word of words) {
-    const candidate = current ? current + ' ' + word : word;
+    const candidate = current ? `${current} ${word}` : word;
     const checkPrefix = outputLines.length === 0 ? prefix : contPrefix;
     if (byteLen(checkPrefix + candidate) <= MAX_BYTES) {
       current = candidate;

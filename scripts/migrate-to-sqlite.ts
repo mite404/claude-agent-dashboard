@@ -3,7 +3,10 @@ import { sessionsTable, tasksTable, sessionEventsTable } from '../src/db/schema'
 import type { Task } from '../src/types/task';
 
 async function migrate() {
-  const data = await Bun.file('./db.json').json();
+  const data = (await Bun.file('./db.json').json()) as {
+    tasks: Task[];
+    sessionEvents: Array<Record<string, unknown>>;
+  };
 
   const existingTasks = await db.select().from(tasksTable).limit(1);
 

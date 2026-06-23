@@ -6,7 +6,7 @@ import type { TaskNode } from '@/types/task';
 
 function createMockNode(overrides: Partial<TaskNode> = {}): TaskNode {
   return {
-    id: 'node-' + Math.random().toString(36).slice(2, 9),
+    id: `node-${Math.random().toString(36).slice(2, 9)}`,
     name: 'Test Node',
     status: 'pending',
     agentType: 'claude',

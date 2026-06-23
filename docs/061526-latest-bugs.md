@@ -1,4 +1,4 @@
-# Dashboard — Open Issues as of 2026-06-22
+# Dashboard — Open Issues as of 2026-06-22 (refreshed)
 
 ---
 
@@ -13,6 +13,7 @@
 | `sessionId` optional in `createTask()` but required by backend | Made required in type. |
 | Double-click race on "Create Task" button | `creatingTask` boolean guard added. |
 | Stale form values when popover dismissed | `onOpenChange` now resets form on close. |
+| `post-task.ts` taskId bug (P3) | Now parses JSON body (`data.id`) instead of raw stream. |
 
 ---
 
@@ -57,12 +58,3 @@ Current v1 captures the `/skill-name` string only.
 Planned v2: source classification (`anthropic | vercel | custom | community`), UI filter,
 author + experimental flag tracking.
 No schema changes required — the `metadata` JSON field on `sessionEventsTable` holds extras.
-
----
-
-## 5. `post-task.ts` taskId bug (P3 — CLI utility)
-
-`post-task.ts` extracts `taskId` from the raw `ReadableStream` instead of parsing the JSON
-body. The CLI tool doesn't return a valid `taskId` via stdout.
-
-**Fix:** `const { id } = await res.json()` instead of reading the stream directly.
