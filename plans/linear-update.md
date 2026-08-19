@@ -80,7 +80,7 @@ Closes when all seven sub-issues close. No effort label — it is not a work ite
 | TR-4 | `TrajectoryView.tsx`: port mockup + `USER`/`ASSISTANT`/`CONTEXT` rows + Turn gutter + toolbar | Port `docs/mockups/trajectory.html`, add the three row kinds the mockup doesn't have, add Turn boundary markers in the gutter. Toolbar carries the **noise toggle** and **search** (client-side filter over the projected rows; the mockup already has search markup, the toggle is new). Duration zoom (every row) only — the default view. | TR-3 | — |
 | TR-5 | `TrajectoryView.tsx`: Turns and Calls zoom-level collapse | Same file, new function: collapse to Turn boundaries with roll-up counts, and a denser level that keeps Assistant steps but rolls up Tool Calls. Recursive-with-a-density-argument, same shape as `sortNodes` in `TaskTable.tsx`. | TR-4 | **Ladder step 5** |
 | TR-6 | Wire Trajectory into Dashboard | `Dashboard.tsx` already has `useState<'table' \| 'board'>`; add `'trajectory'`, a third toolbar button, and the thread picker (filesystem-sourced). | TR-4 | — |
-| TR-7 | Task-row breadcrumb into Trajectory | Tool-call count chip per task row (amber/red on failure), linking into Trajectory filtered to that task. Shown only when `sessions.id` matches a transcript filename — silently absent otherwise. | TR-6 | — |
+| TR-7 | Task-row breadcrumb into Trajectory | Tool-call count chip per task row (amber/red on failure), counted from `hook_events`. Opens the thread at Duration zoom, scrolled to the Turn matching the task's first `hook_events.timeStamp`, gutter-marked. **Full thread renders — no filter:** `hook_events` has no `toolUseId` to filter on, and `CONTEXT.md` makes the Thread the scope. Shown only when `sessions.id` matches a transcript filename — silently absent otherwise. | TR-6 | — |
 
 Sub-issues are split at decision boundaries, not by file count — TR-7 in particular touches
 the task row *and* whatever routes into a filtered Trajectory. Each is S-effort by the same
@@ -124,6 +124,8 @@ Same pattern the repo already uses for 002/003 in `plans/README.md`:
   TR-5 edits the component's internals. Disjoint files.
 - TR-3 and TR-7 are each additions with no overlap against their predecessors beyond the
   dependency itself.
+- TR-7 forces Duration zoom on arrival. That is a no-op until TR-5 introduces the other two
+  levels, so TR-7 does not need to wait for it — but re-check the interaction once TR-5 lands.
 
 ## Open questions for review
 

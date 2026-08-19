@@ -1,7 +1,8 @@
 # Trajectory — build plan
 
 Shared understanding reached 2026-08-19. See [CONTEXT.md](../CONTEXT.md) for vocabulary and
-[ADR 0001](../docs/adr/0001-trajectory-reads-the-transcript-not-the-hooks.md) for the data-source decision.
+[ADR 0001](../docs/adr/0001-trajectory-reads-the-transcript-not-the-hooks.md)
+for the data-source decision.
 
 ## The six decisions
 
@@ -67,10 +68,28 @@ thread picker.
 
 ### 5. Breadcrumb on task rows — ~45min
 
-A tool-call count chip per task row, amber or red when something failed, linking into
-Trajectory filtered to that task.
+A tool-call count chip per task row, amber or red when something failed, counted from
+`hook_events` on the dashboard side.
+
+The chip opens `GET /trajectory/:sessionId` at Duration zoom, scrolled to the Turn containing
+the task's first `hook_events.timeStamp`, with that Turn's gutter marked.
+Duration is forced on arrival so the target cannot land inside a collapsed roll-up.
+
+**The full thread always renders. The marker is a hint, not a filter.**
+[CONTEXT.md](../CONTEXT.md) makes the Thread Trajectory's scope, always — and a failed task's
+cause is usually upstream of the task itself, so filtering hides the evidence you opened the
+view to find.
+
+There is also no key to filter on: `hook_events` has no `toolUseId`, so timestamps are the only
+correlation between a task and a transcript row.
+Using one to pick a *scroll target* is safe — a wrong match lands you slightly off and you look
+around.
+Using one to build a view is not — a wrong match hides rows silently, and you never learn what
+you missed.
+Keep the comparison in the component; ADR 0001 wants `parseTranscript.ts` thin.
+
 Shown only when `sessions.id` matches a transcript filename; absent otherwise, with no
-error state.
+error state. If no Turn resolves, the link opens the thread at the top.
 
 ### 6. Fix the dead health check — 5min
 
