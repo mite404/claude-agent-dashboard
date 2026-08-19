@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Trajectory — audit log mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Tokens lifted verbatim from src/index.css @theme */
+      :root {
+        --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+        --background: oklch(0.09 0.002 17.2);
+        --surface: oklch(0.13 0.003 17.2);
+        --surface-raised: oklch(0.18 0.004 17.2);
+        --border: oklch(0.26 0.004 17.2);
+        --border-muted: oklch(0.34 0.004 17.2);
+        --text-primary: oklch(0.985 0.001 17.2);
+        --text-secondary: oklch(0.88 0.003 17.2);
+        --text-muted: oklch(0.64 0.005 17.2);
+
+        --running: oklch(0.67 0.19 259.8);
+        --completed: oklch(0.72 0.17 142.5);
+        --failed: oklch(0.7 0.19 22.2);
+        --paused: oklch(0.83 0.17 85.9);
+        --pending: oklch(0.64 0.005 17.2);
+
+        --radius-sm: 0.25rem;
+        --radius: 0.375rem;
+        --radius-md: 0.5rem;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: var(--font-sans);
+        background: var(--background);
+        color: var(--text-secondary);
+        font-size: 13px;
+        height: 100vh;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        height: 100vh;
+      }
+
+      /* ── Toolbar ──────────────────────────────── */
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+      }
+
+      .title {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 13px;
+        letter-spacing: -0.01em;
+      }
+
+      .session-pill {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        background: var(--surface-raised);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 2px 7px;
+      }
+
+      .search {
+        margin-left: auto;
+        position: relative;
+      }
+
+      .search input {
+        font-family: var(--font-sans);
+        font-size: 12px;
+        background: var(--background);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text-primary);
+        padding: 5px 10px 5px 26px;
+        width: 220px;
+        outline: none;
+      }
+
+      .search input:focus {
+        border-color: var(--border-muted);
+      }
+
+      .search svg {
+        position: absolute;
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+      }
+
+      .chips {
+        display: flex;
+        gap: 5px;
+      }
+
+      .chip {
+        font-size: 11px;
+        font-weight: 500;
+        padding: 4px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-family: var(--font-sans);
+        transition: all 120ms ease-out;
+      }
+
+      .chip:hover {
+        border-color: var(--border-muted);
+        color: var(--text-secondary);
+      }
+
+      .chip[aria-pressed='true'] {
+        background: var(--surface-raised);
+        border-color: var(--border-muted);
+        color: var(--text-primary);
+      }
+
+      .chip .count {
+        color: var(--text-muted);
+        margin-left: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ── Density strip ────────────────────────── */
+      .density {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 14px;
+        border-bottom: 1px solid var(--border);
+        background: var(--background);
+      }
+
+      .density-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        font-weight: 600;
+      }
+
+      .density-track {
+        display: flex;
+        gap: 2px;
+        height: 22px;
+        align-items: flex-end;
+      }
+
+      .density-bar {
+        flex: 1;
+        border-radius: 1px;
+        min-height: 3px;
+        cursor: pointer;
+        opacity: 0.65;
+        transition: opacity 100ms;
+      }
+
+      .density-bar:hover {
+        opacity: 1;
+      }
+
+      /* ── Main split ───────────────────────────── */
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        overflow: hidden;
+      }
+
+      .rows {
+        overflow-y: auto;
+        border-right: 1px solid var(--border);
+      }
+
+      /* ── Group header ─────────────────────────── */
+      .group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 14px 7px 12px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        border-top: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+
+      .group:first-child {
+        border-top: none;
+      }
+
+      .group-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 12px;
+      }
+
+      .group-meta {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ── Row ──────────────────────────────────── */
+      .row {
+        display: grid;
+        grid-template-columns: 66px 120px 1fr 58px;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px 0 0;
+        height: 30px;
+        border-bottom: 1px solid oklch(0.16 0.003 17.2);
+        border-left: 2px solid transparent;
+        cursor: pointer;
+      }
+
+      .row:hover {
+        background: oklch(0.115 0.003 17.2);
+      }
+
+      .row[aria-selected='true'] {
+        background: var(--surface);
+        border-left-color: var(--running);
+      }
+
+      .row.is-failed {
+        border-left-color: var(--failed);
+      }
+
+      .row.is-running {
+        border-left-color: var(--running);
+      }
+
+      .time {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-muted);
+        padding-left: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* tool badge */
+      .tool {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        flex: none;
+      }
+
+      .dot.completed {
+        background: var(--completed);
+      }
+      .dot.failed {
+        background: var(--failed);
+      }
+      .dot.running {
+        background: var(--running);
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+
+      .tool-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* MCP server prefix is dimmed so the tool name still reads first */
+      .mcp-server {
+        font-size: 10px;
+        font-weight: 600;
+        color: oklch(0.62 0.13 305);
+        background: oklch(0.2 0.04 305);
+        border-radius: var(--radius-sm);
+        padding: 1px 4px;
+        flex: none;
+        letter-spacing: 0.02em;
+      }
+
+      .summary {
+        font-family: var(--font-mono);
+        font-size: 11.5px;
+        color: var(--text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .row[aria-selected='true'] .summary,
+      .row:hover .summary {
+        color: var(--text-secondary);
+      }
+
+      .dur {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: oklch(0.44 0.005 17.2);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* only slow calls earn color */
+      .dur.slow {
+        color: var(--paused);
+      }
+
+      /* ── Detail pane ──────────────────────────── */
+      .detail {
+        overflow-y: auto;
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .detail-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .detail-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 8px;
+      }
+
+      .detail-title h2 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .status-tag {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        margin-left: auto;
+      }
+
+      .status-tag.completed {
+        color: var(--completed);
+        background: oklch(0.24 0.06 142.5);
+      }
+      .status-tag.failed {
+        color: var(--failed);
+        background: oklch(0.24 0.07 22.2);
+      }
+      .status-tag.running {
+        color: var(--running);
+        background: oklch(0.24 0.07 259.8);
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 74px 1fr;
+        gap: 3px 8px;
+        font-size: 11.5px;
+      }
+
+      .kv dt {
+        color: var(--text-muted);
+      }
+
+      .kv dd {
+        color: var(--text-secondary);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        word-break: break-all;
+      }
+
+      .section {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 14px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .section-head:hover {
+        color: var(--text-secondary);
+      }
+
+      .caret {
+        transition: transform 150ms ease-out;
+      }
+
+      .section[open] .caret {
+        transform: rotate(90deg);
+      }
+
+      .section-body {
+        padding: 0 14px 12px;
+      }
+
+      pre {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        line-height: 1.55;
+        background: var(--background);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 9px 10px;
+        overflow-x: auto;
+        color: var(--text-secondary);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .k {
+        color: oklch(0.72 0.12 305);
+      }
+      .s {
+        color: oklch(0.75 0.13 142.5);
+      }
+      .n {
+        color: oklch(0.75 0.14 85.9);
+      }
+      .err {
+        color: var(--failed);
+      }
+
+      .truncated {
+        font-size: 10.5px;
+        color: var(--text-muted);
+        margin-top: 5px;
+        font-style: italic;
+      }
+
+      /* ── Footer ───────────────────────────────── */
+      .footer {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 16px;
+        padding: 7px 14px;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 11px;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .footer b {
+        color: var(--text-secondary);
+        font-weight: 600;
+      }
+
+      .rows::-webkit-scrollbar,
+      .detail::-webkit-scrollbar {
+        width: 9px;
+      }
+      .rows::-webkit-scrollbar-thumb,
+      .detail::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 99px;
+      }
+      .rows::-webkit-scrollbar-track,
+      .detail::-webkit-scrollbar-track {
+        background: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <!-- ── Toolbar ─────────────────────────────────────── -->
+      <div class="toolbar">
+        <span class="title">Trajectory</span>
+        <span class="session-pill">7f3a1c9e</span>
+        <div class="chips">
+          <button class="chip" aria-pressed="true">All <span class="count">18</span></button>
+          <button class="chip" aria-pressed="false">Tools <span class="count">14</span></button>
+          <button class="chip" aria-pressed="false">MCP <span class="count">3</span></button>
+          <button class="chip" aria-pressed="false">Failed <span class="count">3</span></button>
+        </div>
+        <div class="search">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="10" cy="10" r="7" /><path d="m21 21-6-6" />
+          </svg>
+          <input type="text" placeholder="Filter by tool or summary…" />
+        </div>
+      </div>
+
+      <!-- ── Density strip: scrub the session at a glance ── -->
+      <div class="density">
+        <span class="density-label">Activity</span>
+        <div class="density-track" id="density"></div>
+      </div>
+
+      <!-- ── Split: log rows + detail pane ───────────────── -->
+      <div class="split">
+        <div class="rows" id="rows"></div>
+        <aside class="detail" id="detail"></aside>
+        <div class="footer">
+          <span><b>18</b> calls</span>
+          <span><b>3</b> failed</span>
+          <span>Wall <b>3m 42s</b></span>
+          <span>Tool time <b>11.4s</b></span>
+          <span>Slowest <b>Bash 1.24s</b></span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Real tool calls from this session, shaped as hook_events rows would be.
+      const EVENTS = [
+        {
+          t: '14:38:02', tool: 'ToolSearch', status: 'completed', ms: 310,
+          summary: 'linear',
+          payload: { query: 'linear', max_results: 5 },
+          result: 'No matching deferred tools found',
+        },
+        {
+          t: '14:38:41', tool: 'Bash', status: 'completed', ms: 1240,
+          summary: 'git remote -v && gh issue list --limit 50',
+          payload: { command: 'git remote -v && gh issue list --limit 50 --json number,title,labels,state', description: 'Show git remote and list GitHub issues' },
+          result: 'origin\tgit@github.com:mite404/claude-agent-dashboard.git (fetch)\n#60 [OPEN] Add a CI gate and put typecheck in the build script\n#59 [OPEN] Attach hook_events to GET /tasks…',
+        },
+        { group: 'Screenshot read — 3 failed attempts before success', meta: '4 calls · 19s' },
+        {
+          t: '14:39:15', tool: 'Read', status: 'failed', ms: 40,
+          summary: '/var/folders/…/Screenshot 2026-08-19 at 12.10.24 PM.png',
+          payload: { file_path: '/var/folders/xm/95zz912j1y16ypsc0rmxqswc0000gn/T/fleet-mcxlgpbshkk4mdxq4gw4/Screenshot 2026-08-19 at 12.10.24 PM-1787164697710.png' },
+          result: 'File does not exist. Note: your current working directory is /Users/ea/Programming/web/fractal/claude-agent-dashboard.',
+          isError: true,
+        },
+        {
+          t: '14:39:18', tool: 'Bash', status: 'completed', ms: 90,
+          summary: 'ls -la /var/folders/xm/…/fleet-mcxlgpbshkk4mdxq4gw4/',
+          payload: { command: 'ls -la /var/folders/xm/95zz912j1y16ypsc0rmxqswc0000gn/T/fleet-mcxlgpbshkk4mdxq4gw4/ 2>&1 | head -20' },
+          result: '-rw-r--r--@ 1 ea staff 429588 Aug 19 14:39 Screenshot 2026-08-19 at 12.10.24 PM-1787164697710.png',
+        },
+        {
+          t: '14:39:22', tool: 'Read', status: 'failed', ms: 35,
+          summary: '/var/folders/…/Screenshot 2026-08-19 at 12.10.24 PM.png',
+          payload: { file_path: '/var/folders/xm/…/Screenshot 2026-08-19 at 12.10.24 PM-1787164697710.png' },
+          result: 'File does not exist.',
+          isError: true,
+        },
+        {
+          t: '14:39:25', tool: 'Bash', status: 'failed', ms: 70,
+          summary: 'cp "/var/folders/…/Screenshot…png" /tmp/cad-shots/shot.png',
+          payload: { command: 'mkdir -p /tmp/cad-shots && cp "/var/folders/…/Screenshot 2026-08-19 at 12.10.24 PM-1787164697710.png" /tmp/cad-shots/shot.png' },
+          result: 'cp: …/Screenshot 2026-08-19 at 12.10.24 PM…png: No such file or directory',
+          isError: true,
+        },
+        {
+          t: '14:39:31', tool: 'Bash', status: 'completed', ms: 150,
+          summary: 'for f in *.png; do od -c; cp "$f" /tmp/cad-shots/shot.png; done',
+          payload: { command: 'cd /var/folders/…/fleet-… && for f in *.png; do printf \'%s\\n\' "$f" | od -c | head -5; cp "$f" /tmp/cad-shots/shot.png && echo COPIED; done' },
+          result: '0000040   4     **  **   P   M   -   1   7   8   7\nCOPIED\n\n→ filename contained U+202F narrow no-break space',
+        },
+        {
+          t: '14:39:34', tool: 'Read', status: 'completed', ms: 820,
+          summary: '/tmp/cad-shots/shot.png',
+          payload: { file_path: '/tmp/cad-shots/shot.png' },
+          result: '<output_image> 1452×1187 PNG</output_image>',
+        },
+        { group: 'Codebase survey', meta: '6 calls · 2.1s' },
+        {
+          t: '14:40:02', tool: 'Bash', status: 'completed', ms: 210,
+          summary: 'wc -l src/db/schema.ts src/server.ts src/types/task.ts',
+          payload: { command: 'wc -l src/db/schema.ts src/server.ts src/types/task.ts; ls -la scripts/; ls src/components/' },
+          result: '94 db/schema.ts\n495 server.ts\n107 types/task.ts',
+        },
+        {
+          t: '14:40:10', tool: 'Read', status: 'completed', ms: 60,
+          summary: 'src/db/schema.ts',
+          payload: { file_path: '/Users/ea/…/src/db/schema.ts' },
+          result: 'export const hookEventsTable = sqliteTable(\'hook_events\', {\n  id: text().primaryKey(),\n  taskId: text().notNull().references(() => tasksTable.id),\n  …',
+        },
+        {
+          t: '14:40:18', tool: 'mcp__context-mode__ctx_search', status: 'completed', ms: 430,
+          summary: 'hook_events schema, audit log prior art',
+          payload: { queries: ['hook_events schema', 'audit log prior art'], source: 'session-events' },
+          result: '3 chunks matched (session-events)',
+        },
+        {
+          t: '14:40:25', tool: 'Read', status: 'completed', ms: 55,
+          summary: 'scripts/pre-tool-all.ts',
+          payload: { file_path: '/Users/ea/…/scripts/pre-tool-all.ts' },
+          result: 'if (!existingTask) {\n  await log(`SKIP: no running task found…`);\n  process.exit(0);\n}',
+        },
+        {
+          t: '14:40:40', tool: 'Grep', status: 'completed', ms: 95,
+          summary: 'hookEvents|hook_events|app\\.(get|post|patch)',
+          payload: { pattern: 'hookEvents|hook_events|app\\.(get|post|patch|delete)', path: 'src/server.ts', output_mode: 'content', '-n': true },
+          result: '62: // TODO(human): fetch all hook_events for `rows` and attach them as task.events[]',
+        },
+        {
+          t: '14:41:00', tool: 'mcp__Air__ask_user_question', status: 'completed', ms: 12,
+          summary: 'retention policy + v1 scope',
+          payload: { questions: [{ question: 'Cap payload size or keep everything?' }] },
+          result: '{ "answered": false }',
+        },
+        { group: 'Agent · code-explorer', meta: '3 calls · 8.2s', agent: true },
+        {
+          t: '14:41:20', tool: 'Glob', status: 'completed', ms: 40,
+          summary: 'src/components/**/*.tsx',
+          payload: { pattern: 'src/components/**/*.tsx' },
+          result: '11 files',
+        },
+        {
+          t: '14:41:24', tool: 'mcp__chrome-devtools__take_snapshot', status: 'failed', ms: 5010,
+          summary: 'localhost:5173',
+          payload: { url: 'http://localhost:5173' },
+          result: 'Error: no open pages. Call new_page first.',
+          isError: true,
+        },
+        {
+          t: '14:41:31', tool: 'Read', status: 'running', ms: null,
+          summary: 'src/components/TaskTable.tsx',
+          payload: { file_path: '/Users/ea/…/src/components/TaskTable.tsx' },
+          result: null,
+        },
+      ];
+
+      const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+      // Tiny JSON pretty-printer — enough color to scan structure, no highlighter dep.
+      function json(obj) {
+        return esc(JSON.stringify(obj, null, 2))
+          .replace(/"([^"]+)":/g, '<span class="k">"$1"</span>:')
+          .replace(/: "([^"]*)"/g, ': <span class="s">"$1"</span>')
+          .replace(/: (\d+|true|false|null)/g, ': <span class="n">$1</span>');
+      }
+
+      const fmtDur = (ms) => (ms == null ? '—' : ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(2) + 's');
+
+      // MCP tools arrive as mcp__<server>__<tool>; split so the server reads as a badge.
+      function splitTool(name) {
+        const m = name.match(/^mcp__([^_]+(?:_[^_]+)*?)__(.+)$/);
+        return m ? { server: m[1], tool: m[2] } : { server: null, tool: name };
+      }
+
+      const rowsEl = document.getElementById('rows');
+      const calls = EVENTS.filter((e) => !e.group);
+
+      EVENTS.forEach((e, i) => {
+        if (e.group) {
+          const g = document.createElement('div');
+          g.className = 'group';
+          g.innerHTML = `
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${e.agent ? 'oklch(0.67 0.19 259.8)' : 'oklch(0.64 0.005 17.2)'}" stroke-width="2">
+              ${e.agent ? '<circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/>' : '<path d="M4 6h16M4 12h16M4 18h10"/>'}
+            </svg>
+            <span class="group-name">${esc(e.group)}</span>
+            <span class="group-meta">${esc(e.meta)}</span>`;
+          rowsEl.appendChild(g);
+          return;
+        }
+
+        const { server, tool } = splitTool(e.tool);
+        const r = document.createElement('div');
+        r.className = 'row' + (e.status === 'failed' ? ' is-failed' : e.status === 'running' ? ' is-running' : '');
+        r.setAttribute('aria-selected', 'false');
+        r.dataset.idx = i;
+        r.innerHTML = `
+          <span class="time">${e.t}</span>
+          <span class="tool">
+            <span class="dot ${e.status}"></span>
+            ${server ? `<span class="mcp-server">${esc(server)}</span>` : ''}
+            <span class="tool-name">${esc(tool)}</span>
+          </span>
+          <span class="summary">${esc(e.summary)}</span>
+          <span class="dur ${e.ms > 1000 ? 'slow' : ''}">${fmtDur(e.ms)}</span>`;
+        r.addEventListener('click', () => select(i));
+        rowsEl.appendChild(r);
+      });
+
+      const detailEl = document.getElementById('detail');
+
+      function select(i) {
+        document.querySelectorAll('.row').forEach((r) => r.setAttribute('aria-selected', r.dataset.idx === String(i)));
+        const e = EVENTS[i];
+        const { server, tool } = splitTool(e.tool);
+        const big = JSON.stringify(e.payload).length > 400;
+
+        detailEl.innerHTML = `
+          <div class="detail-head">
+            <div class="detail-title">
+              ${server ? `<span class="mcp-server">${esc(server)}</span>` : ''}
+              <h2>${esc(tool)}</h2>
+              <span class="status-tag ${e.status}">${e.status}</span>
+            </div>
+            <dl class="kv">
+              <dt>Started</dt><dd>2026-08-19 ${e.t}</dd>
+              <dt>Duration</dt><dd>${fmtDur(e.ms)}</dd>
+              <dt>Kind</dt><dd>${server ? 'MCP call' : 'Built-in tool'}</dd>
+              <dt>tool_use_id</dt><dd>toolu_01${(i * 7919).toString(36).padStart(6, '0')}</dd>
+            </dl>
+          </div>
+
+          <details class="section" open>
+            <summary class="section-head">
+              <svg class="caret" width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l10 7-10 7z"/></svg>
+              Payload
+            </summary>
+            <div class="section-body">
+              <pre>${json(e.payload)}</pre>
+              ${big ? '<p class="truncated">Stored truncated at 4 KB — full payload retained in hooks.log</p>' : ''}
+            </div>
+          </details>
+
+          <details class="section" open>
+            <summary class="section-head">
+              <svg class="caret" width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l10 7-10 7z"/></svg>
+              Result
+            </summary>
+            <div class="section-body">
+              ${
+                e.result == null
+                  ? '<pre style="color:var(--running)">⋯ still running</pre>'
+                  : `<pre class="${e.isError ? 'err' : ''}">${esc(e.result)}</pre>`
+              }
+            </div>
+          </details>
+
+          <details class="section">
+            <summary class="section-head">
+              <svg class="caret" width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5l10 7-10 7z"/></svg>
+              Raw hook_events row
+            </summary>
+            <div class="section-body">
+              <pre>${json({
+                id: 'toolu_01' + (i * 7919).toString(36).padStart(6, '0'),
+                sessionId: '7f3a1c9e',
+                taskId: null,
+                toolName: e.tool,
+                phase: e.status === 'running' ? 'pre' : 'post',
+                status: e.status,
+                summary: e.summary,
+                timeStamp: '2026-08-19T' + e.t + 'Z',
+                completedAt: e.status === 'running' ? null : '2026-08-19T' + e.t + 'Z',
+              })}</pre>
+            </div>
+          </details>`;
+      }
+
+      // Density strip — one bar per call, height by duration, color by status.
+      const densityEl = document.getElementById('density');
+      const max = Math.max(...calls.map((c) => c.ms || 200));
+      calls.forEach((c) => {
+        const b = document.createElement('div');
+        b.className = 'density-bar';
+        b.style.height = Math.max(3, ((c.ms || 200) / max) * 22) + 'px';
+        b.style.background =
+          c.status === 'failed'
+            ? 'var(--failed)'
+            : c.status === 'running'
+              ? 'var(--running)'
+              : c.tool.startsWith('mcp__')
+                ? 'oklch(0.62 0.13 305)'
+                : 'var(--completed)';
+        b.title = `${c.t}  ${c.tool}  ${fmtDur(c.ms)}`;
+        b.addEventListener('click', () => {
+          const idx = EVENTS.indexOf(c);
+          select(idx);
+          document.querySelector(`.row[data-idx="${idx}"]`).scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
+        densityEl.appendChild(b);
+      });
+
+      select(EVENTS.indexOf(calls[4])); // open on the failed cp — the interesting one
+    </script>
+  </body>
+</html>
