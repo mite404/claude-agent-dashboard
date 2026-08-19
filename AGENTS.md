@@ -51,6 +51,8 @@ Claude Code Agent
 - **State**: Tasks and session events in SQLite; tree is built client-side from `parentId` at
   runtime
 
+**Endpoints:**
+
 - `GET /api/tasks` — fetch all tasks (React polls this)
 - `POST /api/tasks` — create a task (pre-tool-agent.sh hook)
 - `PATCH /api/tasks/:id` — update task status (post-tool-agent.sh hook)
@@ -103,6 +105,112 @@ resilient to UI changes.
 
 ---
 
+## Ethan's agent instructions
+
+These are common instructions for Ethan's agents across all scenarios.
+
+### General Guidelines
+
+- Never use the em dash "--". Use plain dash "-" instead.
+- Never manually modify changelog.md files or any files that are marked as auto-generated.
+- When writing or editing Markdown files, keep every physical line at or under 100 columns, wrapping
+  longer lines at word boundaries.
+  A pre-commit hook enforces this deterministically (`.husky/pre-commit` runs the global `wrap-md`
+  script), leaving code fences, tables, and headings intact - so this is the rule to follow, not
+  one-sentence-per-line.
+- When making technical decisions, do not give much weight to development cost.
+  Instead prefer quality, simplicity, robustness, scalability, and long-term maintainability.
+  "Development cost" here means a human-scale effort estimate.
+  Do not let reasoning like "a human would spend two days on this, so patch it" justify a flimsier
+  choice, because an agent writes and revises code far faster than that estimate assumes.
+  Effort is cheap; correctness and longevity are not.
+- When doing bug fixes, always start with reproducing the bug in an E2E setting as closely aligned
+  with how the end user uses the product.
+  This makes sure you find the real problem so your fix will actually solve it.
+- When end-to-end testing a product, be picky about the UI you see and be obsessed with pixel
+  perfection.
+  If something clearly looks off, even if it is not directly related to what you are doing, try to
+  get it fixed.
+- Apply the same high standard to engineering excellence: lint, test failures, and test flakiness.
+  If you see one, even if it is not caused by what you are working on right now, still get it fixed.
+- Always opt for writing files in the same way: imports, variable declarations, prep data to work
+  with, helper fns / pure fns, the main orchestration at the bottom.
+  Work leafs to root and follow the functional programming principles from Grokking Simplicity:
+  data, calculations, actions.
+- Public/exported functions and interface members get JSDoc (`/** */`) so editor
+  tool tips carry the contract.
+  Include `@throws` wherever the function throws, and `@param`/`@returns` only where they say
+  something the type does not.
+  Do not JSDoc private helpers or pure data-shape types - leave those as `//` comments; restating a
+  type in JSDoc just invites drift.
+- Annotate Data Flow where appropriate - add a quick comment on each line showing
+  what type goes in and what comes out.
+
+```typescript
+async () => {
+    const raw = await getVoicesFromFirebase();   // → Record<string, unknown>[]
+    return raw.map(item => Voice.fromJSON(item)); // → Voice[]
+```
+
+---
+
+## Commits
+
+Messages follow [the seven rules](https://cbea.ms/git-commit/), with one deliberate deviation
+noted below.
+
+**Scope.** Atomic. Each commit tells one part of the story of building a feature or fixing a bug.
+One commit with hundreds or thousands of changed lines is hard for anyone to track. If the subject
+line will not fit in 50 characters, that is usually the commit doing two things - split it.
+
+**Subject line**
+
+- Conventional Commits prefix: `feat:` `fix:` `refactor:` `test:` `docs:` `style:` `chore:`.
+- Imperative mood. The subject must complete the sentence "If applied, this commit will ___".
+  Write `scope order lookups by customer`, not `scoped`, `scopes`, or `order lookup scoping`.
+- 50 characters including the prefix. Never past 72.
+- No trailing period.
+- Lowercase after the prefix. This is the deviation from rule 3 (capitalize the subject); the
+  prefix already marks where the subject starts, and this repo's history is lowercase.
+
+**Body**
+
+- Blank line after the subject, always. Git tooling treats the first line as the subject and
+  misbehaves without the separator.
+- Wrap at 72 columns. This is not the 100-column markdown rule above: a commit message is not a
+  markdown file, and 72 leaves room for the four-space indent `git log` adds.
+- One `-` bullet per change. Reach for a prose paragraph only when a decision needs a
+  because-clause that no bullet can hold.
+- Say what and why. Never how - the diff already shows how.
+- Skip the body entirely when the subject fully covers the change.
+
+**Never** add an agent name as co-author.
+
+---
+
+### Issue tracker
+
+Issues and PRDs are filed in Linear (team `ETH`, project **Claude Agent Dashboard**) via the
+Linear MCP tools, then mirrored to GitHub issues in `mite404/claude-agent-dashboard` via the
+`gh` CLI.
+Each mirror's title carries its Linear ID, e.g. `ETH-15 Fix the PostToolUse-all hook's dead
+health check`.
+Keep the pair in sync: a scope or title change on one gets applied to the other in the same pass.
+Only the title and body mirror — labels, assignee, priority, and status live in Linear alone.
+
+### Triage labels
+
+Intended vocabulary — each label string equals its role name (`needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, `wontfix`).
+Only `wontfix` exists on the repo today (it ships with GitHub's defaults); create the other four
+before first use.
+
+### Domain docs
+
+Single-context — one `CONTEXT.md` + `docs/adr/` at the repo root.
+
+---
+
 ## 🧠 Educational Persona: The Senior Mentor
 
 Treat every interaction as a tutoring session for a visual learner with a
@@ -145,31 +253,3 @@ Update this file after every major feature implementation or refactor.
   Director's Commentary in `docs/FOR_ETHAN.md`). Snippet grounds the reader in repo code; diagram
   shows flow (sequence for round-trips, flowchart for structure). Don't lead with diagram alone.
 - **Tone:** Engaging, magazine-style, memorable. Not a textbook.
-
----
-
-## Genarl Guidelines
-
-- When writing Markdown files avoid writing long multiple sentences on one physical line. One sentence or Two short sentences max.
-- When doing bug fixes, always start with reproducing the bug in an E2E setting as closely aligned
-  with how an end user would use the app.
-  This makes sure you find the real problem so your fix will actually solve it.
-- When E2E testing a product, be picky about th eUI you see and be obsessed with pixel perfection.
-  If something clearly looks off, even if it is not directly related to what you are doing,
-  try to get it fixed along the way and notify the user of your findings.
-- Apply that same high standard to engineering excellence: lint, test failures, and test flakiness.
-  If you see one, even if it is not caused by what you are working on right now, still get it fixed.
-
-## Agent skills
-
-### Issue tracker
-
-Issues and PRDs are tracked as GitHub issues (`mite404/a24-puzzle`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default vocabulary — each label string equals its role name (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
