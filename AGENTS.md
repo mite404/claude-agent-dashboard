@@ -1,8 +1,8 @@
 ---
 description:
-  Vite 6 + React 19 + TypeScript + Tailwind v4 + SQLite project. Bun is the package manager
-  and script runner. NOT a Bun.serve() project.
-globs: '*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json'
+    Vite 6 + React 19 + TypeScript + Tailwind v4 + SQLite project. Bun is the package manager
+    and script runner. NOT a Bun.serve() project.
+globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
@@ -166,7 +166,7 @@ line will not fit in 50 characters, that is usually the commit doing two things 
 **Subject line**
 
 - Conventional Commits prefix: `feat:` `fix:` `refactor:` `test:` `docs:` `style:` `chore:`.
-- Imperative mood. The subject must complete the sentence "If applied, this commit will ___".
+- Imperative mood. The subject must complete the sentence "If applied, this commit will \_\_\_".
   Write `scope order lookups by customer`, not `scoped`, `scopes`, or `order lookup scoping`.
 - 50 characters including the prefix. Never past 72.
 - No trailing period.
@@ -239,17 +239,30 @@ Neither are you, but we both strive for accuracy.
 
 Maintain a living document at `docs/FOR_ETHAN.md`.
 Update this file after every major feature implementation or refactor.
+Each entry should follow a dated format, e.g.
+<EXAMPLE>
+
+## Attaching Events to Tasks: Ten Things That Tripped Us Up (2026-08-21)
+
+The job: make `GET /tasks` return each task...
+
+### 1. The list isn't stored anywhere
+
+The `hook_events` table has no column that holds a list. There is no "array" type...
+</EXAMPLE>
 
 - **Structure:**
-  1. **The Story So Far:** High-level narrative of the project.
-  2. **Cast & Crew (Architecture):** How components talk to each other (using film analogies).
-  3. **Behind the Scenes (Decisions):** Why we chose Stack X over Stack Y.
-  4. **Bloopers (Bugs & Fixes):** Detailed breakdown of bugs, why they
-     happened, and the logic used to solve them.
-  5. **Director's Commentary:** Best practices and "Senior Engineer" mindset
-     tips derived from the current work.
+    1. **The Story So Far:** High-level narrative of the project.
+    2. **Cast & Crew (Architecture):** How components talk to each other (using film analogies).
+    3. **Behind the Scenes (Decisions):** Why we chose Stack X over Stack Y.
+    4. **Bloopers (Bugs & Fixes):** Detailed breakdown of bugs, why they
+       happened, and the logic used to solve them.
+    5. **Director's Commentary:** Best practices and "Senior Engineer" mindset
+       tips derived from the current work.
 - **Insight format (Director's Commentary):** When an insight needs diagram support, use
   **commented code snippet → mermaid immediately after** (see the template at the top of
   Director's Commentary in `docs/FOR_ETHAN.md`). Snippet grounds the reader in repo code; diagram
   shows flow (sequence for round-trips, flowchart for structure). Don't lead with diagram alone.
-- **Tone:** Engaging, magazine-style, memorable. Not a textbook.
+- **Tone:** Engaging, magazine-style, memorable. Not a textbook. Concise, not verbose. Avoid
+  unecessary jargon unless it relates to the concept being taught. Explain it like you're speaking
+  to an 8th grader.

@@ -62,6 +62,7 @@ import {
   EVENT_STATUS_COLOR,
   TASK_KIND_ICON,
   HIDEABLE_COLS,
+  ALL_STATUSES,
   type HideableCol,
 } from '@/lib/taskConfig';
 import {
@@ -484,7 +485,7 @@ function TaskRow({
         <TableCell className="w-32" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onFilterByAgent(task.agentType)}
-            className="rounded-sm bg-stone-800 px-1.5 py-0.5 text-[11px] font-medium text-stone-400 transition-colors hover:bg-stone-700 hover:text-stone-200 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
+            className="inline-block max-w-32 truncate rounded-sm bg-stone-800 px-1.5 py-0.5 text-[11px] font-medium text-stone-400 transition-colors hover:bg-stone-700 hover:text-stone-200 focus-visible:ring-1 focus-visible:ring-stone-500 focus-visible:outline-none"
             title={`Filter by ${task.agentType}`}
           >
             {task.agentType}
