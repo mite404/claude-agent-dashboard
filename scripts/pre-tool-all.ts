@@ -25,12 +25,13 @@ interface ClaudePreToolPayload {
   agent_id?: string;
 }
 
-const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: 'HEAD' })
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
   .then((r) => r.ok)
   .catch(() => false);
 
 if (!isServerUp) {
-  process.exit(0);
+  console.error(`[ERROR] Dashboard server unreachable at ${API_BASE}`);
+  process.exit(1);
 }
 
 // stdin parsing
@@ -46,7 +47,7 @@ if (toolName === 'Agent' || toolName === 'Task') process.exit(0);
 
 // log fn
 async function log(msg: string) {
-  const timeStr = `[${new Date().toISOString().slice(0, 19)}Z]`; // YYYY-MM-DDTHH:MM:SS
+  const timeStr = `${new Date().toISOString().slice(0, 19)}Z`; // YYYY-MM-DDTHH:MM:SS
   const line = `[${timeStr}] [pre-all] ${msg}\n`;
 
   // append to log file if missing
@@ -102,7 +103,10 @@ function extractSummary(toolName: string, toolInput: Record<string, unknown>): s
 }
 
 if (!existingTask) {
-  await log(`SKIP: no running task found for ${toolName} (${eventId}) [via ${lookupMethod}]`);
+  await log(
+    `SKIP: no running task found for ${toolName} (${eventId}) [via ${lookupMethod}: ${agentId || sessionId}]`,
+  );
+  // Normal: most tool calls happen outside a tracked task. Not an error.
   process.exit(0);
 }
 

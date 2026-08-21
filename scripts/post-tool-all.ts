@@ -25,12 +25,13 @@ interface PostToolAllPayload {
   tool_result?: { is_error?: boolean };
 }
 
-const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: 'HEAD' })
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
   .then((r) => r.ok)
   .catch(() => false);
 
 if (!isServerUp) {
-  process.exit(0);
+  console.error(`[ERROR] Dashboard server unreachable at ${API_BASE}`);
+  process.exit(1);
 }
 
 // stdin parsing
@@ -50,7 +51,7 @@ const now = new Date().toISOString();
 const finalStatus = isError ? 'failed' : 'completed';
 
 async function log(msg: string) {
-  const timeStr = `[${new Date().toISOString().slice(0, 19)}Z]`; // YYYY-MM-DDTHH:MM:SS
+  const timeStr = `${new Date().toISOString().slice(0, 19)}Z`; // YYYY-MM-DDTHH:MM:SS
   const line = `[${timeStr}] [post-all] ${msg}\n`;
 
   // append to log file if missing
@@ -68,7 +69,7 @@ if (!sessionId) {
   process.exit(0);
 }
 
-let existing: Task | null = null;
+let existingTask: Task | null = null;
 let lookupMethod: string;
 
 if (agentId) {
@@ -76,34 +77,33 @@ if (agentId) {
   // subagent context: agent_id IS the task_id - one fetch
   const res = await fetch(`${API_BASE}/tasks?agentId=${agentId}`);
   const all = res.ok ? ((await res.json()) as Array<Task>) : [];
-  existing = all[0] ?? null;
+  existingTask = all[0] ?? null;
   lookupMethod = 'agent_id';
 } else {
   // main session: no direct id, scan all tasks for this session
   const res = await fetch(`${API_BASE}/tasks?sessionId=${sessionId}`);
   if (res.ok) {
     const all = (await res.json()) as Array<Task>;
-    existing = all.find((t) => t.status === 'running' || t.status === 'paused') ?? null;
+    existingTask = all.find((t) => t.status === 'running' || t.status === 'paused') ?? null;
   }
   lookupMethod = 'sessionId';
 }
 
-if (!existing) {
+if (!existingTask) {
   await log(`SKIP: no active task found for ${toolName} (${eventId}) [via ${lookupMethod}]`);
   process.exit(0);
 }
 
-const events =
-  (existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>;
+const events = existingTask.events ?? [];
 
 const updatedEvents = events.map((e) =>
   e.id === eventId ? { ...e, phase: 'post', status: finalStatus, completedAt: now } : e,
 );
 
-const taskId = existing.id;
+const taskId = existingTask.id;
 
 const patch = {
-  ...existing,
+  ...existingTask,
   events: updatedEvents,
 };
 

@@ -46,12 +46,12 @@ excerpts:
 The broken health check (lines 28–34):
 
 ```ts
-const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: 'HEAD' })
-  .then((r) => r.ok)
-  .catch(() => false);
+const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: "HEAD" })
+    .then((r) => r.ok)
+    .catch(() => false);
 
 if (!isServerUp) {
-  process.exit(0);
+    process.exit(0);
 }
 ```
 
@@ -61,17 +61,18 @@ The correct pattern, for reference, from `scripts/session-event.ts:45`
 (do NOT edit that file — it is shown only as the exemplar):
 
 ```ts
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: "HEAD" });
 ```
 
 The unguarded `.map` (lines 96–101):
 
 ```ts
-const events =
-  (existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>;
+const events = (existing as unknown as Record<string, unknown>).events as Array<
+    Record<string, unknown>
+>;
 
 const updatedEvents = events.map((e) =>
-  e.id === eventId ? { ...e, phase: 'post', status: finalStatus, completedAt: now } : e,
+    e.id === eventId ? { ...e, phase: "post", status: finalStatus, completedAt: now } : e,
 );
 ```
 
@@ -80,12 +81,12 @@ Here `existing` is a `Task` fetched from `GET /tasks?...`; that response has no
 
 ## Commands you will need
 
-| Purpose      | Command                          | Expected on success |
-|--------------|----------------------------------|---------------------|
-| Typecheck    | `bunx tsc --noEmit`              | exit 0, no errors   |
-| Lint         | `bun run lint`                   | exit 0 (7 pre-existing warnings OK) |
-| Tests        | `bunx vitest run`                | 133 passed          |
-| Run the hook | (see Test plan — pipes JSON into `bun scripts/post-tool-all.ts`) | exit 0 |
+| Purpose      | Command                                                          | Expected on success                 |
+| ------------ | ---------------------------------------------------------------- | ----------------------------------- |
+| Typecheck    | `bunx tsc --noEmit`                                              | exit 0, no errors                   |
+| Lint         | `bun run lint`                                                   | exit 0 (7 pre-existing warnings OK) |
+| Tests        | `bunx vitest run`                                                | 133 passed                          |
+| Run the hook | (see Test plan — pipes JSON into `bun scripts/post-tool-all.ts`) | exit 0                              |
 
 ## Scope
 
@@ -97,7 +98,7 @@ Here `existing` is a `Task` fetched from `GET /tasks?...`; that response has no
 
 - `src/server.ts` — the missing `events` JOIN on `GET /tasks` is a separate,
   already-tracked finding (`docs/061526-latest-bugs.md`); this plan only makes
-  the hook *survive* the missing field, it does not add the JOIN. Do not add it
+  the hook _survive_ the missing field, it does not add the JOIN. Do not add it
   here.
 - `scripts/session-event.ts` and the other hook scripts — shown as exemplars
   only; their `JSON.parse` hardening is Plan 003, not this plan.
@@ -117,9 +118,9 @@ Here `existing` is a `Task` fetched from `GET /tasks?...`; that response has no
 In `scripts/post-tool-all.ts` line 28, change `/api/tasks` to `/tasks`:
 
 ```ts
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
-  .then((r) => r.ok)
-  .catch(() => false);
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: "HEAD" })
+    .then((r) => r.ok)
+    .catch(() => false);
 ```
 
 **Verify**: `grep -n "/api/tasks" scripts/post-tool-all.ts` → no matches.
@@ -131,8 +132,8 @@ In `scripts/post-tool-all.ts` lines 96–97, default `events` to an empty array 
 
 ```ts
 const events =
-  ((existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>) ??
-  [];
+    ((existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>) ??
+    [];
 ```
 
 **Verify**: `bunx tsc --noEmit` → exit 0.
@@ -149,16 +150,16 @@ server with a real payload:
    hook exits 0 and reaches its lookup logic instead of bailing at the health
    check:
 
-   ```
-   echo '{"tool_name":"Read","tool_use_id":"t1","session_id":"s1"}' \
-     | bun scripts/post-tool-all.ts; echo "exit=$?"
-   ```
+    ```
+    echo '{"tool_name":"Read","tool_use_id":"t1","session_id":"s1"}' \
+      | bun scripts/post-tool-all.ts; echo "exit=$?"
+    ```
 
    → prints `exit=0`. Then check the log shows it ran past the health check:
 
-   ```
-   tail -n 3 logs/hooks.log
-   ```
+    ```
+    tail -n 3 logs/hooks.log
+    ```
 
    → contains a `[post-all]` line such as `SKIP: no active task found ...`
    (this proves the hook executed its body rather than silently exiting at the
@@ -173,16 +174,16 @@ server with a real payload:
 
 Machine-checkable. ALL must hold:
 
-- [ ] `grep -n "/api/tasks" scripts/post-tool-all.ts` returns no matches
-- [ ] `grep -n "?? \[\]" scripts/post-tool-all.ts` returns at least one match
+- [x] `grep -n "/api/tasks" scripts/post-tool-all.ts` returns no matches
+- [x] `grep -n "?? \[\]" scripts/post-tool-all.ts` returns at least one match
       (the events guard)
-- [ ] `bunx tsc --noEmit` exits 0
-- [ ] `bun run lint` exits 0 with no new warnings
-- [ ] `bunx vitest run` → 133 passed (unchanged)
-- [ ] Test-plan step 2 prints `exit=0` and a new `[post-all]` line appears in
+- [x] `bunx tsc --noEmit` exits 0
+- [x] `bun run lint` exits 0 with no new warnings
+- [x] `bunx vitest run` → 133 passed (unchanged)
+- [x] Test-plan step 2 prints `exit=0` and a new `[post-all]` line appears in
       `logs/hooks.log`
-- [ ] No files outside `scripts/post-tool-all.ts` are modified (`git status`)
-- [ ] `plans/README.md` status row updated
+- [x] No files outside `scripts/post-tool-all.ts` are modified (`git status`)
+- [x] `plans/README.md` status row updated
 
 ## STOP conditions
 
@@ -202,6 +203,6 @@ Stop and report back (do not improvise) if:
   correct and should not be removed.
 - A reviewer should confirm no other script still references `/api/` against the
   hook API (`grep -rn "/api/tasks" scripts/` should be empty after this plan).
-- Deferred: this plan does not verify the hook's *downstream* PATCH actually
+- Deferred: this plan does not verify the hook's _downstream_ PATCH actually
   updates event status end-to-end (that depends on the JOIN bug). It only ensures
   the hook runs and cannot crash.

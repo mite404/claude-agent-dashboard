@@ -1,9 +1,17 @@
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import {
+  sqliteTable,
+  text,
+  integer,
+  primaryKey,
+  type AnySQLiteColumn,
+} from 'drizzle-orm/sqlite-core';
+
+import type { TaskStatus } from '../types/task';
 
 export const sessionsTable = sqliteTable('sessions', {
   id: text().primaryKey(),
   type: text().notNull(),
-  parentSessionId: text().references(() => sessionsTable.id),
+  parentSessionId: text().references((): AnySQLiteColumn => sessionsTable.id),
   model: text(),
   agentType: text(),
   status: text().notNull(),
@@ -16,10 +24,10 @@ export const tasksTable = sqliteTable('tasks', {
   sessionId: text()
     .notNull()
     .references(() => sessionsTable.id),
-  parentId: text().references(() => tasksTable.id),
+  parentId: text().references((): AnySQLiteColumn => tasksTable.id),
   name: text().notNull(),
   description: text(),
-  status: text().notNull().default('unassigned'),
+  status: text().$type<TaskStatus>().notNull().default('unassigned'),
   kind: text().default('work'),
   priority: text().default('normal'),
   createdBy: text(),

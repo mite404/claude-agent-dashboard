@@ -11,8 +11,9 @@ coverage
 *.lcov
 
 # logs (keep the directory, ignore contents)
-logs/*.log
-_.log
+# Unanchored so nested log dirs (plans/logs/, etc.) are covered too.
+# Hook logs contain verbatim user prompts and absolute paths - never commit them.
+*.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # dotenv environment variable files

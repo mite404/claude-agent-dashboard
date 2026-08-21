@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { eq, and, sql, asc } from 'drizzle-orm';
+import { eq, and, sql, asc, inArray } from 'drizzle-orm';
 import { db } from './db/index';
 import {
   tasksTable,
@@ -9,9 +9,39 @@ import {
   hookEventsTable,
 } from './db/schema';
 
-import type { Task } from './types/task';
+import type { HookEvent, Task, TaskStatus } from './types/task';
 
 const app = new Hono();
+
+/**
+ * Convert a stored hook_events row into the HookEvent shape the frontend expects.
+ * Storage allows nulls and names the column `timeStamp`; the domain type does not.
+ */
+const toHookEvent = (row: typeof hookEventsTable.$inferSelect): HookEvent => ({
+  id: row.id,
+  toolName: row.toolName ?? 'unknown',
+  phase: (row.phase ?? 'pre') as HookEvent['phase'],
+  status: row.status as HookEvent['status'],
+  summary: row.summary ?? '',
+  timestamp: row.timeStamp ?? '',
+  completedAt: row.completedAt ?? undefined,
+});
+
+/**
+ * Convert a stored tasks row into the Task shape the frontend expects.
+ * Storage leaves `agentType`, `createdAt`, and `progressPercentage` nullable; Task does not.
+ */
+const toTask = (row: typeof tasksTable.$inferSelect): Task => ({
+  ...row,
+  agentType: row.agentType ?? 'general-purpose',
+  createdAt: row.createdAt ?? '',
+  progressPercentage: row.progressPercentage ?? 0,
+  taskKind: (row.taskKind ?? undefined) as Task['taskKind'],
+  priority: (row.priority ?? undefined) as Task['priority'],
+  agentId: row.agentId ?? undefined,
+  description: row.description ?? undefined,
+  originatingSkill: row.originatingSkill ?? undefined,
+});
 
 const VALID_STATUSES = [
   'unassigned',
@@ -44,27 +74,49 @@ app.get('/tasks', async (c) => {
 
   try {
     const conditions = [];
-    if (status) conditions.push(eq(tasksTable.status, status));
+    // Safe: `status` was validated against VALID_STATUSES above.
+    if (status) conditions.push(eq(tasksTable.status, status as TaskStatus));
     if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
     if (agentId) conditions.push(eq(tasksTable.agentId, agentId));
 
-    const rows: Task[] = await db
-      .select()
-      .from(tasksTable)
-      .where(conditions.length ? and(...conditions) : undefined);
+    const tasks: Task[] = (
+      await db
+        .select()
+        .from(tasksTable)
+        .where(conditions.length ? and(...conditions) : undefined)
+    ).map(toTask);
 
     console.log('Query returned:', {
-      count: rows.length,
-      id: rows[0]?.id,
-      status: rows[0]?.status,
+      count: tasks.length,
+      id: tasks[0]?.id,
+      status: tasks[0]?.status,
     });
 
-    // TODO(human): fetch all hook_events for `rows` and attach them as task.events[]
-    // Hint: use inArray(hookEventsTable.taskId, rows.map(r => r.id)) to avoid N+1 queries.
-    // Group results by taskId using a Map, then map rows to { ...row, events: [...] }.
-    // Guard against empty rows (inArray with [] throws in Drizzle).
+    if (tasks.length === 0) return c.json(tasks);
 
-    return c.json(rows);
+    const ids = tasks.map((task) => task.id);
+
+    // fetch, filter hook_events table by task_id
+    const hookEventRows = await db
+      .select()
+      .from(hookEventsTable)
+      .where(inArray(hookEventsTable.taskId, ids));
+
+    // group, build the taskId -> events[] lookup
+    const eventsByTaskId = new Map<string, Array<HookEvent>>();
+    for (const event of hookEventRows) {
+      const bucket = eventsByTaskId.get(event.taskId) ?? [];
+      bucket.push(toHookEvent(event));
+      eventsByTaskId.set(event.taskId, bucket);
+    }
+
+    // attach, merge each task with it's events
+    const tasksWithEvents: Array<Task> = tasks.map((task) => ({
+      ...task,
+      events: eventsByTaskId.get(task.id) ?? [],
+    }));
+
+    return c.json(tasksWithEvents);
   } catch (error) {
     console.error('Failed to get task:', error);
     return c.json({ error: 'Database error' }, 500);
@@ -77,14 +129,16 @@ app.get('/tasks', async (c) => {
 // Errors: server 500 (DB error)
 app.get('/tasks/pool', async (c) => {
   try {
-    const rows: Task[] = await db
-      .select()
-      .from(tasksTable)
-      .where(eq(tasksTable.status, 'unassigned'))
-      .orderBy(
-        sql`CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`,
-        asc(tasksTable.createdAt),
-      );
+    const rows: Task[] = (
+      await db
+        .select()
+        .from(tasksTable)
+        .where(eq(tasksTable.status, 'unassigned'))
+        .orderBy(
+          sql`CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END`,
+          asc(tasksTable.createdAt),
+        )
+    ).map(toTask);
 
     if (!Array.isArray(rows)) {
       console.error('ERROR: database returned non-array:', typeof rows);
@@ -210,7 +264,7 @@ app.post('/tasks', async (c) => {
         id: taskId,
         name,
         sessionId,
-        status: typeof body.status === 'string' ? body.status : 'unassigned',
+        status: (typeof body.status === 'string' ? body.status : 'unassigned') as TaskStatus,
         createdAt: new Date().toISOString(),
         ...safeFields, // includes agentType, parentId, etc if provided
       })
@@ -325,7 +379,11 @@ async function handleTaskUpdate(c: Context) {
             })
             .onConflictDoUpdate({
               target: hookEventsTable.id,
-              set: { status: sql`excluded.status`, completedAt: sql`excluded.completed_at` },
+              set: {
+                phase: sql`excluded.phase`,
+                status: sql`excluded.status`,
+                completedAt: sql`excluded.completed_at`,
+              },
             })
             .catch((err: unknown) => console.error('Failed to insert hook event:', err)),
         ),
@@ -442,6 +500,9 @@ app.post('/sessionEvents', async (c) => {
       .values({
         ...body,
         id: crypto.randomUUID(),
+        // Restated so the narrowing from the guard above survives the spread.
+        sessionId: body.sessionId,
+        type: body.type,
         metadata: body.metadata || null,
       })
       .returning();

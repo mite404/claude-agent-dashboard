@@ -4100,3 +4100,255 @@ form the script's backbone.
 what they need from the surrounding crew, and vanish when the scene wraps. Function
 declarations are like the call sheet — formal, named, referenced by everyone, and stable
 from the first page to the last.
+
+---
+
+## Attaching Events to Tasks: Ten Things That Tripped Us Up (2026-08-21)
+
+The job: make `GET /tasks` return each task with a list of the tools that task ran, so the
+dashboard can show a trail. Simple goal, ten separate concepts hiding inside it.
+
+### 1. The list isn't stored anywhere
+
+The `hook_events` table has no column that holds a list. There is no "array" type. Each row is
+**one** event, and each row carries a `task_id` saying which task it belongs to.
+
+```
+tasks                    hook_events
+id: abc  ◄──┐            id: e1   task_id: abc   tool_name: Bash
+id: def  ◄─┐└─────────── id: e2   task_id: abc   tool_name: Edit
+           └──────────── id: e3   task_id: def   tool_name: Read
+```
+
+Task `abc` "has" two events because two rows point at it. The list only exists once JavaScript
+builds one.
+
+**Film analogy:** every clip in the vault is its own file, tagged with a scene number. There is
+no "Scene 12" folder on the drive. Ask for scene 12 and the bin fills up. Close the bin and the
+clips are unchanged.
+
+### 2. Two queries, not fifty-one
+
+The obvious way is a loop: for each task, ask the database for its events. Fifty tasks means
+fifty-one trips. `inArray` asks once for all of them:
+
+```ts
+const ids = tasks.map((task) => task.id);           // ['abc','def','ghi']
+.where(inArray(hookEventsTable.taskId, ids))        // SQL: WHERE task_id IN ('abc','def','ghi')
+```
+
+What comes back is a jumbled pile - everybody's events mixed together. Sorting the pile into
+per-task buckets is a `Map`, done in JavaScript. Two trips to the database instead of fifty-one.
+
+Note the guard: `WHERE task_id IN ()` with nothing inside is invalid SQL, so bail out early when
+there are no tasks.
+
+### 3. Missing and empty are two different things
+
+```ts
+completedAt?: string        // the key might not be there at all
+completedAt: string | null  // the key is there, holding nothing
+```
+
+Databases only produce the second kind. TypeScript's `?` only accepts the first. So
+`completedAt: row.completedAt` fails even though both "mean" missing. `?? undefined` bridges it.
+
+Also: `?` is grammar for describing a type. It cannot appear when you are building an actual
+object. `{ completedAt?: value }` is not a thing.
+
+### 4. Fix the layer that is lying
+
+A type error gives you two places to act, and they are wildly different in cost:
+
+```
+schema.ts   ← what the DATABASE promises      change = migration + real risk
+   ↓
+toHookEvent ← what CODE does with what it got  change = three characters
+   ↓
+HookEvent   ← what the FRONTEND relies on
+```
+
+The error said "null is not allowed here." Adding `.notNull()` to `schema.ts` looked like the
+fix - but that changes the actual database, needs a migration, and makes the hook writer crash
+on any payload missing that field. Nothing was lying. The database honestly allows nothing
+there; the frontend honestly needs something. When both ends are honest, the fix is a
+**converter between them**, never a change to either end.
+
+### 5. `$inferSelect` - the shape the table hands back
+
+This comes from Drizzle. Not SQL, not TypeScript.
+
+You wrote the table once. While you did, TypeScript worked out what a row would look like if you
+selected from it. Drizzle parks that answer on the table under `$inferSelect`, so you never have
+to write the shape a second time:
+
+```ts
+const toHookEvent = (row: typeof hookEventsTable.$inferSelect): HookEvent => ({ ... });
+//                       └── "whatever shape a SELECT on hook_events gives back"
+```
+
+`typeof` is required because `hookEventsTable` is a value, and you are asking about its type.
+The payoff: rename a column in `schema.ts` and this line errors immediately, pointing at the
+exact spot. A hand-written copy would just quietly go wrong.
+
+### 6. `as` - telling the compiler to trust you
+
+SQLite stores text. It has no idea the `phase` column only ever holds `'pre'` or `'post'`. So
+Drizzle honestly reports `string`, which is wider than what `HookEvent` allows.
+
+```ts
+phase: (row.phase ?? 'pre') as HookEvent['phase'],
+```
+
+`HookEvent['phase']` is a lookup - same square-bracket syntax you use on objects, but pointed at
+a type, so it returns `'pre' | 'post'`. Using the lookup instead of typing the union out means
+this line updates itself if the union ever changes.
+
+`as` runs **no code**. It checks nothing, converts nothing, and disappears at compile time. If
+the database somehow held `'banana'`, this line waves it through. That is the trade - which is
+exactly why it belongs in one small converter and nowhere else.
+
+### 7. `$type<>()` - relabeling a column without touching the database
+
+SQLite only knows four storage types: `TEXT`, `INTEGER`, `REAL`, `BLOB`. So a status column is
+just text, and Drizzle honestly reports `string`. But that column only ever holds eight
+specific words, because `VALID_STATUSES` in `src/server.ts` rejects everything else at the door.
+
+`$type<>()` is how you tell Drizzle what you already know:
+
+```ts
+status: text().notNull().default('unassigned'),                      // Drizzle says: string
+status: text().$type<TaskStatus>().notNull().default('unassigned'),  // Drizzle says: TaskStatus
+```
+
+It changes **nothing at runtime**. No constraint, no validation, no migration, same SQL, same
+data. The column would still accept `'banana'` if something wrote one. It is purely a note to
+the compiler.
+
+It is a cousin of `as`, filed in a better place:
+
+| | `as` | `$type<>()` |
+| ------- | ------------------- | ------------------------ |
+| Where | at one use site | at the column definition |
+| Reach | that one expression | every query, everywhere |
+| Written | once per use | once, ever |
+
+The claim "status is one of eight words" is true about the _column_, not about one particular
+read of it. So the column definition is the honest home for it. Twenty `as TaskStatus` casts
+scattered through the queries would be the same claim repeated twenty times.
+
+**Not just for unions.** It accepts any type. Branded IDs, JSON shapes, numeric ranges:
+
+```ts
+metadata: text({ mode: 'json' }).$type<Record<string, unknown>>(),
+```
+
+`mode: 'json'` does the real work - stringify on write, parse on read. `$type` only labels what
+comes back, so you stop narrowing `unknown` at every read site. You usually want both.
+
+**The catch:** the narrowing has to be _true_. `$type` enforces nothing. Put
+`$type<0 | 25 | 50 | 75 | 100>()` on a progress column and the first write of `37` sails
+through, with the type system now confidently wrong.
+
+### 8. A spread throws away what a guard proved
+
+```ts
+if (typeof body.sessionId !== 'string') return c.json({ error: '...' }, 400);
+// TypeScript now knows body.sessionId is a string
+
+.values({ ...body, id: crypto.randomUUID() })   // ← error: sessionId might not be a string
+```
+
+The guard narrowed `body.sessionId`. The spread copies `body`'s _general_ shape
+(`Record<string, unknown>`), not the specific fact you just proved. The knowledge is lost.
+
+The fix is to restate the key, not to cast it:
+
+```ts
+.values({ ...body, id: crypto.randomUUID(), sessionId: body.sessionId, type: body.type })
+```
+
+Naming the property again re-reads the narrowed value. `as string` also silences the error, but
+it asserts something you had already _proven_ - and the linter correctly flags it as pointless.
+
+### 9. Cast last, not first
+
+The linter warned that a null-guard was dead code:
+
+```ts
+phase: (row.phase as HookEvent['phase']) ?? 'pre',   // warning: unnecessary
+phase: (row.phase ?? 'pre') as HookEvent['phase'],   // correct
+```
+
+The cast runs first and says "this is `'pre' | 'post'`" - a type with no null in it. So by the
+time `??` is reached, TypeScript believes null is impossible and reports the guard as
+unreachable. At runtime the column really can be null, so the guard was doing necessary work.
+
+**The cast made a true statement look false.** Handle reality first, while TypeScript still
+knows what reality is. Then narrow.
+
+### 10. Every row leaves through a mapper
+
+`src/server.ts` now has a matched pair at the top: `toHookEvent` and `toTask`. Storage leaves
+things nullable; the frontend's types do not. These two functions are the entire border
+crossing.
+
+```ts
+const toTask = (row: typeof tasksTable.$inferSelect): Task => ({
+  ...row,
+  agentType: row.agentType ?? 'general-purpose',
+  createdAt: row.createdAt ?? '',
+  progressPercentage: row.progressPercentage ?? 0,
+});
+```
+
+The alternative was making `Task.agentType` nullable - which would have pushed null checks into
+eight components, including a `.localeCompare()` in the sort and a `Set` lookup in the filter.
+One default at the border beats eight defensive checks downstream.
+
+**Film analogy:** the mapper is the QC pass before footage leaves the facility. Anything with a
+missing slate gets one stamped on here, so nobody downstream has to wonder.
+
+### Blooper 33: The schema that typed itself into a corner
+
+Two lines in `src/db/schema.ts` quietly switched off type checking for the entire API:
+
+```ts
+parentSessionId: text().references(() => sessionsTable.id),  // sessions → sessions
+parentId: text().references(() => tasksTable.id),            // tasks → tasks
+```
+
+To figure out `tasksTable`, TypeScript has to figure out every column. To figure out `parentId`,
+it has to know what `tasksTable.id` is. To know that, it has to know `tasksTable` - which is
+what it started with. It detects the loop, gives up, and calls the whole table `any`.
+
+`any` spreads downhill. Every query built on that table became `any`, every result became `any`,
+and error messages in `src/server.ts` turned into nonsense that moved around whenever anything
+changed.
+
+The fix hands TypeScript the answer so it stops trying to compute it:
+
+```ts
+parentId: text().references((): AnySQLiteColumn => tasksTable.id),
+//                          └── "returns a column, take my word for it"
+```
+
+Self-referencing foreign keys are not a mistake - they are how you store a tree in a flat table.
+`sessions.parentSessionId` is a subagent session pointing at its spawner; `tasks.parentId` is
+the subtask nesting the tree view depends on. The data genuinely refers to itself, so the type
+genuinely refers to itself, and inference has nowhere to start. The annotation supplies the base
+case a recursive definition needs. Nothing changes at runtime.
+
+**Why it went unnoticed for months:** `tsconfig.app.json` excludes `src/server.ts` and `src/db`.
+`bun run build` has never type-checked the API. Files outside the build's reach rot silently.
+
+### Director's Commentary: teach the concept before handing over the keyboard
+
+The mapper above needed four unfamiliar ideas at once - `$inferSelect`, `as`, type lookups, and
+`??`. Handing someone a blank line that requires all four is not an exercise, it is a guessing
+game. Concept, then worked example, then the blank. One live snippet at a time.
+
+**A second lesson, learned the hard way in the same session:** `rumdl fmt` does not just fix
+line lengths. It reformats every code fence - reindenting and reflowing quotes - across the
+whole document. Run `rumdl check` and fix the handful of real warnings by hand. Never `fmt` a
+file whose code samples you care about.
