@@ -1,0 +1,14 @@
+$kind: http-request
+name: Health Check (HEAD /tasks)
+method: HEAD
+url: '{{baseUrl}}/tasks'
+order: 1000
+description: |-
+  The first thing every hook script does, and the subject of plan 002.
+
+  scripts/post-tool-all.ts used to send this to /api/tasks. The /api prefix
+  only exists in Vite's dev proxy on :5173, which hooks never go through, so
+  Hono returned 404, `r.ok` was false, and the hook exited 0 before doing any
+  work. Expect 200 with an empty body.
+
+  Send this against {{baseUrl}}/api/tasks to reproduce the original 404.
