@@ -1,0 +1,10 @@
+name: Production
+values:
+  - key: baseUrl
+    value: https://REPLACE-ME.example.com
+    type: default
+    enabled: true
+  - key: taskId
+    value: ''
+    type: default
+    enabled: true

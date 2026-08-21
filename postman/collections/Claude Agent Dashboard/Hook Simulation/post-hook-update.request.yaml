@@ -1,0 +1,41 @@
+$kind: http-request
+name: Post-Hook Update (PATCH with events)
+method: PATCH
+url: '{{baseUrl}}/tasks/{{taskId}}'
+order: 2000
+description: |-
+  Mirrors the PATCH body scripts/post-tool-all.ts builds after it finds the
+  active task: the task fields plus an `events` array. Update Task in the Tasks
+  folder only sends scalar columns, so this is the one request that exercises
+  the hook_events upsert in src/server.ts.
+
+  Set {{taskId}} from Create Task first. On success the server whitelists the
+  scalar fields onto the task row and separately upserts each `events` entry
+  into hook_events keyed by id.
+
+  Note: Get Task will NOT show these events back - GET /tasks has no join yet
+  (the TODO(human) at src/server.ts:62). That absence is why post-tool-all.ts
+  needs its `existingTask.events ?? []` guard. To confirm the write landed:
+  sqlite3 data/dashboard.db "SELECT * FROM hook_events WHERE task_id='{{taskId}}';"
+
+  The event id uses {{$guid}} rather than a fixed string on purpose. hook_events
+  upserts on id alone, so resending a fixed id updates whatever row already owns
+  it - possibly under a different task - and silently writes nothing new here.
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "status": "completed",
+      "events": [
+        {
+          "id": "{{$guid}}",
+          "toolName": "Read",
+          "phase": "post",
+          "status": "completed",
+          "timestamp": "{{$isoTimestamp}}",
+          "completedAt": "{{$isoTimestamp}}"
+        }
+      ]
+    }

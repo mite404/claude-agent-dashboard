@@ -5,4 +5,5 @@ variables:
   - key: baseUrl
     value: 'http://localhost:3001'
   - key: taskId
-    value: ''
+    value: task_test_002
+    description: The id Create Task seeds. Run Create Task first, or point this at any existing task id.

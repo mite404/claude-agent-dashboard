@@ -1,0 +1,10 @@
+name: Local
+values:
+  - key: baseUrl
+    value: http://localhost:3001
+    type: default
+    enabled: true
+  - key: taskId
+    value: task_test_002
+    type: default
+    enabled: true
