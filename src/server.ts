@@ -67,14 +67,17 @@ app.get('/tasks', async (c) => {
     agentId: agentId,
   });
 
-  function isTaskStatus (v: unknown): v is TaskStatus {
-    return (VALID_STATUSES as readonly Array<unknown>).includes(v)
+  function isTaskStatus(v: unknown): v is TaskStatus {
+    return (VALID_STATUSES as readonly unknown[]).includes(v);
   }
 
-  if (status !== undefined && !isTaskStatus(status))
+  if (status !== undefined && !isTaskStatus(status)) {
+    return c.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, 400);
+  }
 
   try {
     const conditions = [];
+    if (status) conditions.push(eq(tasksTable.status, status));
     if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
     if (agentId) conditions.push(eq(tasksTable.agentId, agentId));
 
