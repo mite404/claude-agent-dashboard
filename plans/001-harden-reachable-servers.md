@@ -25,12 +25,12 @@
 
 ## Why this matters
 
-This is a local dev tool with no authentication — an accepted trade-off *only*
+This is a local dev tool with no authentication — an accepted trade-off _only_
 if the servers are truly reachable from the local machine alone. Two facts break
 that assumption. First, `scripts/spawn-terminal.ts` runs
 `Bun.spawn(['osascript','-e',script])` — which opens a terminal and types
 `claude` — for **any** POST to `/spawn`; its CORS header only controls whether a
-page can *read the response*, not whether the terminal-spawning side effect
+page can _read the response_, not whether the terminal-spawning side effect
 fires. So any website the developer visits can `fetch('http://localhost:3002/spawn', {method:'POST'})`
 and launch a local terminal. Second, both `Bun.serve` (spawn server, :3002) and
 the exported Hono server (:3001) omit `hostname`, so Bun binds `0.0.0.0` — every
@@ -43,61 +43,61 @@ that actually originate from the dashboard UI.
 - `scripts/spawn-terminal.ts` — the terminal-spawn server (:3002). The whole
   file (58 lines). Relevant excerpts:
 
-  Top (lines 1–5):
+    Top (lines 1–5):
 
-  ```ts
-  const PORT = 3002;
-  const cors = {
-    'Access-Control-Allow-Origin': 'http://localhost:5173',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-  ```
+    ```ts
+    const PORT = 3002;
+    const cors = {
+        "Access-Control-Allow-Origin": "http://localhost:5173",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+    };
+    ```
 
-  The server (lines 43–58):
+    The server (lines 43–58):
 
-  ```ts
-  Bun.serve({
-    port: PORT,
-    fetch(req) {
-      if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-      if (req.method === 'POST' && new URL(req.url).pathname === '/spawn') {
-        const terminal = detectTerminal();
-        const script = buildScript(terminal);
-        Bun.spawn(['osascript', '-e', script]);
-        return new Response(JSON.stringify({ ok: true, terminal }), {
-          headers: { ...cors, 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response('Not found', { status: 404 });
-    },
-  });
-  console.log(`Spawn server on http://localhost:${PORT}`);
-  ```
+    ```ts
+    Bun.serve({
+        port: PORT,
+        fetch(req) {
+            if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+            if (req.method === "POST" && new URL(req.url).pathname === "/spawn") {
+                const terminal = detectTerminal();
+                const script = buildScript(terminal);
+                Bun.spawn(["osascript", "-e", script]);
+                return new Response(JSON.stringify({ ok: true, terminal }), {
+                    headers: { ...cors, "Content-Type": "application/json" },
+                });
+            }
+            return new Response("Not found", { status: 404 });
+        },
+    });
+    console.log(`Spawn server on http://localhost:${PORT}`);
+    ```
 
 - `src/server.ts` — the Hono task API (:3001). The default export at the very
   bottom (lines 490–495):
 
-  ```ts
-  const PORT = typeof Bun.env.PORT === 'string' ? parseInt(Bun.env.PORT) : 3000;
+    ```ts
+    const PORT = typeof Bun.env.PORT === "string" ? parseInt(Bun.env.PORT) : 3000;
 
-  export default {
-    fetch: app.fetch,
-    port: PORT,
-  };
-  ```
+    export default {
+        fetch: app.fetch,
+        port: PORT,
+    };
+    ```
 
 - The **only** legitimate caller of `/spawn` is
   `src/components/TaskTable.tsx:1206` (do NOT modify it):
 
-  ```ts
-  void fetch('http://localhost:3002/spawn', { method: 'POST' }).catch(console.error);
-  ```
+    ```ts
+    void fetch("http://localhost:3002/spawn", { method: "POST" }).catch(console.error);
+    ```
 
-  This is a header-less, cross-origin (5173 → 3002) POST. It is a CORS "simple
-  request", so the browser sends it without a preflight **and** attaches
-  `Origin: http://localhost:5173`. That header is what the origin check in Step 2
-  keys on — the real caller passes; a page on any other origin (or a header-less
-  `curl`) is rejected.
+    This is a header-less, cross-origin (5173 → 3002) POST. It is a CORS "simple
+    request", so the browser sends it without a preflight **and** attaches
+    `Origin: http://localhost:5173`. That header is what the origin check in Step 2
+    keys on — the real caller passes; a page on any other origin (or a header-less
+    `curl`) is rejected.
 
 Convention note: this file uses `Bun.serve` and `Bun.spawn` with 2-space
 indentation and single quotes — match it. The project's AGENTS.md says the main
@@ -106,12 +106,12 @@ process that legitimately does; leave that as-is, only add the guard.
 
 ## Commands you will need
 
-| Purpose         | Command                                             | Expected on success |
-|-----------------|-----------------------------------------------------|---------------------|
-| Typecheck       | `bunx tsc --noEmit`                                 | exit 0, no errors   |
-| Lint            | `bun run lint`                                      | exit 0 (7 pre-existing warnings OK; no new ones) |
-| Tests           | `bunx vitest run`                                   | 133 passed          |
-| Start spawn srv | `bun scripts/spawn-terminal.ts` (background it)     | prints "Spawn server on <http://localhost:3002>" |
+| Purpose         | Command                                         | Expected on success                              |
+| --------------- | ----------------------------------------------- | ------------------------------------------------ |
+| Typecheck       | `bunx tsc --noEmit`                             | exit 0, no errors                                |
+| Lint            | `bun run lint`                                  | exit 0 (7 pre-existing warnings OK; no new ones) |
+| Tests           | `bunx vitest run`                               | 133 passed                                       |
+| Start spawn srv | `bun scripts/spawn-terminal.ts` (background it) | prints "Spawn server on <http://localhost:3002>" |
 
 ## Scope
 
@@ -147,9 +147,9 @@ In `src/server.ts`, add `hostname: '127.0.0.1'` to the default export object:
 
 ```ts
 export default {
-  fetch: app.fetch,
-  port: PORT,
-  hostname: '127.0.0.1',
+    fetch: app.fetch,
+    port: PORT,
+    hostname: "127.0.0.1",
 };
 ```
 
@@ -172,27 +172,27 @@ In `scripts/spawn-terminal.ts`, define an allowed-origin constant next to the
 `cors` object (reuse the same string):
 
 ```ts
-const ALLOWED_ORIGIN = 'http://localhost:5173';
+const ALLOWED_ORIGIN = "http://localhost:5173";
 ```
 
 Then, inside the `POST /spawn` branch, **before** `detectTerminal()`/`Bun.spawn`,
 add an origin check. The target shape:
 
 ```ts
-if (req.method === 'POST' && new URL(req.url).pathname === '/spawn') {
-  const origin = req.headers.get('origin');
-  if (origin !== ALLOWED_ORIGIN) {
-    return new Response(JSON.stringify({ error: 'forbidden origin' }), {
-      status: 403,
-      headers: { ...cors, 'Content-Type': 'application/json' },
+if (req.method === "POST" && new URL(req.url).pathname === "/spawn") {
+    const origin = req.headers.get("origin");
+    if (origin !== ALLOWED_ORIGIN) {
+        return new Response(JSON.stringify({ error: "forbidden origin" }), {
+            status: 403,
+            headers: { ...cors, "Content-Type": "application/json" },
+        });
+    }
+    const terminal = detectTerminal();
+    const script = buildScript(terminal);
+    Bun.spawn(["osascript", "-e", script]);
+    return new Response(JSON.stringify({ ok: true, terminal }), {
+        headers: { ...cors, "Content-Type": "application/json" },
     });
-  }
-  const terminal = detectTerminal();
-  const script = buildScript(terminal);
-  Bun.spawn(['osascript', '-e', script]);
-  return new Response(JSON.stringify({ ok: true, terminal }), {
-    headers: { ...cors, 'Content-Type': 'application/json' },
-  });
 }
 ```
 
@@ -216,31 +216,34 @@ exercising the running server instead:
    <http://localhost:3002>" line.
 2. **Rejected without the right origin** (simulates a malicious page / curl):
 
-   ```
-   curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3002/spawn
-   ```
+    ```
+    curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3002/spawn
+    ```
 
-   → prints `403`. (Before this plan it would print `200` **and spawn a
-   terminal** — if a terminal window opens here, Step 2 did not take effect;
-   treat as a STOP condition.)
+    → prints `403`. (Before this plan it would print `200` **and spawn a
+    terminal** — if a terminal window opens here, Step 2 did not take effect;
+    treat as a STOP condition.)
+
 3. **Allowed with the dashboard origin** (simulates the real UI caller):
 
-   ```
-   curl -s -o /dev/null -w "%{http_code}" -X POST \
-     -H 'Origin: http://localhost:5173' http://localhost:3002/spawn
-   ```
+    ```
+    curl -s -o /dev/null -w "%{http_code}" -X POST \
+      -H 'Origin: http://localhost:5173' http://localhost:3002/spawn
+    ```
 
-   → prints `200` and a terminal window opens (that is the intended side effect).
-   Close the spawned terminal.
+    → prints `200` and a terminal window opens (that is the intended side effect).
+    Close the spawned terminal.
+
 4. **Loopback bind** (finding #2): confirm the server is not listening on all
    interfaces:
 
-   ```
-   lsof -nP -iTCP:3002 -sTCP:LISTEN | grep -q '127.0.0.1:3002' && echo LOOPBACK-OK
-   ```
+    ```
+    lsof -nP -iTCP:3002 -sTCP:LISTEN | grep -q '127.0.0.1:3002' && echo LOOPBACK-OK
+    ```
 
-   → prints `LOOPBACK-OK`. If it instead shows `*:3002`, Step 1 did not take
-   effect on the spawn server.
+    → prints `LOOPBACK-OK`. If it instead shows `*:3002`, Step 1 did not take
+    effect on the spawn server.
+
 5. Stop the background server (`kill %1` or find the PID via the `lsof` output).
 
 The `src/server.ts` loopback change is verified the same way against port 3001
@@ -252,15 +255,15 @@ one-line change.
 
 Machine-checkable. ALL must hold:
 
-- [ ] `bunx tsc --noEmit` exits 0
-- [ ] `bun run lint` exits 0 with no *new* warnings (7 pre-existing are fine)
-- [ ] `bunx vitest run` → 133 passed (unchanged; this plan touches no tested code)
-- [ ] `grep -n "hostname: '127.0.0.1'" src/server.ts scripts/spawn-terminal.ts`
+- [x] `bunx tsc --noEmit` exits 0
+- [x] `bun run lint` exits 0 with no _new_ warnings (7 pre-existing are fine)
+- [x] `bunx vitest run` → 133 passed (unchanged; this plan touches no tested code)
+- [x] `grep -n "hostname: '127.0.0.1'" src/server.ts scripts/spawn-terminal.ts`
       returns two matches (one per file)
-- [ ] `grep -n "ALLOWED_ORIGIN" scripts/spawn-terminal.ts` returns at least two
+- [x] `grep -n "ALLOWED_ORIGIN" scripts/spawn-terminal.ts` returns at least two
       matches (declaration + use)
-- [ ] Manual Test-plan steps 2 and 3 print `403` then `200` respectively
-- [ ] No files outside the in-scope list are modified (`git status`)
+- [x] Manual Test-plan steps 2 and 3 print `403` then `200` respectively
+- [x] No files outside the in-scope list are modified (`git status`)
 - [ ] `plans/README.md` status row updated
 
 ## STOP conditions
