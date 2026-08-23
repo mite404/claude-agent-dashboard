@@ -3,6 +3,7 @@ const cors = {
   'Access-Control-Allow-Origin': 'http://localhost:5173',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+const ALLOWED_ORIGIN = 'http://localhost:5173';
 
 type SupportedTerminal = 'Ghostty' | 'iTerm2' | 'Warp';
 
@@ -42,9 +43,17 @@ function buildScript(terminal: SupportedTerminal): string {
 
 Bun.serve({
   port: PORT,
+  hostname: '127.0.0.1',
   fetch(req) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (req.method === 'POST' && new URL(req.url).pathname === '/spawn') {
+      const origin = req.headers.get('origin');
+      if (origin !== ALLOWED_ORIGIN) {
+        return new Response(JSON.stringify({ error: 'forbidden origin' }), {
+          status: 403,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
       const terminal = detectTerminal();
       const script = buildScript(terminal);
       Bun.spawn(['osascript', '-e', script]);

@@ -555,4 +555,5 @@ const PORT = typeof Bun.env.PORT === 'string' ? parseInt(Bun.env.PORT) : 3000;
 export default {
   fetch: app.fetch,
   port: PORT,
+  hostname: '127.0.0.1',
 };
