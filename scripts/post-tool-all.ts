@@ -36,7 +36,14 @@ if (!isServerUp) {
 
 // stdin parsing
 const raw = await Bun.stdin.text();
-const payload = JSON.parse(raw) as PostToolAllPayload;
+
+let payload: PostToolAllPayload;
+try {
+  payload = JSON.parse(raw) as PostToolAllPayload;
+} catch {
+  await log('SKIP: malformed JSON on stdin');
+  process.exit(0);
+}
 
 const toolName = payload.tool_name ?? ''; // what tool was it?
 const eventId = payload.tool_use_id ?? 'unknown'; // which event fired?

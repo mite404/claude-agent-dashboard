@@ -39,7 +39,15 @@ if (!isServerUp) {
 
 // stdin parsing
 const raw = await Bun.stdin.text();
-const payload = JSON.parse(raw) as PostToolPayload;
+
+let payload: PostToolPayload;
+try {
+  payload = JSON.parse(raw) as PostToolPayload;
+} catch {
+  await log('SKIP: malformed JSON on stdin');
+  process.exit(0);
+}
+
 const {
   session_id: sessionId = '',
   tool_use_id: taskId = 'unknown',

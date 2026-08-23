@@ -77,13 +77,13 @@ const payload = JSON.parse(raw) as PostToolAllPayload;
 
 `log` is declared at line 52.
 
-**`scripts/session-event.ts`**, parse at lines 30-32. This file parses *before* its
+**`scripts/session-event.ts`**, parse at lines 30-32. This file parses _before_ its
 health check, which sits at line 45.
 
 ```ts
 const raw = await Bun.stdin.text();
 const payload = JSON.parse(raw) as ClaudeSessionEventPayload;
-const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, "");
 ```
 
 `log` is declared at line 35. The third line dereferences `payload.session_id`
@@ -95,11 +95,11 @@ file is the model. Match it.
 
 ## Commands you will need
 
-| Purpose      | Command                          | Expected on success |
-|--------------|----------------------------------|---------------------|
-| Typecheck    | `bunx tsc --noEmit`              | exit 0, no errors   |
-| Lint         | `bun run lint`                   | exit 0 (7 pre-existing warnings OK) |
-| Tests        | `bunx vitest run`                | 133 passed          |
+| Purpose   | Command             | Expected on success                 |
+| --------- | ------------------- | ----------------------------------- |
+| Typecheck | `bunx tsc --noEmit` | exit 0, no errors                   |
+| Lint      | `bun run lint`      | exit 0 (7 pre-existing warnings OK) |
+| Tests     | `bunx vitest run`   | 133 passed                          |
 
 ## Scope
 
@@ -162,7 +162,7 @@ The concrete `<Type>` per file:
 - `post-tool-all.ts` → `PostToolAllPayload`
 - `session-event.ts` → `ClaudeSessionEventPayload`
 
-Note on `post-tool-all.ts`: its health check runs *before* the parse and exits 0 when
+Note on `post-tool-all.ts`: its health check runs _before_ the parse and exits 0 when
 the server is down, so this catch only fires with the server up and stdin malformed.
 Add it anyway. It costs nothing on the server-down path, because the script has
 already exited by then.
@@ -176,7 +176,7 @@ In `scripts/session-event.ts`, after the guarded parse, change the `session_id`
 dereference to tolerate a missing field:
 
 ```ts
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+const sessionId = (payload.session_id ?? "").replace(/[^a-zA-Z0-9_-]/g, "");
 ```
 
 **Verify**: `bunx tsc --noEmit` → exit 0.
@@ -223,13 +223,13 @@ verified by inspection only.
 
 Machine-checkable. ALL must hold:
 
-- [ ] `grep -rn "JSON.parse" scripts/` shows each of the four hook scripts'
+- [x] `grep -rn "JSON.parse" scripts/` shows each of the four hook scripts'
       parse inside a `try` block (each `JSON.parse` line preceded by `try {`)
-- [ ] `grep -n "payload.session_id ?? ''" scripts/session-event.ts` returns a match
-- [ ] `bunx tsc --noEmit` exits 0
-- [ ] `bun run lint` exits 0 with no new warnings
-- [ ] `bunx vitest run` → 133 passed (unchanged)
-- [ ] `echo 'x' | bun scripts/session-event.ts --event-type SessionStart` exits 0
+- [x] `grep -n "payload.session_id ?? ''" scripts/session-event.ts` returns a match
+- [x] `bunx tsc --noEmit` exits 0
+- [x] `bun run lint` exits 0 with no new warnings
+- [x] `bunx vitest run` → 133 passed (unchanged)
+- [x] `echo 'x' | bun scripts/session-event.ts --event-type SessionStart` exits 0
 - [ ] No files outside the four in-scope scripts are modified (`git status`)
 - [ ] `plans/README.md` status row updated
 

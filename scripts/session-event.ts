@@ -26,10 +26,15 @@ const DASHBOARD_DIR = new URL('..', import.meta.url).pathname;
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
 const API_BASE = 'http://localhost:3001';
 
-// TODO parse
 const raw = await Bun.stdin.text();
-const payload = JSON.parse(raw) as ClaudeSessionEventPayload;
-const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
+
+let payload: ClaudeSessionEventPayload;
+try {
+  payload = JSON.parse(raw) as ClaudeSessionEventPayload;
+} catch {
+  await log('SKIP: malformed JSON on stdin');
+  process.exit(0);
+}
 
 // log fn
 async function log(msg: string) {
@@ -49,6 +54,15 @@ const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
 if (!isServerUp) {
   process.exit(0);
 }
+
+// session_events.sessionId is notNull with an FK to sessions.id, so an event
+// without an id cannot be stored. bail rather than invent one.
+if (typeof payload.session_id !== 'string' || !payload.session_id) {
+  await log('SKIP: no session_id in hook payload');
+  process.exit(0);
+}
+
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
 
 await log(`started sessionId: ${sessionId}`);
 

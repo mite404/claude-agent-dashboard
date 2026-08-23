@@ -15,7 +15,7 @@ and update your row when done. Every plan is self-contained — you do not need
 | ---- | ----------------------------------------------------------------------------- | -------- | ------ | ---------- | ------ |
 | 001  | Bind dev servers to loopback + reject cross-origin `/spawn` (findings #1, #2) | P0       | S      | —          | TODO   |
 | 002  | Fix PostToolUse-all hook dead health check + events guard (finding #3)        | P0       | S      | —          | DONE   |
-| 003  | Guard `JSON.parse` in all hook scripts (finding #4)                           | P0       | S      | —          | TODO   |
+| 003  | Guard `JSON.parse` in all hook scripts (finding #4)                           | P0       | S      | —          | DONE   |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED` (one-line reason),
 `REJECTED` (one-line rationale).
