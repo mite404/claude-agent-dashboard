@@ -67,15 +67,17 @@ app.get('/tasks', async (c) => {
     agentId: agentId,
   });
 
-  if (status && !VALID_STATUSES.includes(status)) {
-    console.error('Invalid status:', { status, valid: VALID_STATUSES });
+  function isTaskStatus(v: unknown): v is TaskStatus {
+    return (VALID_STATUSES as readonly unknown[]).includes(v);
+  }
+
+  if (status !== undefined && !isTaskStatus(status)) {
     return c.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, 400);
   }
 
   try {
     const conditions = [];
-    // Safe: `status` was validated against VALID_STATUSES above.
-    if (status) conditions.push(eq(tasksTable.status, status as TaskStatus));
+    if (status) conditions.push(eq(tasksTable.status, status));
     if (sessionId) conditions.push(eq(tasksTable.sessionId, sessionId));
     if (agentId) conditions.push(eq(tasksTable.agentId, agentId));
 

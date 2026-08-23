@@ -26,7 +26,15 @@ if (!isServerUp) {
 // CC pipes a JSON blob into stdin. 'sync slate' of the scene. who's running, what kind of agent, uniqueId
 // instead of cat + jq, we tap into Bun's native stdin reader
 const raw = await Bun.stdin.text();
-const payload = JSON.parse(raw) as PreToolPayload;
+
+let payload: PreToolPayload;
+try {
+  payload = JSON.parse(raw) as PreToolPayload;
+} catch {
+  await log('SKIP: malformed JSON on stdin');
+  process.exit(0);
+}
+
 const {
   session_id: sessionId = '',
   tool_use_id: taskId = '',

@@ -3,8 +3,8 @@
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
 > next step. If anything in the "STOP conditions" section occurs, stop and
-> report — do not improvise. When done, update the status row for this plan
-> in `plans/README.md`.
+> report. Do not improvise. When done, update the status row for this plan in
+> `plans/README.md`.
 >
 > **Drift check (run first)**: run
 > `git diff --stat 4f0beea..HEAD -- scripts/` (the four in-scope hook scripts
@@ -19,8 +19,8 @@
 - **Priority**: P0
 - **Effort**: S
 - **Risk**: LOW
-- **Depends on**: none (but if running alongside Plan 002, apply 002 first to
-  avoid two edits landing in `scripts/post-tool-all.ts` at once — see note)
+- **Depends on**: none. If running alongside Plan 002, apply 002 first so two
+  edits don't land in `scripts/post-tool-all.ts` at once (see the note in Step 2).
 - **Category**: bug
 - **Planned at**: commit `4f0beea`, 2026-07-08
 - **Covers finding**: #4 (BUG-02) from `docs/IMPROVE.md`.
@@ -28,27 +28,27 @@
 ## Why this matters
 
 Claude Code pipes a JSON blob into each hook on stdin. All four hook scripts call
-`JSON.parse(raw)` with no error handling, so any malformed or empty stdin throws
-an uncaught exception and the hook exits non-zero. Hook failures surface to the
-user as errors and can interrupt the agent flow, and because the throw happens
-before any logging, the failure is opaque — nothing is written to
-`logs/hooks.log`. One script,`scripts/session-event.ts`, has an extra crash: it
-calls `payload.session_id.replace(...)` immediately after parsing, which throws
-if `session_id` is absent even when the JSON is otherwise valid. After this plan,
-a bad payload makes each hook log a diagnostic line and exit `0` (a hook that
-can't parse its input has nothing useful to do; exiting cleanly is correct and
-keeps the agent flow uninterrupted).
+`JSON.parse(raw)` with no error handling, so malformed or empty stdin throws an
+uncaught exception and the hook exits non-zero. Claude Code reports that to the user
+as a hook error, which interrupts the agent. The throw happens before any logging
+runs, so nothing reaches `logs/hooks.log` and there is no record of what arrived.
+
+`scripts/session-event.ts` has a second crash on top of that one. It calls
+`payload.session_id.replace(...)` immediately after parsing, which throws when
+`session_id` is absent even though the JSON itself parsed fine.
+
+After this plan, a bad payload makes each hook write one diagnostic line and exit
+`0`. Exit 0 is the right code here: a hook that cannot parse its input has no work to
+do, and a non-zero exit is the interruption this plan exists to remove.
 
 ## Current state
 
-All four files define `API_BASE`, `LOG_FILE`, and an `async function log(msg)`
-that appends to `logs/hooks.log`. Because `log` is a hoisted function
-declaration, it is safe to call at the parse site even where its textual
-definition appears lower in the file. Confirm each `log` signature exists before
-relying on it (grep in Step 1).
+All four files define `API_BASE`, `LOG_FILE`, and an `async function log(msg)` that
+appends to `logs/hooks.log`. `log` is a hoisted function declaration, so calling it
+above its own definition works. Step 1 greps for it before you rely on that.
 
-**`scripts/pre-tool-agent.ts`** — parse at lines 28–29 (health check precedes it
-at lines 18–24):
+**`scripts/pre-tool-agent.ts`**, parse at lines 28-29. The health check precedes it
+at lines 18-24.
 
 ```ts
 const raw = await Bun.stdin.text();
@@ -57,8 +57,8 @@ const payload = JSON.parse(raw) as PreToolPayload;
 
 `log` is declared at line 108.
 
-**`scripts/post-tool-agent.ts`** — parse at lines 41–42 (health check precedes it
-at lines 32–38):
+**`scripts/post-tool-agent.ts`**, parse at lines 41-42. The health check precedes it
+at lines 32-38.
 
 ```ts
 const raw = await Bun.stdin.text();
@@ -67,8 +67,8 @@ const payload = JSON.parse(raw) as PostToolPayload;
 
 `log` is declared at line 105.
 
-**`scripts/post-tool-all.ts`** — parse at lines 37–38 (health check precedes it
-at lines 28–34):
+**`scripts/post-tool-all.ts`**, parse at lines 37-38. The health check precedes it
+at lines 28-34.
 
 ```ts
 const raw = await Bun.stdin.text();
@@ -77,29 +77,29 @@ const payload = JSON.parse(raw) as PostToolAllPayload;
 
 `log` is declared at line 52.
 
-**`scripts/session-event.ts`** — parse at lines 30–32, and this file parses
-**before** its health check (which is at line 45):
+**`scripts/session-event.ts`**, parse at lines 30-32. This file parses _before_ its
+health check, which sits at line 45.
 
 ```ts
 const raw = await Bun.stdin.text();
 const payload = JSON.parse(raw) as ClaudeSessionEventPayload;
-const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, "");
 ```
 
-`log` is declared at line 35. Note the third line dereferences
-`payload.session_id` unconditionally — it must become null-safe.
+`log` is declared at line 35. The third line dereferences `payload.session_id`
+unconditionally, so it has to become null-safe. Step 3 covers that.
 
-Convention: 2-space indent, single quotes, `async/await`, `process.exit(0)` for
-clean early exits (see the `if (!isServerUp) process.exit(0)` pattern already in
-every file). Match it.
+Convention: 2-space indent, single quotes, `async/await`, and `process.exit(0)` for
+clean early exits. The `if (!isServerUp) process.exit(0)` pattern already in every
+file is the model. Match it.
 
 ## Commands you will need
 
-| Purpose      | Command                          | Expected on success |
-|--------------|----------------------------------|---------------------|
-| Typecheck    | `bunx tsc --noEmit`              | exit 0, no errors   |
-| Lint         | `bun run lint`                   | exit 0 (7 pre-existing warnings OK) |
-| Tests        | `bunx vitest run`                | 133 passed          |
+| Purpose   | Command             | Expected on success                 |
+| --------- | ------------------- | ----------------------------------- |
+| Typecheck | `bunx tsc --noEmit` | exit 0, no errors                   |
+| Lint      | `bun run lint`      | exit 0 (7 pre-existing warnings OK) |
+| Tests     | `bunx vitest run`   | 133 passed                          |
 
 ## Scope
 
@@ -113,12 +113,11 @@ every file). Match it.
 **Out of scope** (do NOT touch):
 
 - `scripts/post-task.ts`, `scripts/pr-watcher.ts`, `scripts/pre-tool-all.ts`,
-  `scripts/spawn-terminal.ts` — not part of this finding.
-- The health-check URL in `scripts/post-tool-all.ts` — that is Plan 002. If Plan
-  002 hasn't landed, leave the `/api/tasks` string alone here; only wrap the
-  parse.
-- Any change to the payload TypeScript interfaces — keep them; you are adding a
-  runtime guard, not changing types.
+  `scripts/spawn-terminal.ts`. Not part of this finding.
+- The health-check URL in `scripts/post-tool-all.ts`. That is Plan 002. If Plan 002
+  hasn't landed, leave the `/api/tasks` string alone and only wrap the parse.
+- The payload TypeScript interfaces. Keep them as they are. You are adding a runtime
+  guard, not changing types.
 
 ## Git workflow
 
@@ -137,8 +136,8 @@ grep -n "async function log" scripts/pre-tool-agent.ts \
   scripts/post-tool-agent.ts scripts/post-tool-all.ts scripts/session-event.ts
 ```
 
-**Verify**: four matches, one per file. If any file lacks it, STOP — the guard in
-Step 2 relies on `log` being callable.
+**Verify**: four matches, one per file. If any file lacks it, STOP. The guard in
+Step 2 calls `log`, so it cannot land without one.
 
 ### Step 2: Wrap each `JSON.parse` in a try/catch
 
@@ -163,9 +162,10 @@ The concrete `<Type>` per file:
 - `post-tool-all.ts` → `PostToolAllPayload`
 - `session-event.ts` → `ClaudeSessionEventPayload`
 
-Note on `post-tool-all.ts`: its health check runs *before* the parse and exits 0
-if the server is down, so the catch here is reached only when the server is up
-and stdin is malformed — still correct.
+Note on `post-tool-all.ts`: its health check runs _before_ the parse and exits 0 when
+the server is down, so this catch only fires with the server up and stdin malformed.
+Add it anyway. It costs nothing on the server-down path, because the script has
+already exited by then.
 
 **Verify**: `bunx tsc --noEmit` → exit 0. (`payload` is used later in each file;
 declaring it with `let` and assigning in the `try` keeps it in scope.)
@@ -176,34 +176,35 @@ In `scripts/session-event.ts`, after the guarded parse, change the `session_id`
 dereference to tolerate a missing field:
 
 ```ts
-const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
+const sessionId = (payload.session_id ?? "").replace(/[^a-zA-Z0-9_-]/g, "");
 ```
 
 **Verify**: `bunx tsc --noEmit` → exit 0.
 
 ## Test plan
 
-No unit harness exists for stdin-driven entry scripts. Verify by piping malformed
-input and asserting a clean exit.
+No unit harness exists for stdin-driven entry scripts. Test by piping malformed input
+and checking the exit code.
 
-`session-event.ts` parses **before** its health check, so it can be tested with
-the server **down** (simplest):
+`session-event.ts` parses before its health check, so it tests with the server down.
+Start there.
 
 ```
 echo 'this is not json' | bun scripts/session-event.ts --event-type SessionStart; echo "exit=$?"
 ```
 
-→ prints `exit=0` (before this plan: non-zero, with a `SyntaxError` stack trace).
-Also test the missing-`session_id` path (valid JSON, no field):
+→ prints `exit=0`. Before this plan: non-zero, with a `SyntaxError` stack trace.
+
+Then the missing-`session_id` path, which is valid JSON with the field absent:
 
 ```
 echo '{"type":"SessionStart"}' | bun scripts/session-event.ts --event-type SessionStart; echo "exit=$?"
 ```
 
-→ prints `exit=0` (before this plan: throws on `.replace` of undefined).
+→ prints `exit=0`. Before this plan: throws on `.replace` of undefined.
 
-The other three health-check **before** parsing, so their catch is only reached
-with the server up. Start it first (`bun run server &`), then:
+The other three run their health check before parsing, so their catch only fires with
+the server up. Start it first (`bun run server &`), then:
 
 ```
 echo 'not json' | bun scripts/pre-tool-agent.ts; echo "exit=$?"
@@ -211,24 +212,24 @@ echo 'not json' | bun scripts/post-tool-agent.ts; echo "exit=$?"
 echo 'not json' | bun scripts/post-tool-all.ts; echo "exit=$?"
 ```
 
-→ each prints `exit=0`, and `tail logs/hooks.log` shows a
-`SKIP: malformed JSON on stdin` line from each. Stop the server when done.
+→ each prints `exit=0`, and `tail logs/hooks.log` shows one
+`SKIP: malformed JSON on stdin` line per script. Stop the server when done.
 
-(If you cannot start the server, at minimum the `session-event.ts` checks above
-plus a clean `bunx tsc --noEmit` are required; note in your report that the
-other three were verified by code inspection only.)
+If you cannot start the server, the two `session-event.ts` checks above plus a clean
+`bunx tsc --noEmit` are the minimum. Say in your report that the other three were
+verified by inspection only.
 
 ## Done criteria
 
 Machine-checkable. ALL must hold:
 
-- [ ] `grep -rn "JSON.parse" scripts/` shows each of the four hook scripts'
+- [x] `grep -rn "JSON.parse" scripts/` shows each of the four hook scripts'
       parse inside a `try` block (each `JSON.parse` line preceded by `try {`)
-- [ ] `grep -n "payload.session_id ?? ''" scripts/session-event.ts` returns a match
-- [ ] `bunx tsc --noEmit` exits 0
-- [ ] `bun run lint` exits 0 with no new warnings
-- [ ] `bunx vitest run` → 133 passed (unchanged)
-- [ ] `echo 'x' | bun scripts/session-event.ts --event-type SessionStart` exits 0
+- [x] `grep -n "payload.session_id ?? ''" scripts/session-event.ts` returns a match
+- [x] `bunx tsc --noEmit` exits 0
+- [x] `bun run lint` exits 0 with no new warnings
+- [x] `bunx vitest run` → 133 passed (unchanged)
+- [x] `echo 'x' | bun scripts/session-event.ts --event-type SessionStart` exits 0
 - [ ] No files outside the four in-scope scripts are modified (`git status`)
 - [ ] `plans/README.md` status row updated
 
@@ -237,19 +238,18 @@ Machine-checkable. ALL must hold:
 Stop and report back (do not improvise) if:
 
 - Any file's excerpt doesn't match the live code (drift since `4f0beea`).
-- `tsc` reports `payload` "used before assigned" — this means the file uses
-  `payload` in a way the `let` + try/catch pattern doesn't cover; report the exact
-  error rather than forcing a non-null assertion.
-- A `log` helper is missing in a file (Step 1 failed) — the guard can't log; do
-  not silently drop the message.
+- `tsc` reports `payload` "used before assigned". That means the file uses `payload`
+  somewhere the `let` + try/catch pattern doesn't cover. Report the exact error
+  instead of forcing a non-null assertion.
+- A `log` helper is missing in a file (Step 1 failed). The guard cannot log without
+  one, and dropping the message silently is worse than stopping.
 
 ## Maintenance notes
 
-- Any *new* hook script added under `scripts/` should follow the same guarded-parse
-  pattern; consider extracting a tiny `readPayload<T>()` helper in a follow-up if a
-  fifth hook appears (not worth it for four).
-- A reviewer should confirm each catch exits `0` (not `1`) — a non-zero exit from
-  a hook is exactly the interruption this plan removes.
-- This plan hardens the parse only; it does not validate payload *shape* beyond
-  what the existing destructuring defaults already handle. Deeper schema
-  validation (e.g. zod) is deliberately out of scope.
+- Any new hook script under `scripts/` should use the same guarded-parse pattern. If
+  a fifth hook appears, extract a `readPayload<T>()` helper. Not worth it for four.
+- A reviewer should confirm each catch exits `0`, not `1`. A non-zero exit from a
+  hook is the interruption this plan removes.
+- This plan guards the parse only. It does not validate payload shape beyond what the
+  existing destructuring defaults handle. Schema validation with zod is deliberately
+  out of scope.
