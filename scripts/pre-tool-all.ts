@@ -25,13 +25,14 @@ interface ClaudePreToolPayload {
   agent_id?: string;
 }
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD', signal: AbortSignal.timeout(300) })
   .then((r) => r.ok)
   .catch(() => false);
 
 if (!isServerUp) {
-  console.error(`[ERROR] Dashboard server unreachable at ${API_BASE}`);
-  process.exit(1);
+  // Dashboard off is the normal state. Stay silent and exit 0: this is a
+  // PreToolUse hook, and noise here lands in every tool call of every session.
+  process.exit(0);
 }
 
 // stdin parsing

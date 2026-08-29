@@ -9,6 +9,9 @@ Each executor: read the plan fully before starting, honor its STOP conditions,
 and update your row when done. Every plan is self-contained — you do not need
 `docs/IMPROVE.md` or any other plan to execute one.
 
+Plan 004 was added later, by hand, and is not one of those findings. It picks up
+the three gaps left behind after ETH-17's event attach landed in commit `211e5e4`.
+
 ## Execution order & status
 
 | Plan | Title                                                                         | Priority | Effort | Depends on | Status |
@@ -16,6 +19,7 @@ and update your row when done. Every plan is self-contained — you do not need
 | 001  | Bind dev servers to loopback + reject cross-origin `/spawn` (findings #1, #2) | P0       | S      | —          | DONE   |
 | 002  | Fix PostToolUse-all hook dead health check + events guard (finding #3)        | P0       | S      | —          | DONE   |
 | 003  | Guard `JSON.parse` in all hook scripts (finding #4)                           | P0       | S      | —          | DONE   |
+| 004  | Order, share, and test the `hook_events` attach (finishes ETH-17)             | P2       | M      | —          | TODO   |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED` (one-line reason),
 `REJECTED` (one-line rationale).
