@@ -1,8 +1,8 @@
 ---
 description:
-    Vite 6 + React 19 + TypeScript + Tailwind v4 + SQLite project. Bun is the package manager
-    and script runner. NOT a Bun.serve() project.
-globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
+  Vite 6 + React 19 + TypeScript + Tailwind v4 + SQLite project. Bun is the package manager
+  and script runner. NOT a Bun.serve() project.
+globs: '*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json'
 alwaysApply: false
 ---
 
@@ -155,6 +155,7 @@ async () => {
 ---
 
 <!-- gitbutler-agent-setup:start -->
+
 ## Version control
 
 - Use GitButler (`but`) for version-control inspection and write operations, including status, diffs, branching, committing, pushing, and history edits.
@@ -208,6 +209,7 @@ async () => {
 ### Commit message convention
 
 - Follow the `type(scope): summary` commit-message convention when writing commit messages.
+
 <!-- gitbutler-agent-setup:end -->
 
 ---
@@ -310,13 +312,13 @@ The `hook_events` table has no column that holds a list. There is no "array" typ
 </EXAMPLE>
 
 - **Structure:**
-    1. **The Story So Far:** High-level narrative of the project.
-    2. **Cast & Crew (Architecture):** How components talk to each other (using film analogies).
-    3. **Behind the Scenes (Decisions):** Why we chose Stack X over Stack Y.
-    4. **Bloopers (Bugs & Fixes):** Detailed breakdown of bugs, why they
-       happened, and the logic used to solve them.
-    5. **Director's Commentary:** Best practices and "Senior Engineer" mindset
-       tips derived from the current work.
+  1. **The Story So Far:** High-level narrative of the project.
+  2. **Cast & Crew (Architecture):** How components talk to each other (using film analogies).
+  3. **Behind the Scenes (Decisions):** Why we chose Stack X over Stack Y.
+  4. **Bloopers (Bugs & Fixes):** Detailed breakdown of bugs, why they
+     happened, and the logic used to solve them.
+  5. **Director's Commentary:** Best practices and "Senior Engineer" mindset
+     tips derived from the current work.
 - **Insight format (Director's Commentary):** When an insight needs diagram support, use
   **commented code snippet → mermaid immediately after** (see the template at the top of
   Director's Commentary in `docs/FOR_ETHAN.md`). Snippet grounds the reader in repo code; diagram

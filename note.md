@@ -42,12 +42,12 @@ downstream changes.
 
 **Class B, consumed.** Claude Code reads the output and acts on it.
 
-| Event | What Claude Code takes from it |
-|---|---|
+| Event                               | What Claude Code takes from it                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
 | `WorktreeCreate` / `WorktreeRemove` | stdout **is** the worktree path (bare path, or `{"worktree_path":..., "cwd":...}`) |
-| `UserPromptSubmit` | stdout is injected into the model's context |
-| `SessionStart` | stdout is injected into the model's context |
-| `PreToolUse` | exit code `2` blocks the tool call |
+| `UserPromptSubmit`                  | stdout is injected into the model's context                                        |
+| `SessionStart`                      | stdout is injected into the model's context                                        |
+| `PreToolUse`                        | exit code `2` blocks the tool call                                                 |
 
 Registering a `WorktreeCreate` hook does not mean "notify me when a worktree is
 created". It means **"you create it, and tell me where you put it."** Claude
@@ -73,7 +73,7 @@ silent.
        fetch(`${API_BASE}/tasks`, { method: 'HEAD', signal: AbortSignal.timeout(300) })
 
    There was no timeout anywhere. A closed port refuses instantly, so this was
-   invisible. But if anything ever *binds* 3001 without answering (a stalled
+   invisible. But if anything ever _binds_ 3001 without answering (a stalled
    `bun dev`, a paused debugger, another project taking the port), every hook in
    every session on this machine hangs until Claude Code's 60s hook timeout.
    Symptom would be "Claude is frozen" in an unrelated repo.

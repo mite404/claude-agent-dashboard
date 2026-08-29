@@ -51,8 +51,8 @@ busy week.
 those P0 fixes cannot silently regress. Plans 001, 002 and 003 each closed a real
 bug. Nothing currently stops plan 006 from reopening one.
 
-The whole toolchain is already clean. CI does not need to *fix* anything here —
-it needs to *pin* what is already true.
+The whole toolchain is already clean. CI does not need to _fix_ anything here —
+it needs to _pin_ what is already true.
 
 ## Current state
 
@@ -75,7 +75,10 @@ fails, and it will not look like a type error when it happens.
 `tsconfig.json` is a **solution file**:
 
 ```json
-{ "files": [], "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }] }
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+}
 ```
 
 `tsconfig.app.json` sets `"noEmit": true`, `"include": ["src", "./vitest-setup.ts"]`,
@@ -94,18 +97,18 @@ true`, `ui: true`, and `setupFiles: ["./vitest-setup.ts"]`.
 
 ## Commands you will need
 
-| Purpose | Command | Expected on success |
-| --- | --- | --- |
-| Install (CI-shaped) | `bun install --frozen-lockfile` | exit 0 |
-| Typecheck — **naive** | `bunx tsc --noEmit` | see Step 1; the result is the lesson |
-| Typecheck — project refs | `bunx tsc -b` | exit 0, no errors |
-| Lint | `bun run lint` | exit 0 (pre-existing warnings OK) |
-| CSS lint | `bun run lint:css` | exit 0 |
-| Markdown lint | `bun run lint:md` | exit 0 |
-| Format check | `bun run format:check` | exit 0 |
-| Tests, **non-watch** | `bunx vitest run` | `133 passed` or higher |
-| Build | `bun run build` | exit 0 |
-| Count typechecked files | see Step 2 | a number you can justify |
+| Purpose                  | Command                         | Expected on success                  |
+| ------------------------ | ------------------------------- | ------------------------------------ |
+| Install (CI-shaped)      | `bun install --frozen-lockfile` | exit 0                               |
+| Typecheck — **naive**    | `bunx tsc --noEmit`             | see Step 1; the result is the lesson |
+| Typecheck — project refs | `bunx tsc -b`                   | exit 0, no errors                    |
+| Lint                     | `bun run lint`                  | exit 0 (pre-existing warnings OK)    |
+| CSS lint                 | `bun run lint:css`              | exit 0                               |
+| Markdown lint            | `bun run lint:md`               | exit 0                               |
+| Format check             | `bun run format:check`          | exit 0                               |
+| Tests, **non-watch**     | `bunx vitest run`               | `133 passed` or higher               |
+| Build                    | `bun run build`                 | exit 0                               |
+| Count typechecked files  | see Step 2                      | a number you can justify             |
 
 Run every row **before** you write any YAML. A CI job that fails on something
 that was already broken locally teaches you nothing about CI.
@@ -120,8 +123,8 @@ that was already broken locally teaches you nothing about CI.
 
 **Out of scope** (do NOT touch):
 
-- **`tsconfig.app.json`'s `exclude` line.** Step 2 asks you to *measure* what it
-  costs and *record* the answer. Actually removing the exclusion will surface an
+- **`tsconfig.app.json`'s `exclude` line.** Step 2 asks you to _measure_ what it
+  costs and _record_ the answer. Actually removing the exclusion will surface an
   unknown number of pre-existing errors in `src/server.ts` and `src/db`, which is
   its own ticket with its own risk. Do not fold it into a CI plan.
 - **Any source file.** If CI is red because of real code errors, that is a
@@ -129,7 +132,7 @@ that was already broken locally teaches you nothing about CI.
 - **`AGENTS.md:27`'s false claim** that build typechecks. It becomes true when
   you finish, which is a happy accident, not a scope item.
 - **Deploy, release, or publish workflows.** One workflow, on pull request.
-- **Branch protection rules on GitHub.** Configuring the repo to *require* the
+- **Branch protection rules on GitHub.** Configuring the repo to _require_ the
   check is a GitHub settings change, not a file. Note it in Maintenance.
 
 ## Git workflow
@@ -150,7 +153,7 @@ Fast, local, easy to bypass on purpose.
 
 A **gate** is on the shared side. It runs on the pull request, after you have
 stopped paying attention, and it is the last thing standing between a mistake and
-`main`. Slower, remote, and its whole value comes from *not* being bypassable.
+`main`. Slower, remote, and its whole value comes from _not_ being bypassable.
 
 DX-02 is the guardrail. DX-01 is the gate. They should check the same things, and
 you want the guardrail to be a strict subset of the gate — so that "it built
@@ -301,9 +304,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - # TODO(you): check out the repo. Use the official first-party action.
+      -  # TODO(you): check out the repo. Use the official first-party action.
 
-      - # TODO(you): set up Bun. This repo has bun.lock and no package-lock.json.
+
+      -  # TODO(you): set up Bun. This repo has bun.lock and no package-lock.json.
         #   The community action is `oveleon/setup-bun` or `oven-sh/setup-bun` —
         #   check which one is current before you pin it, and pin a version.
 
@@ -477,8 +481,8 @@ Stop and report back (do not improvise) if:
 
 ## Maintenance notes
 
-- **Branch protection is not in this plan.** The workflow *reports*; making it
-  *required* is a GitHub repository setting (Settings → Branches → require status
+- **Branch protection is not in this plan.** The workflow _reports_; making it
+  _required_ is a GitHub repository setting (Settings → Branches → require status
   checks). Until that is switched on, the gate is advisory. Someone should do it;
   it is a click, not a file, so it cannot live in a commit.
 - The coverage comment in `ci.yml` is a snapshot. If `tsconfig.app.json`'s

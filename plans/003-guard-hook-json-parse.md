@@ -83,7 +83,7 @@ health check, which sits at line 45.
 ```ts
 const raw = await Bun.stdin.text();
 const payload = JSON.parse(raw) as ClaudeSessionEventPayload;
-const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, "");
+const sessionId = payload.session_id.replace(/[^a-zA-Z0-9_-]/g, '');
 ```
 
 `log` is declared at line 35. The third line dereferences `payload.session_id`
@@ -176,7 +176,7 @@ In `scripts/session-event.ts`, after the guarded parse, change the `session_id`
 dereference to tolerate a missing field:
 
 ```ts
-const sessionId = (payload.session_id ?? "").replace(/[^a-zA-Z0-9_-]/g, "");
+const sessionId = (payload.session_id ?? '').replace(/[^a-zA-Z0-9_-]/g, '');
 ```
 
 **Verify**: `bunx tsc --noEmit` → exit 0.

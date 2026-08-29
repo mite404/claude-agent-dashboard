@@ -1,1561 +1,2275 @@
 <!doctype html>
 <html lang="en" class="dark">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Attaching Events to Tasks — Ten Things That Tripped Us Up</title>
-<script>
-  // Runs before the body paints. Blooper 19: never let the wrong theme render, then correct itself.
-  (function () {
-    var light = localStorage.getItem('theme') === 'light';
-    var c = document.documentElement.classList;
-    c.toggle('light', light);
-    c.toggle('dark', !light);
-  })();
-</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:oklch(14.7% .004 49.25);
-  --surface:oklch(21.6% .006 56.04);
-  --surface-2:oklch(26.8% .007 34.3);
-  --border:oklch(32% .008 34.3);
-  --text:oklch(92.3% .003 48.72);
-  --muted:oklch(70.9% .01 56.26);
-  --dim:oklch(55.3% .013 58.07);
-  --accent:oklch(76.9% .188 70.08);
-  --good:oklch(76.5% .177 163.22);
-  --bad:oklch(70.4% .191 22.22);
-  --info:oklch(71.5% .143 215.22);
-  --r:6px;
-}
-/* ---------- soft light theme ---------- */
-html.dark{color-scheme:dark}
-:root.light{
-  color-scheme:light;
-  --bg:oklch(96.6% .005 85);        /* warm paper, not paper-white */
-  --surface:oklch(99.2% .002 85);   /* cards sit ABOVE the page here — inverse of dark mode */
-  --surface-2:oklch(97.4% .005 85);
-  --border:oklch(89% .007 70);
-  --text:oklch(27% .008 56);        /* warm near-black; pure #000 on warm paper reads as a hole */
-  --muted:oklch(44% .012 56);
-  --dim:oklch(57% .012 58);
-  --accent:oklch(56% .14 62);       /* same hue as dark mode, half the lightness */
-  --good:oklch(48% .12 162);
-  --bad:oklch(51% .18 25);
-  --info:oklch(50% .14 235);
-}
-.light strong{color:oklch(18% .01 56)}
-.light pre,.light .dbrow,.light input[type=text],.light .layer{background:oklch(97.8% .009 85)}
-.light section{box-shadow:0 1px 2px oklch(70% .012 70/.16)}
-.light .k{color:oklch(46% .17 315)}
-.light .s{color:oklch(44% .12 155)}
-.light .t{color:oklch(47% .14 245)}
-.light .err{color:oklch(50% .19 25)}
-.light .ok{color:oklch(44% .12 160)}
-.light .hl{background:oklch(90% .09 85)}
-.light .tag.good{background:oklch(93% .06 162);color:oklch(38% .11 162)}
-.light .tag.bad{background:oklch(94% .05 25);color:oklch(45% .16 25)}
-.light .tag.info{background:oklch(93% .05 235);color:oklch(40% .12 235)}
-.light .callout{background:oklch(97.4% .025 85)}
-.light .callout.film{background:oklch(97% .022 235)}
-.light .dbrow.match,.light .layer.sel{background:oklch(95.5% .045 85)}
-.light button.on{color:oklch(99% .002 85)}
-.light .quiz .opt.correct{background:oklch(94% .05 162);color:oklch(38% .11 162)}
-.light .quiz .opt.wrong{background:oklch(95% .04 25);color:oklch(45% .16 25)}
-.light .bar{background:oklch(58% .17 25)}
-.light .bar.good{background:oklch(52% .13 162)}
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Attaching Events to Tasks — Ten Things That Tripped Us Up</title>
+    <script>
+      // Runs before the body paints. Blooper 19: never let the wrong theme render, then correct itself.
+      (function () {
+        var light = localStorage.getItem('theme') === 'light';
+        var c = document.documentElement.classList;
+        c.toggle('light', light);
+        c.toggle('dark', !light);
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: oklch(14.7% 0.004 49.25);
+        --surface: oklch(21.6% 0.006 56.04);
+        --surface-2: oklch(26.8% 0.007 34.3);
+        --border: oklch(32% 0.008 34.3);
+        --text: oklch(92.3% 0.003 48.72);
+        --muted: oklch(70.9% 0.01 56.26);
+        --dim: oklch(55.3% 0.013 58.07);
+        --accent: oklch(76.9% 0.188 70.08);
+        --good: oklch(76.5% 0.177 163.22);
+        --bad: oklch(70.4% 0.191 22.22);
+        --info: oklch(71.5% 0.143 215.22);
+        --r: 6px;
+      }
+      /* ---------- soft light theme ---------- */
+      html.dark {
+        color-scheme: dark;
+      }
+      :root.light {
+        color-scheme: light;
+        --bg: oklch(96.6% 0.005 85); /* warm paper, not paper-white */
+        --surface: oklch(99.2% 0.002 85); /* cards sit ABOVE the page here — inverse of dark mode */
+        --surface-2: oklch(97.4% 0.005 85);
+        --border: oklch(89% 0.007 70);
+        --text: oklch(27% 0.008 56); /* warm near-black; pure #000 on warm paper reads as a hole */
+        --muted: oklch(44% 0.012 56);
+        --dim: oklch(57% 0.012 58);
+        --accent: oklch(56% 0.14 62); /* same hue as dark mode, half the lightness */
+        --good: oklch(48% 0.12 162);
+        --bad: oklch(51% 0.18 25);
+        --info: oklch(50% 0.14 235);
+      }
+      .light strong {
+        color: oklch(18% 0.01 56);
+      }
+      .light pre,
+      .light .dbrow,
+      .light input[type='text'],
+      .light .layer {
+        background: oklch(97.8% 0.009 85);
+      }
+      .light section {
+        box-shadow: 0 1px 2px oklch(70% 0.012 70/0.16);
+      }
+      .light .k {
+        color: oklch(46% 0.17 315);
+      }
+      .light .s {
+        color: oklch(44% 0.12 155);
+      }
+      .light .t {
+        color: oklch(47% 0.14 245);
+      }
+      .light .err {
+        color: oklch(50% 0.19 25);
+      }
+      .light .ok {
+        color: oklch(44% 0.12 160);
+      }
+      .light .hl {
+        background: oklch(90% 0.09 85);
+      }
+      .light .tag.good {
+        background: oklch(93% 0.06 162);
+        color: oklch(38% 0.11 162);
+      }
+      .light .tag.bad {
+        background: oklch(94% 0.05 25);
+        color: oklch(45% 0.16 25);
+      }
+      .light .tag.info {
+        background: oklch(93% 0.05 235);
+        color: oklch(40% 0.12 235);
+      }
+      .light .callout {
+        background: oklch(97.4% 0.025 85);
+      }
+      .light .callout.film {
+        background: oklch(97% 0.022 235);
+      }
+      .light .dbrow.match,
+      .light .layer.sel {
+        background: oklch(95.5% 0.045 85);
+      }
+      .light button.on {
+        color: oklch(99% 0.002 85);
+      }
+      .light .quiz .opt.correct {
+        background: oklch(94% 0.05 162);
+        color: oklch(38% 0.11 162);
+      }
+      .light .quiz .opt.wrong {
+        background: oklch(95% 0.04 25);
+        color: oklch(45% 0.16 25);
+      }
+      .light .bar {
+        background: oklch(58% 0.17 25);
+      }
+      .light .bar.good {
+        background: oklch(52% 0.13 162);
+      }
 
-/* Blooper 19, part two: freeze every transition across the swap so nothing animates mid-repaint */
-:root.no-transition,:root.no-transition *{transition:none!important}
+      /* Blooper 19, part two: freeze every transition across the swap so nothing animates mid-repaint */
+      :root.no-transition,
+      :root.no-transition * {
+        transition: none !important;
+      }
 
-.theme-btn{
-  position:fixed;top:1rem;right:1rem;z-index:50;
-  font-size:.75rem;padding:.35rem .7rem;
-  box-shadow:0 2px 10px oklch(0% 0 0/.28);
-}
-.light .theme-btn{box-shadow:0 2px 10px oklch(60% .01 70/.22)}
+      .theme-btn {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 50;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
+        box-shadow: 0 2px 10px oklch(0% 0 0/0.28);
+      }
+      .light .theme-btn {
+        box-shadow: 0 2px 10px oklch(60% 0.01 70/0.22);
+      }
 
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:1.5rem}
-body{
-  margin:0;background:var(--bg);color:var(--text);
-  font-family:Figtree,system-ui,sans-serif;font-size:16px;line-height:1.65;
-  -webkit-font-smoothing:antialiased;
-}
-code,pre,.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 1.5rem;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Figtree, system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      code,
+      pre,
+      .mono {
+        font-family: 'JetBrains Mono', ui-monospace, monospace;
+      }
 
-/* ---------- layout ---------- */
-.shell{display:grid;grid-template-columns:250px minmax(0,1fr);gap:2.5rem;max-width:1240px;margin:0 auto;padding:0 1.5rem}
-nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:2rem 0;font-size:.82rem}
-nav.toc h2{font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 .75rem}
-nav.toc a{display:block;padding:.3rem .6rem;color:var(--muted);text-decoration:none;border-left:2px solid transparent;border-radius:0 var(--r) var(--r) 0}
-nav.toc a:hover{color:var(--text);background:var(--surface)}
-nav.toc a.active{color:var(--accent);border-left-color:var(--accent);background:var(--surface)}
-nav.toc .num{color:var(--dim);display:inline-block;width:1.4em}
-main{padding:2rem 0 8rem;min-width:0}
+      /* ---------- layout ---------- */
+      .shell {
+        display: grid;
+        grid-template-columns: 250px minmax(0, 1fr);
+        gap: 2.5rem;
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+      nav.toc {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100vh;
+        overflow-y: auto;
+        padding: 2rem 0;
+        font-size: 0.82rem;
+      }
+      nav.toc h2 {
+        font-size: 0.7rem;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: var(--dim);
+        margin: 0 0 0.75rem;
+      }
+      nav.toc a {
+        display: block;
+        padding: 0.3rem 0.6rem;
+        color: var(--muted);
+        text-decoration: none;
+        border-left: 2px solid transparent;
+        border-radius: 0 var(--r) var(--r) 0;
+      }
+      nav.toc a:hover {
+        color: var(--text);
+        background: var(--surface);
+      }
+      nav.toc a.active {
+        color: var(--accent);
+        border-left-color: var(--accent);
+        background: var(--surface);
+      }
+      nav.toc .num {
+        color: var(--dim);
+        display: inline-block;
+        width: 1.4em;
+      }
+      main {
+        padding: 2rem 0 8rem;
+        min-width: 0;
+      }
 
-/* ---------- typography ---------- */
-h1{font-size:2.4rem;line-height:1.15;letter-spacing:-.02em;margin:.2em 0 .3em;font-weight:800}
-h2{font-size:1.5rem;letter-spacing:-.015em;margin:0 0 .5rem;font-weight:700}
-h3{font-size:1rem;margin:1.6rem 0 .4rem;font-weight:600;color:var(--muted)}
-p{margin:.7rem 0}
-.lede{font-size:1.1rem;color:var(--muted)}
-.eyebrow{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
-strong{color:oklch(97% .002 48deg);font-weight:600}
-a{color:var(--info)}
+      /* ---------- typography ---------- */
+      h1 {
+        font-size: 2.4rem;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        margin: 0.2em 0 0.3em;
+        font-weight: 800;
+      }
+      h2 {
+        font-size: 1.5rem;
+        letter-spacing: -0.015em;
+        margin: 0 0 0.5rem;
+        font-weight: 700;
+      }
+      h3 {
+        font-size: 1rem;
+        margin: 1.6rem 0 0.4rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      p {
+        margin: 0.7rem 0;
+      }
+      .lede {
+        font-size: 1.1rem;
+        color: var(--muted);
+      }
+      .eyebrow {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 700;
+      }
+      strong {
+        color: oklch(97% 0.002 48deg);
+        font-weight: 600;
+      }
+      a {
+        color: var(--info);
+      }
 
-section{margin:0 0 3rem;padding:1.75rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;scroll-margin-top:1.5rem}
-section > .eyebrow{display:block;margin-bottom:.15rem}
-header.hero{padding:3rem 0 2rem;border-bottom:1px solid var(--border);margin-bottom:2.5rem}
+      section {
+        margin: 0 0 3rem;
+        padding: 1.75rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        scroll-margin-top: 1.5rem;
+      }
+      section > .eyebrow {
+        display: block;
+        margin-bottom: 0.15rem;
+      }
+      header.hero {
+        padding: 3rem 0 2rem;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 2.5rem;
+      }
 
-/* ---------- code ---------- */
-pre{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:.85rem 1rem;overflow-x:auto;font-size:.82rem;line-height:1.6;margin:.8rem 0}
-:not(pre) > code{background:var(--surface-2);padding:.12em .38em;border-radius:4px;font-size:.85em}
-.k{color:oklch(76% .12 320)}   /* keyword  */
-.s{color:var(--good)}          /* string   */
-.t{color:var(--info)}          /* type     */
-.c{color:var(--dim);font-style:italic}
-.err{color:var(--bad)}
-.ok{color:var(--good)}
-.hl{background:oklch(35% .06 70);border-radius:3px;padding:0 .15em}
+      /* ---------- code ---------- */
+      pre {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 0.85rem 1rem;
+        overflow-x: auto;
+        font-size: 0.82rem;
+        line-height: 1.6;
+        margin: 0.8rem 0;
+      }
+      :not(pre) > code {
+        background: var(--surface-2);
+        padding: 0.12em 0.38em;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      .k {
+        color: oklch(76% 0.12 320);
+      } /* keyword  */
+      .s {
+        color: var(--good);
+      } /* string   */
+      .t {
+        color: var(--info);
+      } /* type     */
+      .c {
+        color: var(--dim);
+        font-style: italic;
+      }
+      .err {
+        color: var(--bad);
+      }
+      .ok {
+        color: var(--good);
+      }
+      .hl {
+        background: oklch(35% 0.06 70);
+        border-radius: 3px;
+        padding: 0 0.15em;
+      }
 
-/* ---------- demo chrome ---------- */
-.demo{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1.1rem 0}
-.demo-label{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:.7rem}
-.row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-button{
-  font:inherit;font-size:.85rem;font-weight:500;cursor:pointer;
-  background:var(--surface);color:var(--text);border:1px solid var(--border);
-  border-radius:var(--r);padding:.4rem .8rem;transition:background .12s,border-color .12s;
-}
-button:hover{background:var(--border)}
-button.on{background:var(--accent);border-color:var(--accent);color:oklch(20% .05 70);font-weight:600}
-button:disabled{opacity:.45;cursor:not-allowed}
-input[type=range]{accent-color:var(--accent);width:220px}
-input[type=text]{font:inherit;font-family:'JetBrains Mono',monospace;font-size:.82rem;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:.35rem .6rem}
-.out{margin-top:.8rem;font-size:.85rem}
-.tag{display:inline-block;font-size:.68rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:.15em .5em;border-radius:4px}
-.tag.good{background:oklch(30% .07 163);color:var(--good)}
-.tag.bad{background:oklch(30% .08 22);color:var(--bad)}
-.tag.info{background:oklch(30% .06 215);color:var(--info)}
+      /* ---------- demo chrome ---------- */
+      .demo {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1.1rem 0;
+      }
+      .demo-label {
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--dim);
+        font-weight: 700;
+        margin-bottom: 0.7rem;
+      }
+      .row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      button {
+        font: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 0.4rem 0.8rem;
+        transition:
+          background 0.12s,
+          border-color 0.12s;
+      }
+      button:hover {
+        background: var(--border);
+      }
+      button.on {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: oklch(20% 0.05 70);
+        font-weight: 600;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      input[type='range'] {
+        accent-color: var(--accent);
+        width: 220px;
+      }
+      input[type='text'] {
+        font: inherit;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 0.35rem 0.6rem;
+      }
+      .out {
+        margin-top: 0.8rem;
+        font-size: 0.85rem;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 0.15em 0.5em;
+        border-radius: 4px;
+      }
+      .tag.good {
+        background: oklch(30% 0.07 163);
+        color: var(--good);
+      }
+      .tag.bad {
+        background: oklch(30% 0.08 22);
+        color: var(--bad);
+      }
+      .tag.info {
+        background: oklch(30% 0.06 215);
+        color: var(--info);
+      }
 
-table{width:100%;border-collapse:collapse;font-size:.85rem;margin:.9rem 0}
-th,td{text-align:left;padding:.5rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}
-th{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+        margin: 0.9rem 0;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.5rem 0.7rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--dim);
+      }
 
-.callout{border-left:3px solid var(--accent);background:oklch(22% .02 70);padding:.7rem 1rem;border-radius:0 var(--r) var(--r) 0;margin:1rem 0;font-size:.92rem}
-.callout.film{border-left-color:var(--info);background:oklch(22% .02 215)}
-.callout .eyebrow{color:inherit;opacity:.7}
+      .callout {
+        border-left: 3px solid var(--accent);
+        background: oklch(22% 0.02 70);
+        padding: 0.7rem 1rem;
+        border-radius: 0 var(--r) var(--r) 0;
+        margin: 1rem 0;
+        font-size: 0.92rem;
+      }
+      .callout.film {
+        border-left-color: var(--info);
+        background: oklch(22% 0.02 215);
+      }
+      .callout .eyebrow {
+        color: inherit;
+        opacity: 0.7;
+      }
 
-/* ---------- concept-specific ---------- */
-.dbrow{font-family:'JetBrains Mono',monospace;font-size:.78rem;padding:.35rem .6rem;border:1px solid var(--border);border-radius:4px;margin-bottom:.3rem;background:var(--bg);transition:all .25s;opacity:.35}
-.dbrow.match{opacity:1;border-color:var(--accent);background:oklch(24% .04 70)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-@media(max-width:900px){.shell{grid-template-columns:1fr}nav.toc{display:none}.grid2{grid-template-columns:1fr}}
-.bar{height:12px;border-radius:99px;background:var(--bad);transition:width .3s}
-.bar.good{background:var(--good)}
-.layer{border:1px solid var(--border);border-radius:var(--r);padding:.6rem .8rem;background:var(--bg);cursor:pointer;transition:border-color .15s}
-.layer:hover{border-color:var(--muted)}
-.layer.sel{border-color:var(--accent);background:oklch(24% .04 70)}
-.layer h4{margin:0;font-size:.85rem;font-family:'JetBrains Mono',monospace}
-.layer p{margin:.15rem 0 0;font-size:.78rem;color:var(--dim)}
-.arrowdown{text-align:center;color:var(--dim);font-size:.9rem;line-height:1}
+      /* ---------- concept-specific ---------- */
+      .dbrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78rem;
+        padding: 0.35rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        margin-bottom: 0.3rem;
+        background: var(--bg);
+        transition: all 0.25s;
+        opacity: 0.35;
+      }
+      .dbrow.match {
+        opacity: 1;
+        border-color: var(--accent);
+        background: oklch(24% 0.04 70);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      @media (max-width: 900px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        nav.toc {
+          display: none;
+        }
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .bar {
+        height: 12px;
+        border-radius: 99px;
+        background: var(--bad);
+        transition: width 0.3s;
+      }
+      .bar.good {
+        background: var(--good);
+      }
+      .layer {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 0.6rem 0.8rem;
+        background: var(--bg);
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      .layer:hover {
+        border-color: var(--muted);
+      }
+      .layer.sel {
+        border-color: var(--accent);
+        background: oklch(24% 0.04 70);
+      }
+      .layer h4 {
+        margin: 0;
+        font-size: 0.85rem;
+        font-family: 'JetBrains Mono', monospace;
+      }
+      .layer p {
+        margin: 0.15rem 0 0;
+        font-size: 0.78rem;
+        color: var(--dim);
+      }
+      .arrowdown {
+        text-align: center;
+        color: var(--dim);
+        font-size: 0.9rem;
+        line-height: 1;
+      }
 
-/* ---------- inline error cards ---------- */
-.errcard{border-left:3px solid var(--bad);background:var(--surface-2);border-radius:0 var(--r) var(--r) 0;padding:.7rem .9rem;margin:.6rem 0 0}
-.errcard.none{border-left-color:var(--info)}
-.errcard .msg{font-family:'JetBrains Mono',monospace;font-size:.76rem;line-height:1.55;margin:.25rem 0 0;color:var(--muted)}
-.errcard .fix{font-family:'JetBrains Mono',monospace;font-size:.76rem;color:var(--good);margin:.3rem 0 0}
-.errcard + .errcard{margin-top:.5rem}
-.errhead{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700;margin:1.4rem 0 .1rem}
+      /* ---------- inline error cards ---------- */
+      .errcard {
+        border-left: 3px solid var(--bad);
+        background: var(--surface-2);
+        border-radius: 0 var(--r) var(--r) 0;
+        padding: 0.7rem 0.9rem;
+        margin: 0.6rem 0 0;
+      }
+      .errcard.none {
+        border-left-color: var(--info);
+      }
+      .errcard .msg {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.76rem;
+        line-height: 1.55;
+        margin: 0.25rem 0 0;
+        color: var(--muted);
+      }
+      .errcard .fix {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.76rem;
+        color: var(--good);
+        margin: 0.3rem 0 0;
+      }
+      .errcard + .errcard {
+        margin-top: 0.5rem;
+      }
+      .errhead {
+        font-size: 0.66rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--dim);
+        font-weight: 700;
+        margin: 1.4rem 0 0.1rem;
+      }
 
-/* ---------- quiz ---------- */
-.quiz{border:1px solid var(--border);border-radius:8px;padding:1rem;margin:1rem 0;background:var(--surface-2)}
-.quiz .q{font-weight:600;margin:0 0 .7rem}
-.quiz .opts{display:flex;flex-direction:column;gap:.4rem}
-.quiz .opt{text-align:left;justify-content:flex-start}
-.quiz .opt.correct{border-color:var(--good);background:oklch(28% .06 163);color:var(--good)}
-.quiz .opt.wrong{border-color:var(--bad);background:oklch(28% .07 22);color:var(--bad)}
-.quiz .explain{margin:.8rem 0 0;font-size:.88rem;color:var(--muted);border-left:2px solid var(--border);padding-left:.8rem}
-#score{font-weight:700;color:var(--accent)}
-footer{color:var(--dim);font-size:.85rem;padding:2rem 0;border-top:1px solid var(--border)}
-</style>
-</head>
-<body>
-<button id="theme" class="theme-btn" aria-pressed="false">☀ light</button>
-<div class="shell">
+      /* ---------- quiz ---------- */
+      .quiz {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1rem 0;
+        background: var(--surface-2);
+      }
+      .quiz .q {
+        font-weight: 600;
+        margin: 0 0 0.7rem;
+      }
+      .quiz .opts {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .quiz .opt {
+        text-align: left;
+        justify-content: flex-start;
+      }
+      .quiz .opt.correct {
+        border-color: var(--good);
+        background: oklch(28% 0.06 163);
+        color: var(--good);
+      }
+      .quiz .opt.wrong {
+        border-color: var(--bad);
+        background: oklch(28% 0.07 22);
+        color: var(--bad);
+      }
+      .quiz .explain {
+        margin: 0.8rem 0 0;
+        font-size: 0.88rem;
+        color: var(--muted);
+        border-left: 2px solid var(--border);
+        padding-left: 0.8rem;
+      }
+      #score {
+        font-weight: 700;
+        color: var(--accent);
+      }
+      footer {
+        color: var(--dim);
+        font-size: 0.85rem;
+        padding: 2rem 0;
+        border-top: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <button id="theme" class="theme-btn" aria-pressed="false">☀ light</button>
+    <div class="shell">
+      <nav class="toc">
+        <h2>Ten Concepts</h2>
+        <a href="#c1"><span class="num">1</span>The list isn't stored</a>
+        <a href="#c2"><span class="num">2</span>Two queries, not 51</a>
+        <a href="#c3"><span class="num">3</span>Missing vs empty</a>
+        <a href="#c4"><span class="num">4</span>Fix the lying layer</a>
+        <a href="#c5"><span class="num">5</span>$inferSelect</a>
+        <a href="#c6"><span class="num">6</span>as</a>
+        <a href="#c6b"><span class="num">6b</span>Guards over casts</a>
+        <a href="#c7"><span class="num">7</span>$type&lt;&gt;()</a>
+        <a href="#c8"><span class="num">8</span>Spread drops guards</a>
+        <a href="#c9"><span class="num">9</span>Cast last</a>
+        <a href="#c10"><span class="num">10</span>The mapper border</a>
+        <h2 style="margin-top: 1.2rem">Blooper</h2>
+        <a href="#b33"><span class="num">33</span>Circular inference</a>
+        <h2 style="margin-top: 1.2rem">Reference</h2>
+        <a href="#errors"><span class="num">⚠</span>Error index</a>
+        <h2 style="margin-top: 1.2rem">Check yourself</h2>
+        <a href="#quiz"><span class="num">✓</span>Quiz</a>
+      </nav>
 
-<nav class="toc">
-  <h2>Ten Concepts</h2>
-  <a href="#c1"><span class="num">1</span>The list isn't stored</a>
-  <a href="#c2"><span class="num">2</span>Two queries, not 51</a>
-  <a href="#c3"><span class="num">3</span>Missing vs empty</a>
-  <a href="#c4"><span class="num">4</span>Fix the lying layer</a>
-  <a href="#c5"><span class="num">5</span>$inferSelect</a>
-  <a href="#c6"><span class="num">6</span>as</a>
-  <a href="#c6b"><span class="num">6b</span>Guards over casts</a>
-  <a href="#c7"><span class="num">7</span>$type&lt;&gt;()</a>
-  <a href="#c8"><span class="num">8</span>Spread drops guards</a>
-  <a href="#c9"><span class="num">9</span>Cast last</a>
-  <a href="#c10"><span class="num">10</span>The mapper border</a>
-  <h2 style="margin-top:1.2rem">Blooper</h2>
-  <a href="#b33"><span class="num">33</span>Circular inference</a>
-  <h2 style="margin-top:1.2rem">Reference</h2>
-  <a href="#errors"><span class="num">⚠</span>Error index</a>
-  <h2 style="margin-top:1.2rem">Check yourself</h2>
-  <a href="#quiz"><span class="num">✓</span>Quiz</a>
-</nav>
-
-<main>
-
-<header class="hero">
-  <span class="eyebrow">FOR_ETHAN.md · 2026-08-21</span>
-  <h1>Attaching Events to Tasks</h1>
-  <p class="lede">
-    The job: make <code>GET /tasks</code> return each task with a list of the tools it ran.
-    Simple goal. Ten separate concepts hiding inside it.
-  </p>
-  <div class="callout">
-    <span class="eyebrow">The spine</span>
-    <p style="margin:.2rem 0 0">
-      SQLite and Drizzle are <strong>honest</strong>: they report the widest possible type
-      (<code>string</code>, <code>| null</code>). Your React components want the
-      <strong>narrowest</strong> (<code>'pre' | 'post'</code>, never null).
-      Every concept below is the same question wearing a different hat:
-      <em>where do you put the narrowing?</em>
-    </p>
-  </div>
-  <div class="callout film">
-    <span class="eyebrow">And what "narrowing" actually means</span>
-    <p style="margin:.2rem 0 .5rem">
-      Reducing <strong>how many values are possible</strong>. That count has a name —
-      <em>cardinality</em> — and every concept below is a move down this ladder:
-    </p>
-<pre style="margin:0"><span class="t">string</span>                    <span class="c">→ ∞ possible values</span>
+      <main>
+        <header class="hero">
+          <span class="eyebrow">FOR_ETHAN.md · 2026-08-21</span>
+          <h1>Attaching Events to Tasks</h1>
+          <p class="lede">
+            The job: make <code>GET /tasks</code> return each task with a list of the tools it ran.
+            Simple goal. Ten separate concepts hiding inside it.
+          </p>
+          <div class="callout">
+            <span class="eyebrow">The spine</span>
+            <p style="margin: 0.2rem 0 0">
+              SQLite and Drizzle are <strong>honest</strong>: they report the widest possible type
+              (<code>string</code>, <code>| null</code>). Your React components want the
+              <strong>narrowest</strong> (<code>'pre' | 'post'</code>, never null). Every concept
+              below is the same question wearing a different hat:
+              <em>where do you put the narrowing?</em>
+            </p>
+          </div>
+          <div class="callout film">
+            <span class="eyebrow">And what "narrowing" actually means</span>
+            <p style="margin: 0.2rem 0 0.5rem">
+              Reducing <strong>how many values are possible</strong>. That count has a name —
+              <em>cardinality</em> — and every concept below is a move down this ladder:
+            </p>
+            <pre
+              style="margin: 0"
+            ><span class="t">string</span>                    <span class="c">→ ∞ possible values</span>
 <span class="t">string</span> | <span class="k">null</span>             <span class="c">→ ∞ + 1  (the mapper's job: get rid of the +1)</span>
 <span class="t">TaskStatus</span>                <span class="c">→ 8       ($type&lt;&gt;() on the column)</span>
 <span class="s">'pre'</span> | <span class="s">'post'</span>            <span class="c">→ 2       (as, or a type guard)</span></pre>
-    <p style="margin:.5rem 0 0;font-size:.85rem;color:var(--dim)">
-      Framing borrowed from
-      <a href="https://www.no.lol/2019-12-27-type-narrowing/">Lauren Tan, “Type Narrowing in TypeScript”</a>.
-    </p>
-  </div>
-</header>
+            <p style="margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--dim)">
+              Framing borrowed from
+              <a href="https://www.no.lol/2019-12-27-type-narrowing/"
+                >Lauren Tan, “Type Narrowing in TypeScript”</a
+              >.
+            </p>
+          </div>
+        </header>
 
-<!-- ============ 1 ============ -->
-<section id="c1">
-  <span class="eyebrow">Concept 01</span>
-  <h2>The list isn't stored anywhere</h2>
-  <p>
-    The <code>hook_events</code> table has no column that holds a list. There is no "array" type.
-    Each row is <strong>one</strong> event, carrying a <code>task_id</code> that says which task
-    it belongs to.
-  </p>
-  <p>
-    Task <code>abc</code> "has" two events because two rows point at it. The list only exists
-    once JavaScript builds one.
-  </p>
+        <!-- ============ 1 ============ -->
+        <section id="c1">
+          <span class="eyebrow">Concept 01</span>
+          <h2>The list isn't stored anywhere</h2>
+          <p>
+            The <code>hook_events</code> table has no column that holds a list. There is no "array"
+            type. Each row is <strong>one</strong> event, carrying a <code>task_id</code> that says
+            which task it belongs to.
+          </p>
+          <p>
+            Task <code>abc</code> "has" two events because two rows point at it. The list only
+            exists once JavaScript builds one.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Run the query · watch the list get built, not fetched</div>
-    <div class="row">
-      <button class="pill" data-task="abc">WHERE task_id = 'abc'</button>
-      <button class="pill" data-task="def">WHERE task_id = 'def'</button>
-      <button class="pill" data-task="">no filter</button>
-    </div>
-    <div class="grid2" style="margin-top:.9rem">
-      <div>
-        <div class="demo-label">hook_events (on disk — never changes)</div>
-        <div id="c1rows"></div>
-      </div>
-      <div>
-        <div class="demo-label">what JavaScript holds after the query</div>
-        <pre id="c1out" style="margin:0"></pre>
-      </div>
-    </div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Run the query · watch the list get built, not fetched</div>
+            <div class="row">
+              <button class="pill" data-task="abc">WHERE task_id = 'abc'</button>
+              <button class="pill" data-task="def">WHERE task_id = 'def'</button>
+              <button class="pill" data-task="">no filter</button>
+            </div>
+            <div class="grid2" style="margin-top: 0.9rem">
+              <div>
+                <div class="demo-label">hook_events (on disk — never changes)</div>
+                <div id="c1rows"></div>
+              </div>
+              <div>
+                <div class="demo-label">what JavaScript holds after the query</div>
+                <pre id="c1out" style="margin: 0"></pre>
+              </div>
+            </div>
+          </div>
 
-  <div class="callout film">
-    <span class="eyebrow">Film analogy</span>
-    <p style="margin:.2rem 0 0">
-      Every clip in the vault is its own file, tagged with a scene number. There is no
-      "Scene 12" folder on the drive. Ask for scene 12 and the bin fills up. Close the bin and
-      the clips are unchanged.
-    </p>
-  </div>
-  <div data-errs="c1"></div>
-</section>
+          <div class="callout film">
+            <span class="eyebrow">Film analogy</span>
+            <p style="margin: 0.2rem 0 0">
+              Every clip in the vault is its own file, tagged with a scene number. There is no
+              "Scene 12" folder on the drive. Ask for scene 12 and the bin fills up. Close the bin
+              and the clips are unchanged.
+            </p>
+          </div>
+          <div data-errs="c1"></div>
+        </section>
 
-<!-- ============ 2 ============ -->
-<section id="c2">
-  <span class="eyebrow">Concept 02</span>
-  <h2>Two queries, not fifty-one</h2>
-  <p>
-    The obvious way is a loop: for each task, ask the database for its events. Fifty tasks means
-    fifty-one round trips (one for the tasks, fifty for the events). This is the classic
-    <strong>N+1 query</strong>. <code>inArray</code> asks once for all of them.
-  </p>
-<pre><span class="k">const</span> ids = tasks.map((task) =&gt; task.id);        <span class="c">// → ['abc','def','ghi']</span>
+        <!-- ============ 2 ============ -->
+        <section id="c2">
+          <span class="eyebrow">Concept 02</span>
+          <h2>Two queries, not fifty-one</h2>
+          <p>
+            The obvious way is a loop: for each task, ask the database for its events. Fifty tasks
+            means fifty-one round trips (one for the tasks, fifty for the events). This is the
+            classic
+            <strong>N+1 query</strong>. <code>inArray</code> asks once for all of them.
+          </p>
+          <pre><span class="k">const</span> ids = tasks.map((task) =&gt; task.id);        <span class="c">// → ['abc','def','ghi']</span>
 .where(inArray(hookEventsTable.taskId, ids))     <span class="c">// SQL: WHERE task_id IN ('abc','def','ghi')</span></pre>
-  <p>
-    What comes back is a jumbled pile — everybody's events mixed together. Sorting the pile into
-    per-task buckets is a <code>Map</code>, done in JavaScript. Two trips instead of fifty-one.
-  </p>
+          <p>
+            What comes back is a jumbled pile — everybody's events mixed together. Sorting the pile
+            into per-task buckets is a <code>Map</code>, done in JavaScript. Two trips instead of
+            fifty-one.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Drag the task count</div>
-    <div class="row">
-      <input type="range" id="c2range" min="1" max="50" value="12">
-      <span class="mono" id="c2count">12 tasks</span>
-    </div>
-    <div class="out">
-      <div class="row" style="margin-bottom:.4rem">
-        <span style="width:130px;font-size:.8rem">loop (N+1)</span>
-        <div class="bar" id="c2bar1" style="width:26px"></div>
-        <span class="mono" id="c2n1">13 round trips</span>
-      </div>
-      <div class="row">
-        <span style="width:130px;font-size:.8rem">inArray</span>
-        <div class="bar good" id="c2bar2" style="width:4px"></div>
-        <span class="mono">2 round trips</span>
-      </div>
-    </div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Drag the task count</div>
+            <div class="row">
+              <input type="range" id="c2range" min="1" max="50" value="12" />
+              <span class="mono" id="c2count">12 tasks</span>
+            </div>
+            <div class="out">
+              <div class="row" style="margin-bottom: 0.4rem">
+                <span style="width: 130px; font-size: 0.8rem">loop (N+1)</span>
+                <div class="bar" id="c2bar1" style="width: 26px"></div>
+                <span class="mono" id="c2n1">13 round trips</span>
+              </div>
+              <div class="row">
+                <span style="width: 130px; font-size: 0.8rem">inArray</span>
+                <div class="bar good" id="c2bar2" style="width: 4px"></div>
+                <span class="mono">2 round trips</span>
+              </div>
+            </div>
+          </div>
 
-  <div class="callout">
-    <span class="eyebrow">The guard you must not forget</span>
-    <p style="margin:.2rem 0 0">
-      <code>WHERE task_id IN ()</code> with nothing inside is <strong>invalid SQL</strong>.
-      Bail out early when there are no tasks.
-    </p>
-  </div>
-  <div data-errs="c2"></div>
-</section>
+          <div class="callout">
+            <span class="eyebrow">The guard you must not forget</span>
+            <p style="margin: 0.2rem 0 0">
+              <code>WHERE task_id IN ()</code> with nothing inside is <strong>invalid SQL</strong>.
+              Bail out early when there are no tasks.
+            </p>
+          </div>
+          <div data-errs="c2"></div>
+        </section>
 
-<!-- ============ 3 ============ -->
-<section id="c3">
-  <span class="eyebrow">Concept 03</span>
-  <h2>Missing and empty are two different things</h2>
-<pre>completedAt?: <span class="t">string</span>          <span class="c">// the key might not be there at all</span>
+        <!-- ============ 3 ============ -->
+        <section id="c3">
+          <span class="eyebrow">Concept 03</span>
+          <h2>Missing and empty are two different things</h2>
+          <pre>completedAt?: <span class="t">string</span>          <span class="c">// the key might not be there at all</span>
 completedAt: <span class="t">string</span> | <span class="k">null</span>   <span class="c">// the key is there, holding nothing</span></pre>
-  <p>
-    Databases only produce the second kind. TypeScript's <code>?</code> only accepts the first.
-    So <code>completedAt: row.completedAt</code> fails even though both "mean" missing.
-    <code>?? undefined</code> bridges it.
-  </p>
+          <p>
+            Databases only produce the second kind. TypeScript's <code>?</code> only accepts the
+            first. So <code>completedAt: row.completedAt</code> fails even though both "mean"
+            missing. <code>?? undefined</code> bridges it.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Two shapes, four assignments — which compile?</div>
-    <div class="row">
-      <button class="pill on" data-c3="opt">completedAt?: string</button>
-      <button class="pill" data-c3="null">completedAt: string | null</button>
-    </div>
-    <div id="c3out" class="out"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Two shapes, four assignments — which compile?</div>
+            <div class="row">
+              <button class="pill on" data-c3="opt">completedAt?: string</button>
+              <button class="pill" data-c3="null">completedAt: string | null</button>
+            </div>
+            <div id="c3out" class="out"></div>
+          </div>
 
-  <div class="callout">
-    <span class="eyebrow">Grammar, not value</span>
-    <p style="margin:.2rem 0 0">
-      <code>?</code> is grammar for <em>describing a type</em>. It cannot appear when you are
-      <em>building</em> an actual object. <code>{ completedAt?: value }</code> is not a thing.
-    </p>
-  </div>
-  <h3>So which do you write when the target prop is optional?</h3>
-  <div class="demo">
-    <div class="demo-label">Two forms · toggle the tsconfig flag</div>
-    <div class="row">
-      <button class="pill on" data-c3f="off">strict</button>
-      <button class="pill" data-c3f="on">strict + exactOptionalPropertyTypes</button>
-    </div>
-    <div id="c3fout" class="out"></div>
-  </div>
-  <p>
-    On the wire they are <strong>identical</strong> — <code>JSON.stringify</code> drops
-    <code>undefined</code> values, so both send <code>{"id":"1"}</code>. They differ only in
-    memory: form A leaves <code>'completedAt' in obj</code> true, form B leaves it false.
-    Nothing in this codebase branches on that, and everything crosses a JSON boundary before it
-    reaches React. <strong>Take A.</strong>
-  </p>
-  <div class="callout">
-    <span class="eyebrow">Two things to avoid</span>
-    <p style="margin:.2rem 0 0">
-      In form B, test for <strong>presence</strong> (<code>!== null</code>), never truthiness —
-      <code>row.completedAt ? …</code> silently drops an empty string.
-      And never declare <code>completedAt?: string | null</code>: that is <em>three</em> states,
-      and every consumer has to handle all three. One flavour of nothing per field.
-    </p>
-  </div>
+          <div class="callout">
+            <span class="eyebrow">Grammar, not value</span>
+            <p style="margin: 0.2rem 0 0">
+              <code>?</code> is grammar for <em>describing a type</em>. It cannot appear when you
+              are <em>building</em> an actual object. <code>{ completedAt?: value }</code> is not a
+              thing.
+            </p>
+          </div>
+          <h3>So which do you write when the target prop is optional?</h3>
+          <div class="demo">
+            <div class="demo-label">Two forms · toggle the tsconfig flag</div>
+            <div class="row">
+              <button class="pill on" data-c3f="off">strict</button>
+              <button class="pill" data-c3f="on">strict + exactOptionalPropertyTypes</button>
+            </div>
+            <div id="c3fout" class="out"></div>
+          </div>
+          <p>
+            On the wire they are <strong>identical</strong> — <code>JSON.stringify</code> drops
+            <code>undefined</code> values, so both send <code>{"id":"1"}</code>. They differ only in
+            memory: form A leaves <code>'completedAt' in obj</code> true, form B leaves it false.
+            Nothing in this codebase branches on that, and everything crosses a JSON boundary before
+            it reaches React. <strong>Take A.</strong>
+          </p>
+          <div class="callout">
+            <span class="eyebrow">Two things to avoid</span>
+            <p style="margin: 0.2rem 0 0">
+              In form B, test for <strong>presence</strong> (<code>!== null</code>), never
+              truthiness — <code>row.completedAt ? …</code> silently drops an empty string. And
+              never declare <code>completedAt?: string | null</code>: that is <em>three</em> states,
+              and every consumer has to handle all three. One flavour of nothing per field.
+            </p>
+          </div>
 
-  <div data-errs="c3"></div>
-</section>
+          <div data-errs="c3"></div>
+        </section>
 
-<!-- ============ 4 ============ -->
-<section id="c4">
-  <span class="eyebrow">Concept 04</span>
-  <h2>Fix the layer that is lying</h2>
-  <p>
-    A type error gives you several places to act, and they are wildly different in cost. The
-    error said <em>"null is not allowed here."</em> Where do you go?
-  </p>
+        <!-- ============ 4 ============ -->
+        <section id="c4">
+          <span class="eyebrow">Concept 04</span>
+          <h2>Fix the layer that is lying</h2>
+          <p>
+            A type error gives you several places to act, and they are wildly different in cost. The
+            error said <em>"null is not allowed here."</em> Where do you go?
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Pick a layer to change</div>
-    <div class="layer" data-c4="schema">
-      <h4>schema.ts</h4><p>what the DATABASE promises</p>
-    </div>
-    <div class="arrowdown">↓</div>
-    <div class="layer" data-c4="mapper">
-      <h4>toHookEvent</h4><p>what CODE does with what it got</p>
-    </div>
-    <div class="arrowdown">↓</div>
-    <div class="layer" data-c4="frontend">
-      <h4>HookEvent</h4><p>what the FRONTEND relies on</p>
-    </div>
-    <div id="c4out" class="out"><span class="tag info">pick one</span></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Pick a layer to change</div>
+            <div class="layer" data-c4="schema">
+              <h4>schema.ts</h4>
+              <p>what the DATABASE promises</p>
+            </div>
+            <div class="arrowdown">↓</div>
+            <div class="layer" data-c4="mapper">
+              <h4>toHookEvent</h4>
+              <p>what CODE does with what it got</p>
+            </div>
+            <div class="arrowdown">↓</div>
+            <div class="layer" data-c4="frontend">
+              <h4>HookEvent</h4>
+              <p>what the FRONTEND relies on</p>
+            </div>
+            <div id="c4out" class="out"><span class="tag info">pick one</span></div>
+          </div>
 
-  <div class="callout">
-    <p style="margin:0">
-      Nothing was lying. The database honestly allows nothing there; the frontend honestly needs
-      something. <strong>When both ends are honest, the fix is a converter between them</strong> —
-      never a change to either end.
-    </p>
-  </div>
-  <div data-errs="c4"></div>
-</section>
+          <div class="callout">
+            <p style="margin: 0">
+              Nothing was lying. The database honestly allows nothing there; the frontend honestly
+              needs something.
+              <strong>When both ends are honest, the fix is a converter between them</strong> —
+              never a change to either end.
+            </p>
+          </div>
+          <div data-errs="c4"></div>
+        </section>
 
-<!-- ============ 5 ============ -->
-<section id="c5">
-  <span class="eyebrow">Concept 05</span>
-  <h2><code>$inferSelect</code> — the shape the table hands back</h2>
-  <p>
-    This comes from Drizzle. Not SQL, not TypeScript. You wrote the table once. While you did,
-    TypeScript worked out what a row would look like if you selected from it. Drizzle parks that
-    answer on the table under <code>$inferSelect</code>, so you never write the shape twice.
-  </p>
-<pre><span class="k">const</span> toHookEvent = (row: <span class="k">typeof</span> hookEventsTable.$inferSelect): <span class="t">HookEvent</span> =&gt; ({ ... });
+        <!-- ============ 5 ============ -->
+        <section id="c5">
+          <span class="eyebrow">Concept 05</span>
+          <h2><code>$inferSelect</code> — the shape the table hands back</h2>
+          <p>
+            This comes from Drizzle. Not SQL, not TypeScript. You wrote the table once. While you
+            did, TypeScript worked out what a row would look like if you selected from it. Drizzle
+            parks that answer on the table under <code>$inferSelect</code>, so you never write the
+            shape twice.
+          </p>
+          <pre><span class="k">const</span> toHookEvent = (row: <span class="k">typeof</span> hookEventsTable.$inferSelect): <span class="t">HookEvent</span> =&gt; ({ ... });
 <span class="c">//                       └── "whatever shape a SELECT on hook_events gives back"</span></pre>
-  <p>
-    <code>typeof</code> is required because <code>hookEventsTable</code> is a <em>value</em>, and
-    you are asking about its <em>type</em>.
-  </p>
+          <p>
+            <code>typeof</code> is required because <code>hookEventsTable</code> is a
+            <em>value</em>, and you are asking about its <em>type</em>.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Rename the column in schema.ts — see who notices</div>
-    <div class="row">
-      <span class="mono" style="font-size:.82rem">toolName: text() →</span>
-      <input type="text" id="c5name" value="toolName" size="14">
-    </div>
-    <div class="out grid2">
-      <div>
-        <div class="demo-label">$inferSelect (derived)</div>
-        <pre id="c5infer" style="margin:0"></pre>
-      </div>
-      <div>
-        <div class="demo-label">hand-written copy</div>
-        <pre id="c5hand" style="margin:0"></pre>
-      </div>
-    </div>
-  </div>
-  <p>
-    The payoff: rename a column and the derived line <strong>errors immediately</strong>,
-    pointing at the exact spot. A hand-written copy just quietly goes wrong.
-  </p>
-  <h3>So why infer at all — why not declare the row type upfront?</h3>
-  <p>
-    Because the schema <em>is</em> the declaration. Writing <code>type TaskRow = {…}</code>
-    alongside it creates a <strong>second, independent</strong> declaration of the same fact, and
-    TypeScript has no way to check one against the other. They are not wrong relative to each
-    other; they are two separate opinions that happen to agree today. That is the cost —
-    not typing effort, <strong>the absence of a check</strong>.
-  </p>
-  <div class="demo">
-    <div class="demo-label">What a hand-written copy would have to get right · tasksTable, 20 columns</div>
-    <div class="row">
-      <button class="pill on" data-c5d="cols">which 4 of 20 are non-null</button>
-      <button class="pill" data-c5d="type">which one is not a string</button>
-      <button class="pill" data-c5d="trap">the trap</button>
-    </div>
-    <div id="c5dout" class="out"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Rename the column in schema.ts — see who notices</div>
+            <div class="row">
+              <span class="mono" style="font-size: 0.82rem">toolName: text() →</span>
+              <input type="text" id="c5name" value="toolName" size="14" />
+            </div>
+            <div class="out grid2">
+              <div>
+                <div class="demo-label">$inferSelect (derived)</div>
+                <pre id="c5infer" style="margin: 0"></pre>
+              </div>
+              <div>
+                <div class="demo-label">hand-written copy</div>
+                <pre id="c5hand" style="margin: 0"></pre>
+              </div>
+            </div>
+          </div>
+          <p>
+            The payoff: rename a column and the derived line <strong>errors immediately</strong>,
+            pointing at the exact spot. A hand-written copy just quietly goes wrong.
+          </p>
+          <h3>So why infer at all — why not declare the row type upfront?</h3>
+          <p>
+            Because the schema <em>is</em> the declaration. Writing
+            <code>type TaskRow = {…}</code> alongside it creates a
+            <strong>second, independent</strong> declaration of the same fact, and TypeScript has no
+            way to check one against the other. They are not wrong relative to each other; they are
+            two separate opinions that happen to agree today. That is the cost — not typing effort,
+            <strong>the absence of a check</strong>.
+          </p>
+          <div class="demo">
+            <div class="demo-label">
+              What a hand-written copy would have to get right · tasksTable, 20 columns
+            </div>
+            <div class="row">
+              <button class="pill on" data-c5d="cols">which 4 of 20 are non-null</button>
+              <button class="pill" data-c5d="type">which one is not a string</button>
+              <button class="pill" data-c5d="trap">the trap</button>
+            </div>
+            <div id="c5dout" class="out"></div>
+          </div>
 
-  <h3>But you <em>do</em> declare upfront — deliberately, elsewhere</h3>
-  <p>
-    <code>src/types/task.ts</code> declares <code>Task</code>, <code>HookEvent</code> and
-    <code>TaskStatus</code> by hand. That is not inconsistency, it is the rule:
-    <strong>declare the contract, infer the consequence.</strong>
-  </p>
-  <table>
-    <tr><th></th><th>declare upfront</th><th>infer</th></tr>
-    <tr><td>What it is</td><td>a contract you <em>own</em></td><td>a consequence you <em>observe</em></td></tr>
-    <tr><td>Here</td><td class="mono">HookEvent, Task, TaskStatus</td><td class="mono">typeof tasksTable.$inferSelect</td></tr>
-    <tr><td>If it changes</td><td>you decided to change it</td><td>something upstream changed</td></tr>
-    <tr><td>Follow the DB?</td><td><b>No</b> — a sloppy migration must not silently reshape eight components</td><td>Yes, that is the point</td></tr>
-  </table>
-  <div class="callout">
-    <p style="margin:0">
-      Inference is only trustworthy when the thing you infer <em>from</em> is authoritative. The
-      arrow must point from truth toward consequence, never the reverse — which is why
-      <code>Task</code> is hand-written and the row type is not.
-    </p>
-  </div>
+          <h3>But you <em>do</em> declare upfront — deliberately, elsewhere</h3>
+          <p>
+            <code>src/types/task.ts</code> declares <code>Task</code>, <code>HookEvent</code> and
+            <code>TaskStatus</code> by hand. That is not inconsistency, it is the rule:
+            <strong>declare the contract, infer the consequence.</strong>
+          </p>
+          <table>
+            <tr>
+              <th></th>
+              <th>declare upfront</th>
+              <th>infer</th>
+            </tr>
+            <tr>
+              <td>What it is</td>
+              <td>a contract you <em>own</em></td>
+              <td>a consequence you <em>observe</em></td>
+            </tr>
+            <tr>
+              <td>Here</td>
+              <td class="mono">HookEvent, Task, TaskStatus</td>
+              <td class="mono">typeof tasksTable.$inferSelect</td>
+            </tr>
+            <tr>
+              <td>If it changes</td>
+              <td>you decided to change it</td>
+              <td>something upstream changed</td>
+            </tr>
+            <tr>
+              <td>Follow the DB?</td>
+              <td><b>No</b> — a sloppy migration must not silently reshape eight components</td>
+              <td>Yes, that is the point</td>
+            </tr>
+          </table>
+          <div class="callout">
+            <p style="margin: 0">
+              Inference is only trustworthy when the thing you infer <em>from</em> is authoritative.
+              The arrow must point from truth toward consequence, never the reverse — which is why
+              <code>Task</code> is hand-written and the row type is not.
+            </p>
+          </div>
 
-  <div data-errs="c5"></div>
-</section>
+          <div data-errs="c5"></div>
+        </section>
 
-<!-- ============ 6 ============ -->
-<section id="c6">
-  <span class="eyebrow">Concept 06</span>
-  <h2><code>as</code> — telling the compiler to trust you</h2>
-  <p>
-    SQLite stores text. It has no idea the <code>phase</code> column only ever holds
-    <code>'pre'</code> or <code>'post'</code>. So Drizzle honestly reports <code>string</code>,
-    which is wider than <code>HookEvent</code> allows.
-  </p>
-<pre>phase: (row.phase ?? <span class="s">'pre'</span>) <span class="k">as</span> <span class="t">HookEvent</span>[<span class="s">'phase'</span>],</pre>
-  <p>
-    <code>HookEvent['phase']</code> is a <strong>lookup</strong> — the same square-bracket syntax
-    you use on objects, but pointed at a type, so it returns <code>'pre' | 'post'</code>. Using
-    the lookup instead of typing the union out means this line updates itself if the union
-    changes.
-  </p>
+        <!-- ============ 6 ============ -->
+        <section id="c6">
+          <span class="eyebrow">Concept 06</span>
+          <h2><code>as</code> — telling the compiler to trust you</h2>
+          <p>
+            SQLite stores text. It has no idea the <code>phase</code> column only ever holds
+            <code>'pre'</code> or <code>'post'</code>. So Drizzle honestly reports
+            <code>string</code>, which is wider than <code>HookEvent</code> allows.
+          </p>
+          <pre>phase: (row.phase ?? <span class="s">'pre'</span>) <span class="k">as</span> <span class="t">HookEvent</span>[<span class="s">'phase'</span>],</pre>
+          <p>
+            <code>HookEvent['phase']</code> is a <strong>lookup</strong> — the same square-bracket
+            syntax you use on objects, but pointed at a type, so it returns
+            <code>'pre' | 'post'</code>. Using the lookup instead of typing the union out means this
+            line updates itself if the union changes.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Put a value in the database column and run the mapper</div>
-    <div class="row">
-      <button class="pill" data-c6="pre">'pre'</button>
-      <button class="pill" data-c6="post">'post'</button>
-      <button class="pill" data-c6="">NULL</button>
-      <button class="pill" data-c6="banana">'banana' 🍌</button>
-    </div>
-    <div id="c6out" class="out"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Put a value in the database column and run the mapper</div>
+            <div class="row">
+              <button class="pill" data-c6="pre">'pre'</button>
+              <button class="pill" data-c6="post">'post'</button>
+              <button class="pill" data-c6="">NULL</button>
+              <button class="pill" data-c6="banana">'banana' 🍌</button>
+            </div>
+            <div id="c6out" class="out"></div>
+          </div>
 
-  <div class="callout">
-    <p style="margin:0">
-      <code>as</code> runs <strong>no code</strong>. It checks nothing, converts nothing, and
-      disappears at compile time. That is the trade — which is exactly why it belongs in one
-      small converter and nowhere else.
-    </p>
-  </div>
-  <div data-errs="c6"></div>
-</section>
+          <div class="callout">
+            <p style="margin: 0">
+              <code>as</code> runs <strong>no code</strong>. It checks nothing, converts nothing,
+              and disappears at compile time. That is the trade — which is exactly why it belongs in
+              one small converter and nowhere else.
+            </p>
+          </div>
+          <div data-errs="c6"></div>
+        </section>
 
-<!-- ============ 6b ============ -->
-<section id="c6b">
-  <span class="eyebrow">Concept 06b</span>
-  <h2>The option <code>as</code> never mentions</h2>
-  <p>
-    Concept 06 called <code>as</code> "the trade" — you get the narrow type, you give up the
-    check. But there is a third option that is not a trade at all: a <strong>type guard</strong>.
-    It is the same <code>if</code> statement you were going to write anyway, with a return type
-    that lets TypeScript <em>read</em> it.
-  </p>
-<pre><span class="k">const</span> isTaskStatus = (v: <span class="t">unknown</span>): <span class="k">v is</span> <span class="t">TaskStatus</span> =&gt;
+        <!-- ============ 6b ============ -->
+        <section id="c6b">
+          <span class="eyebrow">Concept 06b</span>
+          <h2>The option <code>as</code> never mentions</h2>
+          <p>
+            Concept 06 called <code>as</code> "the trade" — you get the narrow type, you give up the
+            check. But there is a third option that is not a trade at all: a
+            <strong>type guard</strong>. It is the same <code>if</code> statement you were going to
+            write anyway, with a return type that lets TypeScript <em>read</em> it.
+          </p>
+          <pre><span class="k">const</span> isTaskStatus = (v: <span class="t">unknown</span>): <span class="k">v is</span> <span class="t">TaskStatus</span> =&gt;
   (VALID_STATUSES <span class="k">as readonly unknown</span>[]).includes(v);
 <span class="c">//                     └── "if this returns true, v is a TaskStatus" — and TS believes it</span></pre>
 
-  <h3>This repo has a comment doing a type's job</h3>
-  <div class="demo">
-    <div class="demo-label">src/server.ts · line 70 and line 77</div>
-    <div class="row">
-      <button class="pill on" data-c6b="now">what is there today</button>
-      <button class="pill" data-c6b="guard">with a type guard</button>
-      <button class="pill" data-c6b="gotcha">the shape that fails</button>
-    </div>
-    <div id="c6bout" class="out"></div>
-  </div>
+          <h3>This repo has a comment doing a type's job</h3>
+          <div class="demo">
+            <div class="demo-label">src/server.ts · line 70 and line 77</div>
+            <div class="row">
+              <button class="pill on" data-c6b="now">what is there today</button>
+              <button class="pill" data-c6b="guard">with a type guard</button>
+              <button class="pill" data-c6b="gotcha">the shape that fails</button>
+            </div>
+            <div id="c6bout" class="out"></div>
+          </div>
 
-  <h3>Assertion functions — the same idea, but it throws</h3>
-  <p>
-    A cousin from TypeScript 3.7. Where a guard returns <code>true</code>/<code>false</code> for
-    you to branch on, an assertion function narrows everything <em>after</em> the call and throws
-    if the claim is false:
-  </p>
-<pre><span class="k">function</span> assertTaskStatus(v: <span class="t">unknown</span>): <span class="k">asserts</span> v <span class="k">is</span> <span class="t">TaskStatus</span> {
+          <h3>Assertion functions — the same idea, but it throws</h3>
+          <p>
+            A cousin from TypeScript 3.7. Where a guard returns <code>true</code>/<code>false</code>
+            for you to branch on, an assertion function narrows everything <em>after</em> the call
+            and throws if the claim is false:
+          </p>
+          <pre><span class="k">function</span> assertTaskStatus(v: <span class="t">unknown</span>): <span class="k">asserts</span> v <span class="k">is</span> <span class="t">TaskStatus</span> {
   <span class="k">if</span> (!isTaskStatus(v)) <span class="k">throw new</span> Error(`not a status: ${v}`);
 }
 
 assertTaskStatus(status);
 <span class="c">// every line below this one now sees status as TaskStatus</span></pre>
-  <p>
-    Use a guard when a bad value is <strong>expected</strong> and you want to respond (a 400).
-    Use an assertion when a bad value means <strong>something upstream is broken</strong> and you
-    want a loud crash with a useful message.
-  </p>
+          <p>
+            Use a guard when a bad value is <strong>expected</strong> and you want to respond (a
+            400). Use an assertion when a bad value means
+            <strong>something upstream is broken</strong> and you want a loud crash with a useful
+            message.
+          </p>
 
-  <div class="callout">
-    <span class="eyebrow">Also worth stealing: satisfies</span>
-    <p style="margin:.2rem 0 0">
-      <code>VALID_STATUSES</code> is currently a hand-written second copy of
-      <code>TaskStatus</code> — Concept 05's sticky-note problem, living in the server. Add
-      <code>as const satisfies readonly TaskStatus[]</code> and the two get cross-checked. A
-      planted typo produced:
-      <code style="color:var(--bad)">TS2820: Type '"runnning"' is not assignable to type
-      'TaskStatus'. Did you mean '"running"'?</code>
-    </p>
-  </div>
+          <div class="callout">
+            <span class="eyebrow">Also worth stealing: satisfies</span>
+            <p style="margin: 0.2rem 0 0">
+              <code>VALID_STATUSES</code> is currently a hand-written second copy of
+              <code>TaskStatus</code> — Concept 05's sticky-note problem, living in the server. Add
+              <code>as const satisfies readonly TaskStatus[]</code> and the two get cross-checked. A
+              planted typo produced:
+              <code style="color: var(--bad)"
+                >TS2820: Type '"runnning"' is not assignable to type 'TaskStatus'. Did you mean
+                '"running"'?</code
+              >
+            </p>
+          </div>
 
-  <div class="callout film">
-    <p style="margin:0">
-      <code>as</code> is telling the compiler <em>trust me</em>.
-      A type guard is <strong>showing your work</strong>. Same runtime cost, and the banana from
-      Concept 06 gets caught instead of waved through.
-    </p>
-  </div>
-</section>
+          <div class="callout film">
+            <p style="margin: 0">
+              <code>as</code> is telling the compiler <em>trust me</em>. A type guard is
+              <strong>showing your work</strong>. Same runtime cost, and the banana from Concept 06
+              gets caught instead of waved through.
+            </p>
+          </div>
+        </section>
 
-<!-- ============ 7 ============ -->
-<section id="c7">
-  <span class="eyebrow">Concept 07</span>
-  <h2><code>$type&lt;&gt;()</code> — relabeling a column without touching the database</h2>
-  <p>
-    SQLite knows four storage types: <code>TEXT</code>, <code>INTEGER</code>, <code>REAL</code>,
-    <code>BLOB</code>. A status column is just text. But that column only ever holds eight
-    specific words, because <code>VALID_STATUSES</code> in <code>src/server.ts</code> rejects
-    everything else at the door.
-  </p>
+        <!-- ============ 7 ============ -->
+        <section id="c7">
+          <span class="eyebrow">Concept 07</span>
+          <h2><code>$type&lt;&gt;()</code> — relabeling a column without touching the database</h2>
+          <p>
+            SQLite knows four storage types: <code>TEXT</code>, <code>INTEGER</code>,
+            <code>REAL</code>, <code>BLOB</code>. A status column is just text. But that column only
+            ever holds eight specific words, because <code>VALID_STATUSES</code> in
+            <code>src/server.ts</code> rejects everything else at the door.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Toggle the label — watch runtime stay identical</div>
-    <div class="row">
-      <button class="pill on" data-c7="off">without $type</button>
-      <button class="pill" data-c7="on">with $type&lt;TaskStatus&gt;</button>
-    </div>
-    <div id="c7out" class="out"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Toggle the label — watch runtime stay identical</div>
+            <div class="row">
+              <button class="pill on" data-c7="off">without $type</button>
+              <button class="pill" data-c7="on">with $type&lt;TaskStatus&gt;</button>
+            </div>
+            <div id="c7out" class="out"></div>
+          </div>
 
-  <p>It is a cousin of <code>as</code>, filed in a better place:</p>
-  <table>
-    <tr><th></th><th><code>as</code></th><th><code>$type&lt;&gt;()</code></th></tr>
-    <tr><td>Where</td><td>at one use site</td><td>at the column definition</td></tr>
-    <tr><td>Reach</td><td>that one expression</td><td>every query, everywhere</td></tr>
-    <tr><td>Written</td><td>once per use</td><td>once, ever</td></tr>
-  </table>
-  <p>
-    The claim "status is one of eight words" is true about the <em>column</em>, not about one
-    particular read of it. So the column definition is the honest home for it.
-  </p>
+          <p>It is a cousin of <code>as</code>, filed in a better place:</p>
+          <table>
+            <tr>
+              <th></th>
+              <th><code>as</code></th>
+              <th><code>$type&lt;&gt;()</code></th>
+            </tr>
+            <tr>
+              <td>Where</td>
+              <td>at one use site</td>
+              <td>at the column definition</td>
+            </tr>
+            <tr>
+              <td>Reach</td>
+              <td>that one expression</td>
+              <td>every query, everywhere</td>
+            </tr>
+            <tr>
+              <td>Written</td>
+              <td>once per use</td>
+              <td>once, ever</td>
+            </tr>
+          </table>
+          <p>
+            The claim "status is one of eight words" is true about the <em>column</em>, not about
+            one particular read of it. So the column definition is the honest home for it.
+          </p>
 
-  <h3>Not just for unions</h3>
-<pre>metadata: text({ mode: <span class="s">'json'</span> }).$type&lt;<span class="t">Record</span>&lt;<span class="t">string</span>, <span class="t">unknown</span>&gt;&gt;(),</pre>
-  <p>
-    <code>mode: 'json'</code> does the real work — stringify on write, parse on read.
-    <code>$type</code> only labels what comes back, so you stop narrowing <code>unknown</code> at
-    every read site. You usually want both.
-  </p>
+          <h3>Not just for unions</h3>
+          <pre>metadata: text({ mode: <span class="s">'json'</span> }).$type&lt;<span class="t">Record</span>&lt;<span class="t">string</span>, <span class="t">unknown</span>&gt;&gt;(),</pre>
+          <p>
+            <code>mode: 'json'</code> does the real work — stringify on write, parse on read.
+            <code>$type</code> only labels what comes back, so you stop narrowing
+            <code>unknown</code> at every read site. You usually want both.
+          </p>
 
-  <h3>The catch: the narrowing has to be <em>true</em></h3>
-  <div class="demo">
-    <div class="demo-label">progressPercentage: integer().$type&lt;0|25|50|75|100&gt;()</div>
-    <div class="row">
-      <button class="pill" data-c7w="50">write 50</button>
-      <button class="pill" data-c7w="37">write 37</button>
-    </div>
-    <div id="c7wout" class="out"></div>
-  </div>
-  <div class="callout film">
-    <span class="eyebrow">The other failure mode</span>
-    <p style="margin:.2rem 0 .5rem">
-      Concept 07's trap is narrowing that is <em>not true</em>. There is a second one: narrowing
-      that is true but not worth it. As Lauren Tan puts it, "it can be easy to get carried away
-      with making your types extremely precise." A type nobody can satisfy is a type everyone
-      routes around with <code>as</code>.
-    </p>
-    <p style="margin:0;padding-left:.9rem;border-left:2px solid var(--border);font-style:italic;color:var(--muted)">
-      "When we restrict what we can do, it's easier to understand what we can do."
-      <span style="font-style:normal;font-size:.8rem;color:var(--dim)">— Runar Bjarnason</span>
-    </p>
-  </div>
+          <h3>The catch: the narrowing has to be <em>true</em></h3>
+          <div class="demo">
+            <div class="demo-label">
+              progressPercentage: integer().$type&lt;0|25|50|75|100&gt;()
+            </div>
+            <div class="row">
+              <button class="pill" data-c7w="50">write 50</button>
+              <button class="pill" data-c7w="37">write 37</button>
+            </div>
+            <div id="c7wout" class="out"></div>
+          </div>
+          <div class="callout film">
+            <span class="eyebrow">The other failure mode</span>
+            <p style="margin: 0.2rem 0 0.5rem">
+              Concept 07's trap is narrowing that is <em>not true</em>. There is a second one:
+              narrowing that is true but not worth it. As Lauren Tan puts it, "it can be easy to get
+              carried away with making your types extremely precise." A type nobody can satisfy is a
+              type everyone routes around with <code>as</code>.
+            </p>
+            <p
+              style="
+                margin: 0;
+                padding-left: 0.9rem;
+                border-left: 2px solid var(--border);
+                font-style: italic;
+                color: var(--muted);
+              "
+            >
+              "When we restrict what we can do, it's easier to understand what we can do."
+              <span style="font-style: normal; font-size: 0.8rem; color: var(--dim)"
+                >— Runar Bjarnason</span
+              >
+            </p>
+          </div>
 
-  <div data-errs="c7"></div>
-</section>
+          <div data-errs="c7"></div>
+        </section>
 
-<!-- ============ 8 ============ -->
-<section id="c8">
-  <span class="eyebrow">Concept 08</span>
-  <h2>A spread throws away what a guard proved</h2>
+        <!-- ============ 8 ============ -->
+        <section id="c8">
+          <span class="eyebrow">Concept 08</span>
+          <h2>A spread throws away what a guard proved</h2>
 
-  <div class="demo">
-    <div class="demo-label">Step through the handler</div>
-    <div class="row">
-      <button id="c8prev">◀ back</button>
-      <button id="c8next">step ▶</button>
-      <button class="pill" id="c8fix">show the fix</button>
-    </div>
-    <pre id="c8code" class="out" style="margin-top:.8rem"></pre>
-    <div id="c8note" style="font-size:.88rem;color:var(--muted)"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Step through the handler</div>
+            <div class="row">
+              <button id="c8prev">◀ back</button>
+              <button id="c8next">step ▶</button>
+              <button class="pill" id="c8fix">show the fix</button>
+            </div>
+            <pre id="c8code" class="out" style="margin-top: 0.8rem"></pre>
+            <div id="c8note" style="font-size: 0.88rem; color: var(--muted)"></div>
+          </div>
 
-  <p>
-    The guard narrowed <code>body.sessionId</code>. The spread copies <code>body</code>'s
-    <em>general</em> shape (<code>Record&lt;string, unknown&gt;</code>), not the specific fact you
-    just proved. The knowledge is lost.
-  </p>
-  <div class="callout">
-    <p style="margin:0">
-      The fix is to <strong>restate the key</strong>, not to cast it. Naming the property again
-      re-reads the narrowed value. <code>as string</code> also silences the error, but it asserts
-      something you had already <em>proven</em> — and the linter correctly flags it as pointless.
-    </p>
-  </div>
-  <div data-errs="c8"></div>
-</section>
+          <p>
+            The guard narrowed <code>body.sessionId</code>. The spread copies <code>body</code>'s
+            <em>general</em> shape (<code>Record&lt;string, unknown&gt;</code>), not the specific
+            fact you just proved. The knowledge is lost.
+          </p>
+          <div class="callout">
+            <p style="margin: 0">
+              The fix is to <strong>restate the key</strong>, not to cast it. Naming the property
+              again re-reads the narrowed value. <code>as string</code> also silences the error, but
+              it asserts something you had already <em>proven</em> — and the linter correctly flags
+              it as pointless.
+            </p>
+          </div>
+          <div data-errs="c8"></div>
+        </section>
 
-<!-- ============ 9 ============ -->
-<section id="c9">
-  <span class="eyebrow">Concept 09</span>
-  <h2>Cast last, not first</h2>
-  <p>The linter warned that a null-guard was dead code. Both lines look the same. They are not.</p>
+        <!-- ============ 9 ============ -->
+        <section id="c9">
+          <span class="eyebrow">Concept 09</span>
+          <h2>Cast last, not first</h2>
+          <p>
+            The linter warned that a null-guard was dead code. Both lines look the same. They are
+            not.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Pick an ordering — trace what TypeScript believes at each step</div>
-    <div class="row">
-      <button class="pill" data-c9="first">(row.phase <b>as</b> Phase) ?? 'pre'</button>
-      <button class="pill" data-c9="last">(row.phase ?? 'pre') <b>as</b> Phase</button>
-    </div>
-    <div id="c9out" class="out"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">
+              Pick an ordering — trace what TypeScript believes at each step
+            </div>
+            <div class="row">
+              <button class="pill" data-c9="first">(row.phase <b>as</b> Phase) ?? 'pre'</button>
+              <button class="pill" data-c9="last">(row.phase ?? 'pre') <b>as</b> Phase</button>
+            </div>
+            <div id="c9out" class="out"></div>
+          </div>
 
-  <div class="callout">
-    <p style="margin:0">
-      <strong>The cast made a true statement look false.</strong> Handle reality first, while
-      TypeScript still knows what reality is. Then narrow.
-    </p>
-  </div>
-  <div data-errs="c9"></div>
-</section>
+          <div class="callout">
+            <p style="margin: 0">
+              <strong>The cast made a true statement look false.</strong> Handle reality first,
+              while TypeScript still knows what reality is. Then narrow.
+            </p>
+          </div>
+          <div data-errs="c9"></div>
+        </section>
 
-<!-- ============ 10 ============ -->
-<section id="c10">
-  <span class="eyebrow">Concept 10</span>
-  <h2>Every row leaves through a mapper</h2>
-  <p>
-    <code>src/server.ts</code> now has a matched pair at the top: <code>toHookEvent</code> and
-    <code>toTask</code>. Storage leaves things nullable; the frontend's types do not. These two
-    functions are the entire border crossing.
-  </p>
+        <!-- ============ 10 ============ -->
+        <section id="c10">
+          <span class="eyebrow">Concept 10</span>
+          <h2>Every row leaves through a mapper</h2>
+          <p>
+            <code>src/server.ts</code> now has a matched pair at the top:
+            <code>toHookEvent</code> and <code>toTask</code>. Storage leaves things nullable; the
+            frontend's types do not. These two functions are the entire border crossing.
+          </p>
 
-  <div class="demo">
-    <div class="demo-label">Knock out columns in the raw row — watch the border patch them</div>
-    <div class="row">
-      <button class="pill on" data-c10="agentType">agentType</button>
-      <button class="pill on" data-c10="createdAt">createdAt</button>
-      <button class="pill on" data-c10="progressPercentage">progressPercentage</button>
-      <span style="font-size:.78rem;color:var(--dim)">click to NULL a column</span>
-    </div>
-    <div class="out grid2">
-      <div>
-        <div class="demo-label">row (typeof tasksTable.$inferSelect)</div>
-        <pre id="c10raw" style="margin:0"></pre>
-      </div>
-      <div>
-        <div class="demo-label">Task (what components receive)</div>
-        <pre id="c10task" style="margin:0"></pre>
-      </div>
-    </div>
-    <div id="c10note" style="margin-top:.7rem;font-size:.85rem"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">
+              Knock out columns in the raw row — watch the border patch them
+            </div>
+            <div class="row">
+              <button class="pill on" data-c10="agentType">agentType</button>
+              <button class="pill on" data-c10="createdAt">createdAt</button>
+              <button class="pill on" data-c10="progressPercentage">progressPercentage</button>
+              <span style="font-size: 0.78rem; color: var(--dim)">click to NULL a column</span>
+            </div>
+            <div class="out grid2">
+              <div>
+                <div class="demo-label">row (typeof tasksTable.$inferSelect)</div>
+                <pre id="c10raw" style="margin: 0"></pre>
+              </div>
+              <div>
+                <div class="demo-label">Task (what components receive)</div>
+                <pre id="c10task" style="margin: 0"></pre>
+              </div>
+            </div>
+            <div id="c10note" style="margin-top: 0.7rem; font-size: 0.85rem"></div>
+          </div>
 
-  <p>
-    The alternative was making <code>Task.agentType</code> nullable — which would have pushed
-    null checks into eight components, including a <code>.localeCompare()</code> in the sort and
-    a <code>Set</code> lookup in the filter.
-    <strong>One default at the border beats eight defensive checks downstream.</strong>
-  </p>
-  <div class="callout film">
-    <span class="eyebrow">Film analogy</span>
-    <p style="margin:.2rem 0 0">
-      The mapper is the QC pass before footage leaves the facility. Anything with a missing slate
-      gets one stamped on here, so nobody downstream has to wonder.
-    </p>
-  </div>
-  <div data-errs="c10"></div>
-</section>
+          <p>
+            The alternative was making <code>Task.agentType</code> nullable — which would have
+            pushed null checks into eight components, including a <code>.localeCompare()</code> in
+            the sort and a <code>Set</code> lookup in the filter.
+            <strong>One default at the border beats eight defensive checks downstream.</strong>
+          </p>
+          <div class="callout film">
+            <span class="eyebrow">Film analogy</span>
+            <p style="margin: 0.2rem 0 0">
+              The mapper is the QC pass before footage leaves the facility. Anything with a missing
+              slate gets one stamped on here, so nobody downstream has to wonder.
+            </p>
+          </div>
+          <div data-errs="c10"></div>
+        </section>
 
-<!-- ============ blooper 33 ============ -->
-<section id="b33">
-  <span class="eyebrow">🎬 Blooper 33</span>
-  <h2>The schema that typed itself into a corner</h2>
-  <p>Two lines in <code>src/db/schema.ts</code> quietly switched off type checking for the entire API:</p>
-<pre>parentSessionId: text().references(() =&gt; sessionsTable.id),  <span class="c">// sessions → sessions</span>
+        <!-- ============ blooper 33 ============ -->
+        <section id="b33">
+          <span class="eyebrow">🎬 Blooper 33</span>
+          <h2>The schema that typed itself into a corner</h2>
+          <p>
+            Two lines in <code>src/db/schema.ts</code> quietly switched off type checking for the
+            entire API:
+          </p>
+          <pre>parentSessionId: text().references(() =&gt; sessionsTable.id),  <span class="c">// sessions → sessions</span>
 parentId: text().references(() =&gt; tasksTable.id),            <span class="c">// tasks → tasks</span></pre>
 
-  <div class="demo">
-    <div class="demo-label">Ask TypeScript to resolve tasksTable</div>
-    <div class="row">
-      <button id="b33run">▶ resolve</button>
-      <button class="pill" id="b33fix">apply the annotation</button>
-      <span class="mono" id="b33mode" style="font-size:.78rem;color:var(--dim)">no annotation</span>
-    </div>
-    <div id="b33out" class="out mono" style="font-size:.82rem;min-height:7rem"></div>
-  </div>
+          <div class="demo">
+            <div class="demo-label">Ask TypeScript to resolve tasksTable</div>
+            <div class="row">
+              <button id="b33run">▶ resolve</button>
+              <button class="pill" id="b33fix">apply the annotation</button>
+              <span class="mono" id="b33mode" style="font-size: 0.78rem; color: var(--dim)"
+                >no annotation</span
+              >
+            </div>
+            <div id="b33out" class="out mono" style="font-size: 0.82rem; min-height: 7rem"></div>
+          </div>
 
-  <p>
-    <code>any</code> spreads downhill. Every query built on that table became <code>any</code>,
-    every result became <code>any</code>, and error messages in <code>src/server.ts</code> turned
-    into nonsense that moved around whenever anything changed.
-  </p>
-<pre>parentId: text().references((): <span class="t">AnySQLiteColumn</span> =&gt; tasksTable.id),
+          <p>
+            <code>any</code> spreads downhill. Every query built on that table became
+            <code>any</code>, every result became <code>any</code>, and error messages in
+            <code>src/server.ts</code> turned into nonsense that moved around whenever anything
+            changed.
+          </p>
+          <pre>parentId: text().references((): <span class="t">AnySQLiteColumn</span> =&gt; tasksTable.id),
 <span class="c">//                          └── "returns a column, take my word for it"</span></pre>
-  <p>
-    Self-referencing foreign keys are not a mistake — they are how you store a <strong>tree in a
-    flat table</strong>. <code>tasks.parentId</code> is the subtask nesting the tree view depends
-    on. The data genuinely refers to itself, so the type genuinely refers to itself, and
-    inference has nowhere to start. The annotation supplies the <strong>base case</strong> a
-    recursive definition needs. Nothing changes at runtime.
-  </p>
-  <div class="callout">
-    <span class="eyebrow">Why it went unnoticed for months</span>
-    <p style="margin:.2rem 0 0">
-      <code>tsconfig.app.json</code> excludes <code>src/server.ts</code> and <code>src/db</code>.
-      <code>bun run build</code> has never type-checked the API.
-      <strong>Files outside the build's reach rot silently.</strong>
-    </p>
-  </div>
-  <div data-errs="b33"></div>
-</section>
+          <p>
+            Self-referencing foreign keys are not a mistake — they are how you store a
+            <strong>tree in a flat table</strong>. <code>tasks.parentId</code> is the subtask
+            nesting the tree view depends on. The data genuinely refers to itself, so the type
+            genuinely refers to itself, and inference has nowhere to start. The annotation supplies
+            the <strong>base case</strong> a recursive definition needs. Nothing changes at runtime.
+          </p>
+          <div class="callout">
+            <span class="eyebrow">Why it went unnoticed for months</span>
+            <p style="margin: 0.2rem 0 0">
+              <code>tsconfig.app.json</code> excludes <code>src/server.ts</code> and
+              <code>src/db</code>. <code>bun run build</code> has never type-checked the API.
+              <strong>Files outside the build's reach rot silently.</strong>
+            </p>
+          </div>
+          <div data-errs="b33"></div>
+        </section>
 
-<!-- ============ error index ============ -->
-<section id="errors">
-  <span class="eyebrow">Reference</span>
-  <h2>Error index</h2>
-  <p>
-    Paste an error (or part of one) and find the concept behind it. Every compiler message below
-    was produced by running a reproduction through this repo's own <code>tsc --strict</code>.
-  </p>
-  <div class="demo">
-    <div class="row">
-      <input type="text" id="errfilter" placeholder="TS2322, &quot;not assignable&quot;, undefined…" style="flex:1;min-width:240px">
-      <span class="mono" id="errcount" style="font-size:.78rem;color:var(--dim)"></span>
+        <!-- ============ error index ============ -->
+        <section id="errors">
+          <span class="eyebrow">Reference</span>
+          <h2>Error index</h2>
+          <p>
+            Paste an error (or part of one) and find the concept behind it. Every compiler message
+            below was produced by running a reproduction through this repo's own
+            <code>tsc --strict</code>.
+          </p>
+          <div class="demo">
+            <div class="row">
+              <input
+                type="text"
+                id="errfilter"
+                placeholder='TS2322, "not assignable", undefined…'
+                style="flex: 1; min-width: 240px"
+              />
+              <span class="mono" id="errcount" style="font-size: 0.78rem; color: var(--dim)"></span>
+            </div>
+            <div id="errtable" class="out"></div>
+          </div>
+          <div class="callout">
+            <span class="eyebrow">Three families, three reflexes</span>
+            <p style="margin: 0.2rem 0 0">
+              <strong>TS2322 / TS2741</strong> are shape mismatches — fix at the border, in the
+              mapper. <strong>TS2339</strong> is a rename — the type is right, the caller is stale.
+              <strong>TS70xx</strong> is always a missing base case — add an annotation.
+            </p>
+          </div>
+          <div class="callout" style="border-left-color: var(--bad)">
+            <span class="eyebrow">Heads up</span>
+            <p style="margin: 0.2rem 0 0">
+              The two ESLint rows are <strong>not enabled in this repo</strong>.
+              <code>eslint.config.js</code> uses <code>typescript.configs.recommended</code>, not
+              <code>recommendedTypeChecked</code>, so those warnings come from your editor only —
+              <code>bun run lint</code> and CI will never see them. Same shape as Blooper 33: code
+              outside the tooling's reach rots silently.
+            </p>
+          </div>
+        </section>
+
+        <!-- ============ quiz ============ -->
+        <section id="quiz">
+          <span class="eyebrow">Check yourself</span>
+          <h2>Six questions · score: <span id="score">0 / 0</span></h2>
+
+          <div class="quiz" data-answer="1">
+            <p class="q">You have 40 tasks and want each one's events. What's the query count?</p>
+            <div class="opts">
+              <button class="opt">40 — one per task</button>
+              <button class="opt">
+                2 — one for tasks, one <code>inArray</code> for all events
+              </button>
+              <button class="opt">1 — SQLite can return nested arrays</button>
+            </div>
+            <p class="explain" hidden>
+              Two. The pile comes back mixed and a <code>Map</code> sorts it into buckets in
+              JavaScript. And guard the empty case: <code>IN ()</code> is invalid SQL.
+            </p>
+          </div>
+
+          <div class="quiz" data-answer="2">
+            <p class="q">
+              <code>row.completedAt</code> is <code>string | null</code>. Your type says
+              <code>completedAt?: string</code>. What do you write?
+            </p>
+            <div class="opts">
+              <button class="opt"><code>completedAt?: row.completedAt</code></button>
+              <button class="opt"><code>completedAt: row.completedAt as string</code></button>
+              <button class="opt"><code>completedAt: row.completedAt ?? undefined</code></button>
+            </div>
+            <p class="explain" hidden>
+              <code>?</code> is grammar for <em>describing</em> a type — it can't appear when you're
+              <em>building</em> an object. And <code>as string</code> lies: the value really can be
+              null. <code>?? undefined</code> converts the DB's "empty" into TypeScript's "missing".
+            </p>
+          </div>
+
+          <div class="quiz" data-answer="1">
+            <p class="q">
+              A column is <code>string</code> but only ever holds eight known words. Where does the
+              narrowing belong?
+            </p>
+            <div class="opts">
+              <button class="opt">
+                An <code>as TaskStatus</code> at each of the 20 read sites
+              </button>
+              <button class="opt">
+                <code>$type&lt;TaskStatus&gt;()</code> on the column definition
+              </button>
+              <button class="opt">A <code>CHECK</code> constraint plus a migration</button>
+            </div>
+            <p class="explain" hidden>
+              The claim is true about the <em>column</em>, not about one read of it, so the column
+              definition is its honest home. Twenty <code>as</code> casts is the same claim repeated
+              twenty times. (A CHECK constraint would be real enforcement — but it's a migration,
+              and it's not what this fix needed.)
+            </p>
+          </div>
+
+          <div class="quiz" data-answer="0">
+            <p class="q">
+              You guarded <code>typeof body.sessionId !== 'string'</code>, then spread
+              <code>{...body}</code> into <code>.values()</code>. TypeScript still complains. Why?
+            </p>
+            <div class="opts">
+              <button class="opt">
+                The spread copies <code>body</code>'s general shape, not the narrowed fact
+              </button>
+              <button class="opt">Spreads always erase types</button>
+              <button class="opt">The guard should have used <code>!== undefined</code></button>
+            </div>
+            <p class="explain" hidden>
+              Narrowing attaches to <em>the reference</em> <code>body.sessionId</code>, not to
+              <code>body</code>. Restate the key —
+              <code>{ ...body, sessionId: body.sessionId }</code> — which re-reads the narrowed
+              value. Don't reach for <code>as string</code>: you already proved it.
+            </p>
+          </div>
+
+          <div class="quiz" data-answer="2">
+            <p class="q">Why is <code>(row.phase as Phase) ?? 'pre'</code> wrong?</p>
+            <div class="opts">
+              <button class="opt">Parentheses change operator precedence incorrectly</button>
+              <button class="opt"><code>as</code> converts null to a string at runtime</button>
+              <button class="opt">
+                The cast asserts a null-free type, so <code>??</code> looks unreachable — but the
+                column really can be null
+              </button>
+            </div>
+            <p class="explain" hidden>
+              The cast made a true statement look false. <code>as</code> runs no code, so at runtime
+              the null still arrives — the guard was doing necessary work while the linter called it
+              dead. Handle reality first, then narrow.
+            </p>
+          </div>
+
+          <div class="quiz" data-answer="1">
+            <p class="q">
+              <code>parentId: text().references(() => tasksTable.id)</code> made the whole API
+              <code>any</code>. Why?
+            </p>
+            <div class="opts">
+              <button class="opt">Self-referencing foreign keys aren't supported in SQLite</button>
+              <button class="opt">
+                Inferring <code>tasksTable</code> requires already knowing <code>tasksTable</code> —
+                circular, so TypeScript gives up
+              </button>
+              <button class="opt">The arrow function is evaluated before the table exists</button>
+            </div>
+            <p class="explain" hidden>
+              A recursive definition needs a base case.
+              <code>(): AnySQLiteColumn =&gt;</code> supplies one so inference has somewhere to
+              start. Runtime is unchanged — self-referencing FKs are exactly how you store a tree in
+              a flat table.
+            </p>
+          </div>
+        </section>
+
+        <footer>
+          Built from <code>docs/FOR_ETHAN.md</code> §&nbsp;<em>Attaching Events to Tasks</em>
+          (2026-08-21). Open this file directly in a browser — no build step, no dependencies.
+        </footer>
+      </main>
     </div>
-    <div id="errtable" class="out"></div>
-  </div>
-  <div class="callout">
-    <span class="eyebrow">Three families, three reflexes</span>
-    <p style="margin:.2rem 0 0">
-      <strong>TS2322 / TS2741</strong> are shape mismatches — fix at the border, in the mapper.
-      <strong>TS2339</strong> is a rename — the type is right, the caller is stale.
-      <strong>TS70xx</strong> is always a missing base case — add an annotation.
-    </p>
-  </div>
-  <div class="callout" style="border-left-color:var(--bad)">
-    <span class="eyebrow">Heads up</span>
-    <p style="margin:.2rem 0 0">
-      The two ESLint rows are <strong>not enabled in this repo</strong>.
-      <code>eslint.config.js</code> uses <code>typescript.configs.recommended</code>, not
-      <code>recommendedTypeChecked</code>, so those warnings come from your editor only —
-      <code>bun run lint</code> and CI will never see them. Same shape as Blooper 33:
-      code outside the tooling's reach rots silently.
-    </p>
-  </div>
-</section>
 
-<!-- ============ quiz ============ -->
-<section id="quiz">
-  <span class="eyebrow">Check yourself</span>
-  <h2>Six questions · score: <span id="score">0 / 0</span></h2>
+    <script>
+      'use strict';
 
-  <div class="quiz" data-answer="1">
-    <p class="q">You have 40 tasks and want each one's events. What's the query count?</p>
-    <div class="opts">
-      <button class="opt">40 — one per task</button>
-      <button class="opt">2 — one for tasks, one <code>inArray</code> for all events</button>
-      <button class="opt">1 — SQLite can return nested arrays</button>
-    </div>
-    <p class="explain" hidden>Two. The pile comes back mixed and a <code>Map</code> sorts it into buckets in JavaScript. And guard the empty case: <code>IN ()</code> is invalid SQL.</p>
-  </div>
+      // ═══════════════════════════════════════════════════════════════
+      // DATA
+      // ═══════════════════════════════════════════════════════════════
 
-  <div class="quiz" data-answer="2">
-    <p class="q"><code>row.completedAt</code> is <code>string | null</code>. Your type says <code>completedAt?: string</code>. What do you write?</p>
-    <div class="opts">
-      <button class="opt"><code>completedAt?: row.completedAt</code></button>
-      <button class="opt"><code>completedAt: row.completedAt as string</code></button>
-      <button class="opt"><code>completedAt: row.completedAt ?? undefined</code></button>
-    </div>
-    <p class="explain" hidden><code>?</code> is grammar for <em>describing</em> a type — it can't appear when you're <em>building</em> an object. And <code>as string</code> lies: the value really can be null. <code>?? undefined</code> converts the DB's "empty" into TypeScript's "missing".</p>
-  </div>
+      const EVENTS = [
+        { id: 'e1', taskId: 'abc', toolName: 'Bash' },
+        { id: 'e2', taskId: 'abc', toolName: 'Edit' },
+        { id: 'e3', taskId: 'def', toolName: 'Read' },
+        { id: 'e4', taskId: 'abc', toolName: 'Grep' },
+        { id: 'e5', taskId: 'def', toolName: 'Write' },
+      ];
 
-  <div class="quiz" data-answer="1">
-    <p class="q">A column is <code>string</code> but only ever holds eight known words. Where does the narrowing belong?</p>
-    <div class="opts">
-      <button class="opt">An <code>as TaskStatus</code> at each of the 20 read sites</button>
-      <button class="opt"><code>$type&lt;TaskStatus&gt;()</code> on the column definition</button>
-      <button class="opt">A <code>CHECK</code> constraint plus a migration</button>
-    </div>
-    <p class="explain" hidden>The claim is true about the <em>column</em>, not about one read of it, so the column definition is its honest home. Twenty <code>as</code> casts is the same claim repeated twenty times. (A CHECK constraint would be real enforcement — but it's a migration, and it's not what this fix needed.)</p>
-  </div>
+      // ═══════════════════════════════════════════════════════════════
+      // CALCULATIONS (pure)
+      // ═══════════════════════════════════════════════════════════════
 
-  <div class="quiz" data-answer="0">
-    <p class="q">You guarded <code>typeof body.sessionId !== 'string'</code>, then spread <code>{...body}</code> into <code>.values()</code>. TypeScript still complains. Why?</p>
-    <div class="opts">
-      <button class="opt">The spread copies <code>body</code>'s general shape, not the narrowed fact</button>
-      <button class="opt">Spreads always erase types</button>
-      <button class="opt">The guard should have used <code>!==  undefined</code></button>
-    </div>
-    <p class="explain" hidden>Narrowing attaches to <em>the reference</em> <code>body.sessionId</code>, not to <code>body</code>. Restate the key — <code>{ ...body, sessionId: body.sessionId }</code> — which re-reads the narrowed value. Don't reach for <code>as string</code>: you already proved it.</p>
-  </div>
+      const esc = (s) =>
+        String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 
-  <div class="quiz" data-answer="2">
-    <p class="q">Why is <code>(row.phase as Phase) ?? 'pre'</code> wrong?</p>
-    <div class="opts">
-      <button class="opt">Parentheses change operator precedence incorrectly</button>
-      <button class="opt"><code>as</code> converts null to a string at runtime</button>
-      <button class="opt">The cast asserts a null-free type, so <code>??</code> looks unreachable — but the column really can be null</button>
-    </div>
-    <p class="explain" hidden>The cast made a true statement look false. <code>as</code> runs no code, so at runtime the null still arrives — the guard was doing necessary work while the linter called it dead. Handle reality first, then narrow.</p>
-  </div>
+      /** Group events into per-task buckets — the Map that concept 2 describes. */
+      const bucketByTask = (events) =>
+        events.reduce((map, e) => {
+          (map[e.taskId] ||= []).push(e.toolName);
+          return map;
+        }, {});
 
-  <div class="quiz" data-answer="1">
-    <p class="q"><code>parentId: text().references(() => tasksTable.id)</code> made the whole API <code>any</code>. Why?</p>
-    <div class="opts">
-      <button class="opt">Self-referencing foreign keys aren't supported in SQLite</button>
-      <button class="opt">Inferring <code>tasksTable</code> requires already knowing <code>tasksTable</code> — circular, so TypeScript gives up</button>
-      <button class="opt">The arrow function is evaluated before the table exists</button>
-    </div>
-    <p class="explain" hidden>A recursive definition needs a base case. <code>(): AnySQLiteColumn =&gt;</code> supplies one so inference has somewhere to start. Runtime is unchanged — self-referencing FKs are exactly how you store a tree in a flat table.</p>
-  </div>
-</section>
+      const roundTrips = (n) => ({ loop: n + 1, inArray: 2 });
 
-<footer>
-  Built from <code>docs/FOR_ETHAN.md</code> §&nbsp;<em>Attaching Events to Tasks</em> (2026-08-21).
-  Open this file directly in a browser — no build step, no dependencies.
-</footer>
+      // ═══════════════════════════════════════════════════════════════
+      // ACTIONS — one setup function per demo
+      // ═══════════════════════════════════════════════════════════════
 
-</main>
-</div>
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-<script>
-'use strict';
+      /** Wire a group of .pill buttons so exactly one is `.on`, calling cb(value). */
+      function pillGroup(attr, cb) {
+        const btns = $$(`[data-${attr}]`);
+        btns.forEach((b) =>
+          b.addEventListener('click', () => {
+            btns.forEach((x) => x.classList.toggle('on', x === b));
+            cb(b.dataset[attr], b);
+          }),
+        );
+        return btns;
+      }
 
-// ═══════════════════════════════════════════════════════════════
-// DATA
-// ═══════════════════════════════════════════════════════════════
+      // ── 1 · the list isn't stored ─────────────────────────────────
+      function demoOne() {
+        const rows = $('#c1rows');
+        const out = $('#c1out');
+        const render = (filter) => {
+          rows.innerHTML = EVENTS.map(
+            (e) =>
+              `<div class="dbrow ${!filter || e.taskId === filter ? 'match' : ''}">` +
+              `id: ${e.id} &nbsp; task_id: <b>${e.taskId}</b> &nbsp; tool_name: ${e.toolName}</div>`,
+          ).join('');
+          const kept = filter ? EVENTS.filter((e) => e.taskId === filter) : EVENTS;
+          out.textContent =
+            JSON.stringify(bucketByTask(kept), null, 2) +
+            `\n\n// ${kept.length} rows → ${Object.keys(bucketByTask(kept)).length} list(s),\n// built here, not fetched.`;
+        };
+        pillGroup('task', render);
+        render('abc');
+        $('[data-task="abc"]').classList.add('on');
+      }
 
-const EVENTS = [
-  { id: 'e1', taskId: 'abc', toolName: 'Bash' },
-  { id: 'e2', taskId: 'abc', toolName: 'Edit' },
-  { id: 'e3', taskId: 'def', toolName: 'Read' },
-  { id: 'e4', taskId: 'abc', toolName: 'Grep' },
-  { id: 'e5', taskId: 'def', toolName: 'Write' },
-];
+      // ── 2 · N+1 ───────────────────────────────────────────────────
+      function demoTwo() {
+        const range = $('#c2range');
+        const update = () => {
+          const n = +range.value;
+          const { loop } = roundTrips(n);
+          $('#c2count').textContent = `${n} task${n === 1 ? '' : 's'}`;
+          $('#c2n1').textContent = `${loop} round trips`;
+          $('#c2bar1').style.width = loop * 4 + 'px';
+          $('#c2bar2').style.width = '8px';
+        };
+        range.addEventListener('input', update);
+        update();
+      }
 
-// ═══════════════════════════════════════════════════════════════
-// CALCULATIONS (pure)
-// ═══════════════════════════════════════════════════════════════
+      // ── 3 · missing vs empty ──────────────────────────────────────
+      function demoThree() {
+        const CASES = {
+          opt: [
+            ['completedAt: undefined', true, 'undefined satisfies an optional key'],
+            ['(key omitted entirely)', true, 'that is exactly what ? permits'],
+            [
+              'completedAt: row.completedAt',
+              false,
+              'row gives null; the key accepts undefined. Different nothings.',
+            ],
+            [
+              'completedAt: row.completedAt ?? undefined',
+              true,
+              'the translation: DB-nothing → TS-nothing',
+            ],
+          ],
+          null: [
+            ['completedAt: null', true, 'null is a legal value here'],
+            ['(key omitted entirely)', false, 'the key is required — it must be present'],
+            ['completedAt: row.completedAt', true, 'shapes match exactly'],
+            ['completedAt: undefined', false, 'undefined is not null'],
+          ],
+        };
+        // What each declaration actually EXPANDS to — the part `?` hides.
+        const SHAPES = {
+          opt: [
+            'completedAt?: <span class="t">string</span>',
+            '<span class="t">string</span> | <span class="k">undefined</span>',
+          ],
+          null: [
+            'completedAt: <span class="t">string</span> | <span class="k">null</span>',
+            '<span class="t">string</span> | <span class="k">null</span>',
+          ],
+        };
 
-const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-
-/** Group events into per-task buckets — the Map that concept 2 describes. */
-const bucketByTask = (events) =>
-  events.reduce((map, e) => {
-    (map[e.taskId] ||= []).push(e.toolName);
-    return map;
-  }, {});
-
-const roundTrips = (n) => ({ loop: n + 1, inArray: 2 });
-
-// ═══════════════════════════════════════════════════════════════
-// ACTIONS — one setup function per demo
-// ═══════════════════════════════════════════════════════════════
-
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-
-/** Wire a group of .pill buttons so exactly one is `.on`, calling cb(value). */
-function pillGroup(attr, cb) {
-  const btns = $$(`[data-${attr}]`);
-  btns.forEach((b) =>
-    b.addEventListener('click', () => {
-      btns.forEach((x) => x.classList.toggle('on', x === b));
-      cb(b.dataset[attr], b);
-    })
-  );
-  return btns;
-}
-
-// ── 1 · the list isn't stored ─────────────────────────────────
-function demoOne() {
-  const rows = $('#c1rows');
-  const out = $('#c1out');
-  const render = (filter) => {
-    rows.innerHTML = EVENTS.map(
-      (e) =>
-        `<div class="dbrow ${!filter || e.taskId === filter ? 'match' : ''}">` +
-        `id: ${e.id} &nbsp; task_id: <b>${e.taskId}</b> &nbsp; tool_name: ${e.toolName}</div>`
-    ).join('');
-    const kept = filter ? EVENTS.filter((e) => e.taskId === filter) : EVENTS;
-    out.textContent = JSON.stringify(bucketByTask(kept), null, 2) +
-      `\n\n// ${kept.length} rows → ${Object.keys(bucketByTask(kept)).length} list(s),\n// built here, not fetched.`;
-  };
-  pillGroup('task', render);
-  render('abc');
-  $('[data-task="abc"]').classList.add('on');
-}
-
-// ── 2 · N+1 ───────────────────────────────────────────────────
-function demoTwo() {
-  const range = $('#c2range');
-  const update = () => {
-    const n = +range.value;
-    const { loop } = roundTrips(n);
-    $('#c2count').textContent = `${n} task${n === 1 ? '' : 's'}`;
-    $('#c2n1').textContent = `${loop} round trips`;
-    $('#c2bar1').style.width = loop * 4 + 'px';
-    $('#c2bar2').style.width = '8px';
-  };
-  range.addEventListener('input', update);
-  update();
-}
-
-// ── 3 · missing vs empty ──────────────────────────────────────
-function demoThree() {
-  const CASES = {
-    opt: [
-      ['completedAt: undefined', true, 'undefined satisfies an optional key'],
-      ['(key omitted entirely)', true, 'that is exactly what ? permits'],
-      ['completedAt: row.completedAt', false, 'row gives null; the key accepts undefined. Different nothings.'],
-      ['completedAt: row.completedAt ?? undefined', true, 'the translation: DB-nothing → TS-nothing'],
-    ],
-    null: [
-      ['completedAt: null', true, 'null is a legal value here'],
-      ['(key omitted entirely)', false, 'the key is required — it must be present'],
-      ['completedAt: row.completedAt', true, 'shapes match exactly'],
-      ['completedAt: undefined', false, 'undefined is not null'],
-    ],
-  };
-  // What each declaration actually EXPANDS to — the part `?` hides.
-  const SHAPES = {
-    opt:  ['completedAt?: <span class="t">string</span>',
-           '<span class="t">string</span> | <span class="k">undefined</span>'],
-    null: ['completedAt: <span class="t">string</span> | <span class="k">null</span>',
-           '<span class="t">string</span> | <span class="k">null</span>'],
-  };
-
-  const render = (mode) => {
-    const [written, expands] = SHAPES[mode];
-    const agrees = mode === 'null';
-    $('#c3out').innerHTML =
-      `<pre style="margin:0 0 .9rem">you wrote:        ${written}
+        const render = (mode) => {
+          const [written, expands] = SHAPES[mode];
+          const agrees = mode === 'null';
+          $('#c3out').innerHTML =
+            `<pre style="margin:0 0 .9rem">you wrote:        ${written}
 it expands to:    ${expands}
 the DB hands you: <span class="t">string</span> | <span class="k">null</span>
-${agrees
-  ? '<span class="ok">                  ↑ same kind of nothing — assigns straight across</span>'
-  : '<span class="err">                  ↑ two different kinds of nothing — TypeScript will not convert for you</span>'}</pre>` +
-      '<table><tr><th>you write</th><th></th><th>why</th></tr>' +
-      CASES[mode]
-        .map(
-          ([code, ok, why]) =>
-            `<tr><td class="mono">${esc(code)}</td>` +
-            `<td><span class="tag ${ok ? 'good' : 'bad'}">${ok ? 'compiles' : 'error'}</span></td>` +
-            `<td style="color:var(--dim)">${why}</td></tr>`
-        )
-        .join('') +
-      '</table>';
-  };
-  pillGroup('c3', render);
-  render('opt');
+${
+  agrees
+    ? '<span class="ok">                  ↑ same kind of nothing — assigns straight across</span>'
+    : '<span class="err">                  ↑ two different kinds of nothing — TypeScript will not convert for you</span>'
+}</pre>` +
+            '<table><tr><th>you write</th><th></th><th>why</th></tr>' +
+            CASES[mode]
+              .map(
+                ([code, ok, why]) =>
+                  `<tr><td class="mono">${esc(code)}</td>` +
+                  `<td><span class="tag ${ok ? 'good' : 'bad'}">${ok ? 'compiles' : 'error'}</span></td>` +
+                  `<td style="color:var(--dim)">${why}</td></tr>`,
+              )
+              .join('') +
+            '</table>';
+        };
+        pillGroup('c3', render);
+        render('opt');
 
-  // Which form to use when the TARGET property is optional. Both verified against tsc.
-  const renderForms = (flag) => {
-    const exact = flag === 'on';
-    $('#c3fout').innerHTML = `<pre style="margin:0"><span class="c">// A — always write the key, sometimes holding undefined</span>
+        // Which form to use when the TARGET property is optional. Both verified against tsc.
+        const renderForms = (flag) => {
+          const exact = flag === 'on';
+          $('#c3fout').innerHTML =
+            `<pre style="margin:0"><span class="c">// A — always write the key, sometimes holding undefined</span>
 completedAt: row.completedAt ?? <span class="k">undefined</span>
-${exact
-  ? '<span class="err">✕ TS2375: Type \'{ completedAt: string | undefined }\' is not assignable\n         to type \'Task\' with \'exactOptionalPropertyTypes: true\'.</span>'
-  : '<span class="ok">✓ compiles</span>'}
+${
+  exact
+    ? "<span class=\"err\">✕ TS2375: Type '{ completedAt: string | undefined }' is not assignable\n         to type 'Task' with 'exactOptionalPropertyTypes: true'.</span>"
+    : '<span class="ok">✓ compiles</span>'
+}
 
 <span class="c">// B — omit the key entirely when there is nothing</span>
 ...(row.completedAt !== <span class="k">null</span> ? { completedAt: row.completedAt } : {})
 <span class="ok">✓ compiles</span></pre>
-<p style="margin:.6rem 0 0;color:var(--muted)">${exact
-  ? 'With the flag on, <code>?</code> means <em>the key may be absent</em> — full stop. Assigning <code>undefined</code> is no longer the same as omitting, so only form B survives.'
-  : 'This repo\'s <code>tsconfig.app.json</code> has <code>strict: true</code> and <strong>not</strong> this flag, so both compile and A is the shorter one.'}</p>`;
-  };
-  pillGroup('c3f', renderForms);
-  renderForms('off');
-}
+<p style="margin:.6rem 0 0;color:var(--muted)">${
+              exact
+                ? 'With the flag on, <code>?</code> means <em>the key may be absent</em> — full stop. Assigning <code>undefined</code> is no longer the same as omitting, so only form B survives.'
+                : "This repo's <code>tsconfig.app.json</code> has <code>strict: true</code> and <strong>not</strong> this flag, so both compile and A is the shorter one."
+            }</p>`;
+        };
+        pillGroup('c3f', renderForms);
+        renderForms('off');
+      }
 
-// ── 4 · which layer ───────────────────────────────────────────
-function demoFour() {
-  const VERDICTS = {
-    schema: ['bad', 'Change the database',
-      'Add .notNull() → needs a migration, real data risk, and the hook writer now crashes on any payload missing that field. The database was not lying.'],
-    mapper: ['good', 'Change the converter',
-      'Three characters: ?? \'pre\'. No migration, no risk, no downstream churn. Both ends stay honest and the converter absorbs the difference.'],
-    frontend: ['bad', 'Change the frontend type',
-      'Make HookEvent.phase nullable → null checks spread into every component that renders a phase. You pushed the problem downhill.'],
-  };
-  $$('[data-c4]').forEach((el) =>
-    el.addEventListener('click', () => {
-      $$('[data-c4]').forEach((x) => x.classList.toggle('sel', x === el));
-      const [tone, title, body] = VERDICTS[el.dataset.c4];
-      $('#c4out').innerHTML =
-        `<span class="tag ${tone}">${tone === 'good' ? 'cheap + correct' : 'expensive'}</span> ` +
-        `<strong>${title}</strong><p style="margin:.4rem 0 0;color:var(--muted)">${body}</p>`;
-    })
-  );
-}
+      // ── 4 · which layer ───────────────────────────────────────────
+      function demoFour() {
+        const VERDICTS = {
+          schema: [
+            'bad',
+            'Change the database',
+            'Add .notNull() → needs a migration, real data risk, and the hook writer now crashes on any payload missing that field. The database was not lying.',
+          ],
+          mapper: [
+            'good',
+            'Change the converter',
+            "Three characters: ?? 'pre'. No migration, no risk, no downstream churn. Both ends stay honest and the converter absorbs the difference.",
+          ],
+          frontend: [
+            'bad',
+            'Change the frontend type',
+            'Make HookEvent.phase nullable → null checks spread into every component that renders a phase. You pushed the problem downhill.',
+          ],
+        };
+        $$('[data-c4]').forEach((el) =>
+          el.addEventListener('click', () => {
+            $$('[data-c4]').forEach((x) => x.classList.toggle('sel', x === el));
+            const [tone, title, body] = VERDICTS[el.dataset.c4];
+            $('#c4out').innerHTML =
+              `<span class="tag ${tone}">${tone === 'good' ? 'cheap + correct' : 'expensive'}</span> ` +
+              `<strong>${title}</strong><p style="margin:.4rem 0 0;color:var(--muted)">${body}</p>`;
+          }),
+        );
+      }
 
-// ── 5 · $inferSelect ──────────────────────────────────────────
-function demoFive() {
-  const input = $('#c5name');
-  const render = () => {
-    const name = input.value.trim() || 'toolName';
-    const drifted = name !== 'toolName';
-    $('#c5infer').innerHTML =
-      `{ id: string; taskId: string;\n  <span class="hl">${esc(name)}</span>: string }\n\n` +
-      (drifted
-        ? `<span class="err">✕ toHookEvent: Property 'toolName'\n  does not exist on type…</span>\n<span class="c">// errors at the exact line</span>`
-        : `<span class="ok">✓ mapper compiles</span>`);
-    $('#c5hand').innerHTML =
-      `<span class="k">type</span> Row = { id: string; taskId: string;\n  toolName: string }\n\n` +
-      (drifted
-        ? `<span class="ok">✓ still compiles</span>\n<span class="err">…and is now silently wrong.</span>\n<span class="c">// runtime: undefined</span>`
-        : `<span class="ok">✓ compiles</span>`);
-  };
-  input.addEventListener('input', render);
-  render();
+      // ── 5 · $inferSelect ──────────────────────────────────────────
+      function demoFive() {
+        const input = $('#c5name');
+        const render = () => {
+          const name = input.value.trim() || 'toolName';
+          const drifted = name !== 'toolName';
+          $('#c5infer').innerHTML =
+            `{ id: string; taskId: string;\n  <span class="hl">${esc(name)}</span>: string }\n\n` +
+            (drifted
+              ? `<span class="err">✕ toHookEvent: Property 'toolName'\n  does not exist on type…</span>\n<span class="c">// errors at the exact line</span>`
+              : `<span class="ok">✓ mapper compiles</span>`);
+          $('#c5hand').innerHTML =
+            `<span class="k">type</span> Row = { id: string; taskId: string;\n  toolName: string }\n\n` +
+            (drifted
+              ? `<span class="ok">✓ still compiles</span>\n<span class="err">…and is now silently wrong.</span>\n<span class="c">// runtime: undefined</span>`
+              : `<span class="ok">✓ compiles</span>`);
+        };
+        input.addEventListener('input', render);
+        render();
 
-  // Three things a hand-written row type must get right. All probed against tsc.
-  const DETAILS = {
-    cols: [`id: <span class="t">string</span>              <span class="c">primaryKey  → not null</span>
+        // Three things a hand-written row type must get right. All probed against tsc.
+        const DETAILS = {
+          cols: [
+            `id: <span class="t">string</span>              <span class="c">primaryKey  → not null</span>
 sessionId: <span class="t">string</span>       <span class="c">.notNull()  → not null</span>
 name: <span class="t">string</span>            <span class="c">.notNull()  → not null</span>
 status: <span class="t">TaskStatus</span>      <span class="c">.notNull()  → not null</span>
 <span class="err">…the other 16 columns are all &#96;| null&#96;.</span>`,
-      'Four out of twenty. Get one wrong and you have either a phantom null check or a real crash.'],
-    type: [`status: text().<span class="hl">$type&lt;TaskStatus&gt;()</span>.notNull().default(<span class="s">'unassigned'</span>)
+            'Four out of twenty. Get one wrong and you have either a phantom null check or a real crash.',
+          ],
+          type: [
+            `status: text().<span class="hl">$type&lt;TaskStatus&gt;()</span>.notNull().default(<span class="s">'unassigned'</span>)
 
 <span class="t">Row['status']</span> is <span class="t">TaskStatus</span>, not <span class="t">string</span>.
 <span class="ok">✓ Row['status'] = 'unassigned'</span>
 <span class="err">✕ Row['status'] = 'banana'   TS2322</span>`,
-      'A hand-written copy would say <code>string</code> and quietly widen every read of it.'],
-    trap: [`progressPercentage: integer().default(<span class="s">0</span>),   <span class="c">← looks non-null</span>
+            'A hand-written copy would say <code>string</code> and quietly widen every read of it.',
+          ],
+          trap: [
+            `progressPercentage: integer().default(<span class="s">0</span>),   <span class="c">← looks non-null</span>
 
 <span class="ok">const a: Row['progressPercentage'] = null;   ✓ compiles — it IS nullable</span>`,
-      '<code>.default(0)</code> shapes the <strong>insert</strong> type (you may omit it), not the <strong>select</strong> type. Rows written before that default existed still hold NULL. Anyone hand-writing this would reasonably put <code>number</code> — and be silently wrong. That is exactly the null Concept 10 catches with <code>?? 0</code>.'],
-  };
-  const renderDetail = (key) => {
-    const [code, note] = DETAILS[key];
-    $('#c5dout').innerHTML =
-      `<pre style="margin:0">${code}</pre><p style="margin:.6rem 0 0;color:var(--muted)">${note}</p>`;
-  };
-  pillGroup('c5d', renderDetail);
-  renderDetail('cols');
-}
+            '<code>.default(0)</code> shapes the <strong>insert</strong> type (you may omit it), not the <strong>select</strong> type. Rows written before that default existed still hold NULL. Anyone hand-writing this would reasonably put <code>number</code> — and be silently wrong. That is exactly the null Concept 10 catches with <code>?? 0</code>.',
+          ],
+        };
+        const renderDetail = (key) => {
+          const [code, note] = DETAILS[key];
+          $('#c5dout').innerHTML =
+            `<pre style="margin:0">${code}</pre><p style="margin:.6rem 0 0;color:var(--muted)">${note}</p>`;
+        };
+        pillGroup('c5d', renderDetail);
+        renderDetail('cols');
+      }
 
-// ── 6 · as ────────────────────────────────────────────────────
-function demoSix() {
-  const render = (val) => {
-    const stored = val === '' ? null : val;
-    const runtime = stored ?? 'pre';
-    const legal = runtime === 'pre' || runtime === 'post';
-    $('#c6out').innerHTML =
-      `<pre style="margin:0">db column   → ${stored === null ? '<span class="k">NULL</span>' : `<span class="s">'${esc(stored)}'</span>`}
+      // ── 6 · as ────────────────────────────────────────────────────
+      function demoSix() {
+        const render = (val) => {
+          const stored = val === '' ? null : val;
+          const runtime = stored ?? 'pre';
+          const legal = runtime === 'pre' || runtime === 'post';
+          $('#c6out').innerHTML =
+            `<pre style="margin:0">db column   → ${stored === null ? '<span class="k">NULL</span>' : `<span class="s">'${esc(stored)}'</span>`}
 ?? 'pre'    → <span class="s">'${esc(runtime)}'</span>
 as Phase    → <span class="c">(no code runs — erased at compile time)</span>
 TypeScript believes: <span class="t">'pre' | 'post'</span>
 actually holds:      <span class="${legal ? 'ok' : 'err'}">'${esc(runtime)}'</span></pre>` +
-      (legal
-        ? `<p style="margin:.5rem 0 0"><span class="tag good">honest</span> The claim is true, so nothing downstream is surprised.</p>`
-        : `<p style="margin:.5rem 0 0"><span class="tag bad">waved through</span> <code>as</code> checked nothing. A component doing <code>phase === 'pre' ? … : 'post'</code> now renders <em>post</em> for a banana — and TypeScript reports no problem anywhere.</p>`);
-  };
-  pillGroup('c6', render);
-  render('pre');
-  $('[data-c6="pre"]').classList.add('on');
-}
+            (legal
+              ? `<p style="margin:.5rem 0 0"><span class="tag good">honest</span> The claim is true, so nothing downstream is surprised.</p>`
+              : `<p style="margin:.5rem 0 0"><span class="tag bad">waved through</span> <code>as</code> checked nothing. A component doing <code>phase === 'pre' ? … : 'post'</code> now renders <em>post</em> for a banana — and TypeScript reports no problem anywhere.</p>`);
+        };
+        pillGroup('c6', render);
+        render('pre');
+        $('[data-c6="pre"]').classList.add('on');
+      }
 
-// ── 6b · guards over casts ───────────────────────────
-// The three shapes, all checked against tsc.
-function demoSixB() {
-  const SHAPES = {
-    now: ['bad', `<span class="k">if</span> (status &amp;&amp; !VALID_STATUSES.includes(status)) {
+      // ── 6b · guards over casts ───────────────────────────
+      // The three shapes, all checked against tsc.
+      function demoSixB() {
+        const SHAPES = {
+          now: [
+            'bad',
+            `<span class="k">if</span> (status &amp;&amp; !VALID_STATUSES.includes(status)) {
   <span class="k">return</span> c.json({ error: <span class="s">'…'</span> }, 400);        <span class="c">// the check really happens</span>
 }
 …
 <span class="c">// Safe: &#96;status&#96; was validated against VALID_STATUSES above.</span>
 <span class="k">if</span> (status) conditions.push(eq(tasksTable.status, status <span class="k">as</span> <span class="t">TaskStatus</span>));
 <span class="err">                                                        ↑ and a comment explaining it</span>`,
-      'The check ran. TypeScript learned nothing from it, so you pay twice — once with a cast, once with a comment that has to stay true by hand.'],
+            'The check ran. TypeScript learned nothing from it, so you pay twice — once with a cast, once with a comment that has to stay true by hand.',
+          ],
 
-    guard: ['good', `<span class="k">const</span> isTaskStatus = (v: <span class="t">unknown</span>): <span class="k">v is</span> <span class="t">TaskStatus</span> =&gt;
+          guard: [
+            'good',
+            `<span class="k">const</span> isTaskStatus = (v: <span class="t">unknown</span>): <span class="k">v is</span> <span class="t">TaskStatus</span> =&gt;
   (VALID_STATUSES <span class="k">as readonly unknown</span>[]).includes(v);
 
 <span class="k">if</span> (status === <span class="k">undefined</span>) { <span class="c">/* no filter */</span> }
 <span class="k">else if</span> (!isTaskStatus(status)) <span class="k">return</span> c.json({ error: <span class="s">'…'</span> }, 400);
 <span class="k">else</span> conditions.push(eq(tasksTable.status, status));
 <span class="ok">                                          ↑ no cast. no comment. same runtime work.</span>`,
-      'The guard is the same <code>includes()</code> call — it just announces its result in the type system, so the proof survives to where you need it.'],
+            'The guard is the same <code>includes()</code> call — it just announces its result in the type system, so the proof survives to where you need it.',
+          ],
 
-    gotcha: ['bad', `<span class="k">if</span> (status <span class="hl">&amp;&amp;</span> !isTaskStatus(status)) <span class="k">return</span> …;
+          gotcha: [
+            'bad',
+            `<span class="k">if</span> (status <span class="hl">&amp;&amp;</span> !isTaskStatus(status)) <span class="k">return</span> …;
 <span class="k">const</span> out: <span class="t">TaskStatus</span> | <span class="k">undefined</span> = status;
 <span class="err">      ✕ TS2322: 'string | undefined' is not assignable to 'TaskStatus | undefined'</span>
 
 <span class="k">if</span> (status <span class="hl">!== undefined</span> &amp;&amp; !isTaskStatus(status)) <span class="k">return</span> …;
 <span class="k">const</span> out: <span class="t">TaskStatus</span> | <span class="k">undefined</span> = status;
 <span class="ok">      ✓ narrows</span>`,
-      'Both were verified against tsc. The difference is <strong>truthiness</strong>: <code>status &amp;&amp;</code> treats <code>\'\'</code> as falsy, so the empty string survives into the fall-through path — and <code>\'\'</code> is a string that is not a TaskStatus, which widens everything back to <code>string | undefined</code>. <code>!== undefined</code> has no such hole. <strong>Same rule as Concept 03 form B: when you test for presence, test for presence.</strong>'],
-  };
+            "Both were verified against tsc. The difference is <strong>truthiness</strong>: <code>status &amp;&amp;</code> treats <code>''</code> as falsy, so the empty string survives into the fall-through path — and <code>''</code> is a string that is not a TaskStatus, which widens everything back to <code>string | undefined</code>. <code>!== undefined</code> has no such hole. <strong>Same rule as Concept 03 form B: when you test for presence, test for presence.</strong>",
+          ],
+        };
 
-  const render = (key) => {
-    const [tone, code, note] = SHAPES[key];
-    $('#c6bout').innerHTML =
-      `<span class="tag ${tone}">${tone === 'good' ? 'no cast needed' : 'cast required'}</span>` +
-      `<pre style="margin:.5rem 0 0">${code}</pre>` +
-      `<p style="margin:.6rem 0 0;color:var(--muted)">${note}</p>`;
-  };
-  pillGroup('c6b', render);
-  render('now');
-}
+        const render = (key) => {
+          const [tone, code, note] = SHAPES[key];
+          $('#c6bout').innerHTML =
+            `<span class="tag ${tone}">${tone === 'good' ? 'no cast needed' : 'cast required'}</span>` +
+            `<pre style="margin:.5rem 0 0">${code}</pre>` +
+            `<p style="margin:.6rem 0 0;color:var(--muted)">${note}</p>`;
+        };
+        pillGroup('c6b', render);
+        render('now');
+      }
 
-// ── 7 · $type ─────────────────────────────────────────────────
-function demoSeven() {
-  const render = (mode) => {
-    const on = mode === 'on';
-    $('#c7out').innerHTML = `<pre style="margin:0">status: text()${on ? '<span class="hl">.$type&lt;TaskStatus&gt;()</span>' : ''}.notNull().default(<span class="s">'unassigned'</span>)
+      // ── 7 · $type ─────────────────────────────────────────────────
+      function demoSeven() {
+        const render = (mode) => {
+          const on = mode === 'on';
+          $('#c7out').innerHTML =
+            `<pre style="margin:0">status: text()${on ? '<span class="hl">.$type&lt;TaskStatus&gt;()</span>' : ''}.notNull().default(<span class="s">'unassigned'</span>)
 
 Drizzle reports:  <span class="t">${on ? 'TaskStatus' : 'string'}</span>
 SQL emitted:      <span class="c">status TEXT NOT NULL DEFAULT 'unassigned'</span>  <span class="ok">← identical</span>
 migration needed: <span class="ok">no</span>
 runtime check:    <span class="err">none — 'banana' would still be accepted</span></pre>
 <p style="margin:.5rem 0 0;color:var(--muted)">Purely a note to the compiler. <strong>Same SQL, same data, same behaviour.</strong> The only thing that changed is what every query, everywhere, now infers.</p>`;
-  };
-  pillGroup('c7', render);
-  render('off');
+        };
+        pillGroup('c7', render);
+        render('off');
 
-  const renderWrite = (v) => {
-    const legal = ['0', '25', '50', '75', '100'].includes(v);
-    $('#c7wout').innerHTML = legal
-      ? `<span class="tag good">fine</span> Stored ${v}. The type says <code>0|25|50|75|100</code> and reality agrees.`
-      : `<span class="tag bad">type system now wrong</span> SQLite stored <code>37</code> without complaint. Every read still claims <code>0|25|50|75|100</code>. A <code>switch</code> covering those five cases would be "exhaustive" and silently fall through. <strong>$type enforces nothing — the narrowing has to be true.</strong>`;
-  };
-  $$('[data-c7w]').forEach((b) => b.addEventListener('click', () => renderWrite(b.dataset.c7w)));
-  renderWrite('50');
-}
+        const renderWrite = (v) => {
+          const legal = ['0', '25', '50', '75', '100'].includes(v);
+          $('#c7wout').innerHTML = legal
+            ? `<span class="tag good">fine</span> Stored ${v}. The type says <code>0|25|50|75|100</code> and reality agrees.`
+            : `<span class="tag bad">type system now wrong</span> SQLite stored <code>37</code> without complaint. Every read still claims <code>0|25|50|75|100</code>. A <code>switch</code> covering those five cases would be "exhaustive" and silently fall through. <strong>$type enforces nothing — the narrowing has to be true.</strong>`;
+        };
+        $$('[data-c7w]').forEach((b) =>
+          b.addEventListener('click', () => renderWrite(b.dataset.c7w)),
+        );
+        renderWrite('50');
+      }
 
-// ── 8 · spread drops the guard ────────────────────────────────
-function demoEight() {
-  const STEPS = [
-    [`<span class="k">const</span> body = <span class="k">await</span> c.req.json();
+      // ── 8 · spread drops the guard ────────────────────────────────
+      function demoEight() {
+        const STEPS = [
+          [
+            `<span class="k">const</span> body = <span class="k">await</span> c.req.json();
 <span class="c">// body: Record&lt;string, unknown&gt;</span>`,
-      'Everything off the wire starts as <code>unknown</code>. Nothing is proven yet.'],
-    [`<span class="k">if</span> (<span class="k">typeof</span> body.sessionId !== <span class="s">'string'</span>) <span class="k">return</span> c.json({ error: <span class="s">'…'</span> }, 400);
+            'Everything off the wire starts as <code>unknown</code>. Nothing is proven yet.',
+          ],
+          [
+            `<span class="k">if</span> (<span class="k">typeof</span> body.sessionId !== <span class="s">'string'</span>) <span class="k">return</span> c.json({ error: <span class="s">'…'</span> }, 400);
 <span class="c">// ✓ TypeScript now knows: body.sessionId is string</span>`,
-      'The guard narrows <strong>the reference <code>body.sessionId</code></strong> — not <code>body</code> itself. Remember that distinction; it is the whole bug.'],
-    [`.values({ ...body, id: crypto.randomUUID() })
+            'The guard narrows <strong>the reference <code>body.sessionId</code></strong> — not <code>body</code> itself. Remember that distinction; it is the whole bug.',
+          ],
+          [
+            `.values({ ...body, id: crypto.randomUUID() })
 <span class="err">        ↑ Type 'unknown' is not assignable to type 'string'</span>`,
-      'The spread copies <code>body</code>\'s <em>general</em> shape. The narrowed fact lived on the reference you no longer mention, so it is gone.'],
-  ];
-  const FIX = [`.values({ ...body, id: crypto.randomUUID(),
+            "The spread copies <code>body</code>'s <em>general</em> shape. The narrowed fact lived on the reference you no longer mention, so it is gone.",
+          ],
+        ];
+        const FIX = [
+          `.values({ ...body, id: crypto.randomUUID(),
          <span class="hl">sessionId: body.sessionId</span>, <span class="hl">type: body.type</span> })
 <span class="ok">        ✓ compiles</span>`,
-    'Naming the property again <strong>re-reads the narrowed value</strong>. <code>as string</code> would also silence it — but it asserts something you already proved, and the linter is right to flag that as pointless.'];
+          'Naming the property again <strong>re-reads the narrowed value</strong>. <code>as string</code> would also silence it — but it asserts something you already proved, and the linter is right to flag that as pointless.',
+        ];
 
-  let i = 0, fixed = false;
-  const render = () => {
-    const [code, note] = fixed ? FIX : STEPS[i];
-    $('#c8code').innerHTML = code;
-    $('#c8note').innerHTML = note;
-    $('#c8prev').disabled = fixed || i === 0;
-    $('#c8next').disabled = fixed || i === STEPS.length - 1;
-    $('#c8fix').classList.toggle('on', fixed);
-  };
-  $('#c8next').addEventListener('click', () => { i = Math.min(i + 1, STEPS.length - 1); render(); });
-  $('#c8prev').addEventListener('click', () => { i = Math.max(i - 1, 0); render(); });
-  $('#c8fix').addEventListener('click', () => { fixed = !fixed; if (!fixed) i = STEPS.length - 1; render(); });
-  render();
-}
+        let i = 0,
+          fixed = false;
+        const render = () => {
+          const [code, note] = fixed ? FIX : STEPS[i];
+          $('#c8code').innerHTML = code;
+          $('#c8note').innerHTML = note;
+          $('#c8prev').disabled = fixed || i === 0;
+          $('#c8next').disabled = fixed || i === STEPS.length - 1;
+          $('#c8fix').classList.toggle('on', fixed);
+        };
+        $('#c8next').addEventListener('click', () => {
+          i = Math.min(i + 1, STEPS.length - 1);
+          render();
+        });
+        $('#c8prev').addEventListener('click', () => {
+          i = Math.max(i - 1, 0);
+          render();
+        });
+        $('#c8fix').addEventListener('click', () => {
+          fixed = !fixed;
+          if (!fixed) i = STEPS.length - 1;
+          render();
+        });
+        render();
+      }
 
-// ── 9 · cast last ─────────────────────────────────────────────
-function demoNine() {
-  const TRACE = {
-    first: ['bad', `row.phase              <span class="t">string | null</span>
+      // ── 9 · cast last ─────────────────────────────────────────────
+      function demoNine() {
+        const TRACE = {
+          first: [
+            'bad',
+            `row.phase              <span class="t">string | null</span>
   ↓ <span class="k">as</span> Phase           <span class="t">'pre' | 'post'</span>   <span class="c">← null just vanished from the type</span>
   ↓ ?? <span class="s">'pre'</span>            <span class="err">warning: left side can never be nullish</span>
 
-<span class="err">Runtime: the column really IS null → 'pre' fallback was doing real work.</span>`],
-    last: ['good', `row.phase              <span class="t">string | null</span>
+<span class="err">Runtime: the column really IS null → 'pre' fallback was doing real work.</span>`,
+          ],
+          last: [
+            'good',
+            `row.phase              <span class="t">string | null</span>
   ↓ ?? <span class="s">'pre'</span>            <span class="t">string</span>          <span class="c">← null handled while TS still knows it exists</span>
   ↓ <span class="k">as</span> Phase           <span class="t">'pre' | 'post'</span>
 
-<span class="ok">Guard kept. Cast narrows a value that is already safe.</span>`],
-  };
-  const render = (mode) => {
-    const [tone, trace] = TRACE[mode];
-    $('#c9out').innerHTML =
-      `<span class="tag ${tone}">${tone === 'good' ? 'correct' : 'cast made a true statement look false'}</span>` +
-      `<pre style="margin:.5rem 0 0">${trace}</pre>`;
-  };
-  pillGroup('c9', render);
-  render('first');
-  $('[data-c9="first"]').classList.add('on');
-}
+<span class="ok">Guard kept. Cast narrows a value that is already safe.</span>`,
+          ],
+        };
+        const render = (mode) => {
+          const [tone, trace] = TRACE[mode];
+          $('#c9out').innerHTML =
+            `<span class="tag ${tone}">${tone === 'good' ? 'correct' : 'cast made a true statement look false'}</span>` +
+            `<pre style="margin:.5rem 0 0">${trace}</pre>`;
+        };
+        pillGroup('c9', render);
+        render('first');
+        $('[data-c9="first"]').classList.add('on');
+      }
 
-// ── 10 · the mapper border ────────────────────────────────────
-function demoTen() {
-  const nulled = new Set();
-  const DEFAULTS = { agentType: "'general-purpose'", createdAt: "''", progressPercentage: '0' };
-  const render = () => {
-    const raw = { id: "'t-01'", name: "'Refactor hooks'", agentType: "'code-reviewer'", createdAt: "'2026-08-21'", progressPercentage: '75' };
-    const task = { ...raw };
-    nulled.forEach((k) => { raw[k] = 'null'; task[k] = DEFAULTS[k]; });
-    const fmt = (o, hl) =>
-      '{\n' + Object.entries(o).map(([k, v]) =>
-        `  ${k}: ${hl && nulled.has(k) ? `<span class="hl">${v}</span>` : v},`).join('\n') + '\n}';
-    $('#c10raw').innerHTML = fmt(raw, true);
-    $('#c10task').innerHTML = fmt(task, true);
-    $('#c10note').innerHTML = nulled.size
-      ? `<span class="tag good">${nulled.size} default${nulled.size > 1 ? 's' : ''} applied at the border</span> ` +
-        `Downstream: <code>.localeCompare()</code> in the sort, the <code>Set</code> lookup in the filter, and six other components never learn this row was incomplete.`
-      : `<span class="tag info">clean row</span> The mapper is a no-op here — which is the point. It costs nothing when nothing is missing.`;
-  };
-  $$('[data-c10]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const k = b.dataset.c10;
-      nulled.has(k) ? nulled.delete(k) : nulled.add(k);
-      b.classList.toggle('on', !nulled.has(k));
-      render();
-    })
-  );
-  render();
-}
+      // ── 10 · the mapper border ────────────────────────────────────
+      function demoTen() {
+        const nulled = new Set();
+        const DEFAULTS = {
+          agentType: "'general-purpose'",
+          createdAt: "''",
+          progressPercentage: '0',
+        };
+        const render = () => {
+          const raw = {
+            id: "'t-01'",
+            name: "'Refactor hooks'",
+            agentType: "'code-reviewer'",
+            createdAt: "'2026-08-21'",
+            progressPercentage: '75',
+          };
+          const task = { ...raw };
+          nulled.forEach((k) => {
+            raw[k] = 'null';
+            task[k] = DEFAULTS[k];
+          });
+          const fmt = (o, hl) =>
+            '{\n' +
+            Object.entries(o)
+              .map(
+                ([k, v]) => `  ${k}: ${hl && nulled.has(k) ? `<span class="hl">${v}</span>` : v},`,
+              )
+              .join('\n') +
+            '\n}';
+          $('#c10raw').innerHTML = fmt(raw, true);
+          $('#c10task').innerHTML = fmt(task, true);
+          $('#c10note').innerHTML = nulled.size
+            ? `<span class="tag good">${nulled.size} default${nulled.size > 1 ? 's' : ''} applied at the border</span> ` +
+              `Downstream: <code>.localeCompare()</code> in the sort, the <code>Set</code> lookup in the filter, and six other components never learn this row was incomplete.`
+            : `<span class="tag info">clean row</span> The mapper is a no-op here — which is the point. It costs nothing when nothing is missing.`;
+        };
+        $$('[data-c10]').forEach((b) =>
+          b.addEventListener('click', () => {
+            const k = b.dataset.c10;
+            nulled.has(k) ? nulled.delete(k) : nulled.add(k);
+            b.classList.toggle('on', !nulled.has(k));
+            render();
+          }),
+        );
+        render();
+      }
 
-// ── blooper 33 · circular inference ───────────────────────────
-function demoBlooper() {
-  let annotated = false;
-  const out = $('#b33out');
+      // ── blooper 33 · circular inference ───────────────────────────
+      function demoBlooper() {
+        let annotated = false;
+        const out = $('#b33out');
 
-  const LOOP = [
-    'to type <b>tasksTable</b> → need every column',
-    '  to type <b>parentId</b> → need <b>tasksTable.id</b>',
-    '    to type <b>tasksTable.id</b> → need <b>tasksTable</b>',
-    '      …which is where we started.',
-    '<span class="err">✕ circular reference detected → tasksTable: <b>any</b></span>',
-    '<span class="err">  ↓ every query on it: any</span>',
-    '<span class="err">  ↓ every result: any</span>',
-    '<span class="err">  ↓ src/server.ts error messages: nonsense</span>',
-  ];
-  const FIXED = [
-    'to type <b>tasksTable</b> → need every column',
-    '  to type <b>parentId</b> → annotation says <b>AnySQLiteColumn</b>',
-    '<span class="ok">  ✓ base case supplied — no recursion needed</span>',
-    '<span class="ok">✓ tasksTable: SQLiteTable&lt;{ id: string, parentId: string | null, … }&gt;</span>',
-    '<span class="c">runtime SQL: unchanged</span>',
-  ];
+        const LOOP = [
+          'to type <b>tasksTable</b> → need every column',
+          '  to type <b>parentId</b> → need <b>tasksTable.id</b>',
+          '    to type <b>tasksTable.id</b> → need <b>tasksTable</b>',
+          '      …which is where we started.',
+          '<span class="err">✕ circular reference detected → tasksTable: <b>any</b></span>',
+          '<span class="err">  ↓ every query on it: any</span>',
+          '<span class="err">  ↓ every result: any</span>',
+          '<span class="err">  ↓ src/server.ts error messages: nonsense</span>',
+        ];
+        const FIXED = [
+          'to type <b>tasksTable</b> → need every column',
+          '  to type <b>parentId</b> → annotation says <b>AnySQLiteColumn</b>',
+          '<span class="ok">  ✓ base case supplied — no recursion needed</span>',
+          '<span class="ok">✓ tasksTable: SQLiteTable&lt;{ id: string, parentId: string | null, … }&gt;</span>',
+          '<span class="c">runtime SQL: unchanged</span>',
+        ];
 
-  const run = () => {
-    const lines = annotated ? FIXED : LOOP;
-    out.innerHTML = '';
-    lines.forEach((line, i) =>
-      setTimeout(() => { out.insertAdjacentHTML('beforeend', `<div>${line}</div>`); }, i * 320)
-    );
-  };
-  $('#b33run').addEventListener('click', run);
-  $('#b33fix').addEventListener('click', (e) => {
-    annotated = !annotated;
-    e.currentTarget.classList.toggle('on', annotated);
-    $('#b33mode').textContent = annotated ? '(): AnySQLiteColumn =>' : 'no annotation';
-    run();
-  });
-  run();
-}
+        const run = () => {
+          const lines = annotated ? FIXED : LOOP;
+          out.innerHTML = '';
+          lines.forEach((line, i) =>
+            setTimeout(() => {
+              out.insertAdjacentHTML('beforeend', `<div>${line}</div>`);
+            }, i * 320),
+          );
+        };
+        $('#b33run').addEventListener('click', run);
+        $('#b33fix').addEventListener('click', (e) => {
+          annotated = !annotated;
+          e.currentTarget.classList.toggle('on', annotated);
+          $('#b33mode').textContent = annotated ? '(): AnySQLiteColumn =>' : 'no annotation';
+          run();
+        });
+        run();
+      }
 
-// ── error index ──────────────────────────────────────
-// Every `tsc` row here was produced by an actual reproduction run under --strict.
-const ERRORS = [
-  ['TS2322', "Type 'string | null' is not assignable to type 'string | undefined'.",
-   'c3', '03 · two nothings', "?? undefined — translate the DB's null into TypeScript's undefined"],
-  ['TS1162', 'An object member cannot be declared optional.',
-   'c3', '03 · ? is grammar', "Drop the ?. You're building a value, not describing a type"],
-  ['TS2322', 'Type \'string\' is not assignable to type \'"post" | "pre"\'.',
-   'c6', '06 · as', "(x ?? 'pre') as HookEvent['phase'] — or $type<>() on the column"],
-  ['TS2345', "Argument of type 'string' is not assignable to parameter of type 'TaskStatus'.",
-   'c7', '07 · $type<>()', 'Label the column once: text().$type<TaskStatus>() — not 20 casts'],
-  ['TS2339', "Property 'toolName' does not exist on type '{ id: string; tool: string; }'.",
-   'c5', '05 · $inferSelect', "It's telling the truth: the schema changed. Update the mapper"],
-  ['TS2741', "Property 'sessionId' is missing in type '{ id: string; }'.",
-   'c8', '08 · spread', 'Restate the key: { ...body, sessionId: body.sessionId }'],
-  ['TS2322', "Type 'string | null' is not assignable to type 'string'.",
-   'c10', '10 · mapper', "?? 'general-purpose' at the border, not downstream"],
-  ['TS7022', "'tasksTable' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.",
-   'b33', 'B33 · circular', '(): AnySQLiteColumn => tasksTable.id'],
-  ['TS7024', "Function implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.",
-   'b33', 'B33 · circular', 'Same annotation — TS7022 and TS7024 fire together'],
-  ['eslint', '@typescript-eslint/no-unnecessary-condition',
-   'c9', '09 · cast last', 'Move the cast after the ??, not before it'],
-  ['eslint', '@typescript-eslint/no-unnecessary-type-assertion',
-   'c8', '08 · spread', "Restate the key instead of `as string` — you already proved it"],
-  ['runtime', 'SqliteError: near ")": syntax error',
-   'c2', '02 · inArray', 'WHERE task_id IN () is invalid SQL. Bail out when the list is empty'],
-];
+      // ── error index ──────────────────────────────────────
+      // Every `tsc` row here was produced by an actual reproduction run under --strict.
+      const ERRORS = [
+        [
+          'TS2322',
+          "Type 'string | null' is not assignable to type 'string | undefined'.",
+          'c3',
+          '03 · two nothings',
+          "?? undefined — translate the DB's null into TypeScript's undefined",
+        ],
+        [
+          'TS1162',
+          'An object member cannot be declared optional.',
+          'c3',
+          '03 · ? is grammar',
+          "Drop the ?. You're building a value, not describing a type",
+        ],
+        [
+          'TS2322',
+          'Type \'string\' is not assignable to type \'"post" | "pre"\'.',
+          'c6',
+          '06 · as',
+          "(x ?? 'pre') as HookEvent['phase'] — or $type<>() on the column",
+        ],
+        [
+          'TS2345',
+          "Argument of type 'string' is not assignable to parameter of type 'TaskStatus'.",
+          'c7',
+          '07 · $type<>()',
+          'Label the column once: text().$type<TaskStatus>() — not 20 casts',
+        ],
+        [
+          'TS2339',
+          "Property 'toolName' does not exist on type '{ id: string; tool: string; }'.",
+          'c5',
+          '05 · $inferSelect',
+          "It's telling the truth: the schema changed. Update the mapper",
+        ],
+        [
+          'TS2741',
+          "Property 'sessionId' is missing in type '{ id: string; }'.",
+          'c8',
+          '08 · spread',
+          'Restate the key: { ...body, sessionId: body.sessionId }',
+        ],
+        [
+          'TS2322',
+          "Type 'string | null' is not assignable to type 'string'.",
+          'c10',
+          '10 · mapper',
+          "?? 'general-purpose' at the border, not downstream",
+        ],
+        [
+          'TS7022',
+          "'tasksTable' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.",
+          'b33',
+          'B33 · circular',
+          '(): AnySQLiteColumn => tasksTable.id',
+        ],
+        [
+          'TS7024',
+          "Function implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.",
+          'b33',
+          'B33 · circular',
+          'Same annotation — TS7022 and TS7024 fire together',
+        ],
+        [
+          'eslint',
+          '@typescript-eslint/no-unnecessary-condition',
+          'c9',
+          '09 · cast last',
+          'Move the cast after the ??, not before it',
+        ],
+        [
+          'eslint',
+          '@typescript-eslint/no-unnecessary-type-assertion',
+          'c8',
+          '08 · spread',
+          'Restate the key instead of `as string` — you already proved it',
+        ],
+        [
+          'runtime',
+          'SqliteError: near ")": syntax error',
+          'c2',
+          '02 · inArray',
+          'WHERE task_id IN () is invalid SQL. Bail out when the list is empty',
+        ],
+      ];
 
-function errorIndex() {
-  const input = $('#errfilter');
+      function errorIndex() {
+        const input = $('#errfilter');
 
-  const render = () => {
-    const q = input.value.trim().toLowerCase();
-    const hits = ERRORS.filter((r) => !q || r.join(' ').toLowerCase().includes(q));
-    $('#errcount').textContent = `${hits.length} of ${ERRORS.length}`;
-    $('#errtable').innerHTML = hits.length
-      ? '<table><tr><th>code</th><th>message</th><th>concept</th><th>fix</th></tr>' +
-        hits.map(([code, msg, anchor, label, fix]) => {
-          const kind = code.startsWith('TS') ? 'bad' : code === 'eslint' ? 'info' : 'good';
-          return `<tr>
+        const render = () => {
+          const q = input.value.trim().toLowerCase();
+          const hits = ERRORS.filter((r) => !q || r.join(' ').toLowerCase().includes(q));
+          $('#errcount').textContent = `${hits.length} of ${ERRORS.length}`;
+          $('#errtable').innerHTML = hits.length
+            ? '<table><tr><th>code</th><th>message</th><th>concept</th><th>fix</th></tr>' +
+              hits
+                .map(([code, msg, anchor, label, fix]) => {
+                  const kind = code.startsWith('TS') ? 'bad' : code === 'eslint' ? 'info' : 'good';
+                  return `<tr>
             <td><span class="tag ${kind}">${esc(code)}</span></td>
             <td class="mono" style="font-size:.76rem">${esc(msg)}</td>
             <td><a href="#${anchor}">${esc(label)}</a></td>
             <td class="mono" style="font-size:.76rem;color:var(--good)">${esc(fix)}</td>
           </tr>`;
-        }).join('') + '</table>'
-      : '<p style="color:var(--dim);margin:.5rem 0">No match. Try the code alone — <code>TS2322</code> — or a phrase like <code>not assignable</code>.</p>';
-  };
+                })
+                .join('') +
+              '</table>'
+            : '<p style="color:var(--dim);margin:.5rem 0">No match. Try the code alone — <code>TS2322</code> — or a phrase like <code>not assignable</code>.</p>';
+        };
 
-  input.addEventListener('input', render);
-  render();
+        input.addEventListener('input', render);
+        render();
 
-  // Same array, second surface: drop each concept's errors into its own section.
-  // One source of truth — the index and the inline cards can never drift apart.
-  $$('[data-errs]').forEach((slot) => {
-    const mine = ERRORS.filter((r) => r[2] === slot.dataset.errs);
-    slot.innerHTML = mine.length
-      ? '<div class="errhead">When you see this</div>' +
-        mine.map(([code, msg, , , fix]) => {
-          const kind = code.startsWith('TS') ? 'bad' : code === 'eslint' ? 'info' : 'good';
-          return `<div class="errcard">
+        // Same array, second surface: drop each concept's errors into its own section.
+        // One source of truth — the index and the inline cards can never drift apart.
+        $$('[data-errs]').forEach((slot) => {
+          const mine = ERRORS.filter((r) => r[2] === slot.dataset.errs);
+          slot.innerHTML = mine.length
+            ? '<div class="errhead">When you see this</div>' +
+              mine
+                .map(([code, msg, , , fix]) => {
+                  const kind = code.startsWith('TS') ? 'bad' : code === 'eslint' ? 'info' : 'good';
+                  return `<div class="errcard">
             <span class="tag ${kind}">${esc(code)}</span>
             <p class="msg">${esc(msg)}</p>
             <p class="fix">→ ${esc(fix)}</p>
           </div>`;
-        }).join('')
-      : `<div class="errcard none">
+                })
+                .join('')
+            : `<div class="errcard none">
            <span class="tag info">no compiler error</span>
            <p class="msg">Nothing here fails to compile. This concept is about modelling and
            judgement — getting it wrong produces slow queries or expensive changes, not red squiggles.</p>
          </div>`;
-  });
-}
+        });
+      }
 
-// ── theme toggle ─────────────────────────────────────
-function themeToggle() {
-  const btn = $('#theme');
-  const root = document.documentElement;
+      // ── theme toggle ─────────────────────────────────────
+      function themeToggle() {
+        const btn = $('#theme');
+        const root = document.documentElement;
 
-  const label = () => {
-    const light = root.classList.contains('light');
-    btn.textContent = light ? '☾ dark' : '☀ light';
-    btn.setAttribute('aria-pressed', String(light));
-  };
+        const label = () => {
+          const light = root.classList.contains('light');
+          btn.textContent = light ? '☾ dark' : '☀ light';
+          btn.setAttribute('aria-pressed', String(light));
+        };
 
-  btn.addEventListener('click', () => {
-    const light = !root.classList.contains('light');
-    root.classList.add('no-transition');   // freeze BEFORE the class swap, not after
-    root.classList.toggle('light', light);
-    root.classList.toggle('dark', !light);
-    localStorage.setItem('theme', light ? 'light' : 'dark');
-    label();
-    // two frames: one for the browser to apply the new vars, one to repaint with them
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => root.classList.remove('no-transition'))
-    );
-  });
+        btn.addEventListener('click', () => {
+          const light = !root.classList.contains('light');
+          root.classList.add('no-transition'); // freeze BEFORE the class swap, not after
+          root.classList.toggle('light', light);
+          root.classList.toggle('dark', !light);
+          localStorage.setItem('theme', light ? 'light' : 'dark');
+          label();
+          // two frames: one for the browser to apply the new vars, one to repaint with them
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => root.classList.remove('no-transition')),
+          );
+        });
 
-  label();
-}
+        label();
+      }
 
-// ── table of contents scroll-spy ──────────────────────────────
-function tocSpy() {
-  const links = new Map($$('nav.toc a').map((a) => [a.getAttribute('href').slice(1), a]));
-  const io = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) {
-          links.forEach((a) => a.classList.remove('active'));
-          links.get(e.target.id)?.classList.add('active');
+      // ── table of contents scroll-spy ──────────────────────────────
+      function tocSpy() {
+        const links = new Map($$('nav.toc a').map((a) => [a.getAttribute('href').slice(1), a]));
+        const io = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting) {
+                links.forEach((a) => a.classList.remove('active'));
+                links.get(e.target.id)?.classList.add('active');
+              }
+            });
+          },
+          { rootMargin: '-10% 0px -75% 0px' },
+        );
+        $$('section[id]').forEach((s) => io.observe(s));
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // QUIZ
+      // ═══════════════════════════════════════════════════════════════
+
+      /**
+       * Decide what the learner sees the moment they click an option.
+       *
+       * Everything else is already wired: `card` is the .quiz element, `btn` is the
+       * option they clicked, `isCorrect` says whether it was right, and the score
+       * counter has already recorded their FIRST attempt (so retries can't inflate it).
+       *
+       * The explanation lives at `card.querySelector('.explain')` and starts hidden.
+       * The correct option is `card.querySelectorAll('.opt')[+card.dataset.answer]`.
+       * Styling hooks that already exist in the CSS: `.opt.correct`, `.opt.wrong`.
+       * To lock a card from further answers: `card.dataset.done = '1'` (the click
+       * handler below already refuses to re-process a card marked done).
+       */
+      function applyAnswerFeedback(card, btn, isCorrect) {
+        // TODO(human)
+      }
+
+      function quiz() {
+        let right = 0,
+          asked = 0;
+        $$('.quiz').forEach((card) => {
+          const opts = $$('.opt', card);
+          opts.forEach((btn, idx) =>
+            btn.addEventListener('click', () => {
+              if (card.dataset.done === '1') return;
+              const isCorrect = idx === +card.dataset.answer;
+              if (!card.dataset.attempted) {
+                // score the first attempt only
+                card.dataset.attempted = '1';
+                asked += 1;
+                if (isCorrect) right += 1;
+                $('#score').textContent = `${right} / ${asked}`;
+              }
+              applyAnswerFeedback(card, btn, isCorrect);
+            }),
+          );
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // MAIN
+      // ═══════════════════════════════════════════════════════════════
+
+      // Each demo is independent, so run them independently. A single bad character in one
+      // demo used to throw and silently kill every demo defined after it — the failure looked
+      // like "a lot of the buttons stopped working", not like an error in one place.
+      // Not swallowed: anything that breaks still shouts in the console.
+      [
+        demoOne,
+        demoTwo,
+        demoThree,
+        demoFour,
+        demoFive,
+        demoSix,
+        demoSixB,
+        demoSeven,
+        demoEight,
+        demoNine,
+        demoTen,
+        demoBlooper,
+        errorIndex,
+        themeToggle,
+        tocSpy,
+        quiz,
+      ].forEach((fn) => {
+        try {
+          fn();
+        } catch (err) {
+          console.error(`[${fn.name}] failed — the rest of the page still loaded:`, err);
         }
       });
-    },
-    { rootMargin: '-10% 0px -75% 0px' }
-  );
-  $$('section[id]').forEach((s) => io.observe(s));
-}
-
-// ═══════════════════════════════════════════════════════════════
-// QUIZ
-// ═══════════════════════════════════════════════════════════════
-
-/**
- * Decide what the learner sees the moment they click an option.
- *
- * Everything else is already wired: `card` is the .quiz element, `btn` is the
- * option they clicked, `isCorrect` says whether it was right, and the score
- * counter has already recorded their FIRST attempt (so retries can't inflate it).
- *
- * The explanation lives at `card.querySelector('.explain')` and starts hidden.
- * The correct option is `card.querySelectorAll('.opt')[+card.dataset.answer]`.
- * Styling hooks that already exist in the CSS: `.opt.correct`, `.opt.wrong`.
- * To lock a card from further answers: `card.dataset.done = '1'` (the click
- * handler below already refuses to re-process a card marked done).
- */
-function applyAnswerFeedback(card, btn, isCorrect) {
-  // TODO(human)
-}
-
-function quiz() {
-  let right = 0, asked = 0;
-  $$('.quiz').forEach((card) => {
-    const opts = $$('.opt', card);
-    opts.forEach((btn, idx) =>
-      btn.addEventListener('click', () => {
-        if (card.dataset.done === '1') return;
-        const isCorrect = idx === +card.dataset.answer;
-        if (!card.dataset.attempted) {   // score the first attempt only
-          card.dataset.attempted = '1';
-          asked += 1;
-          if (isCorrect) right += 1;
-          $('#score').textContent = `${right} / ${asked}`;
-        }
-        applyAnswerFeedback(card, btn, isCorrect);
-      })
-    );
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MAIN
-// ═══════════════════════════════════════════════════════════════
-
-// Each demo is independent, so run them independently. A single bad character in one
-// demo used to throw and silently kill every demo defined after it — the failure looked
-// like "a lot of the buttons stopped working", not like an error in one place.
-// Not swallowed: anything that breaks still shouts in the console.
-[
-  demoOne,
-  demoTwo,
-  demoThree,
-  demoFour,
-  demoFive,
-  demoSix,
-  demoSixB,
-  demoSeven,
-  demoEight,
-  demoNine,
-  demoTen,
-  demoBlooper,
-  errorIndex,
-  themeToggle,
-  tocSpy,
-  quiz,
-].forEach((fn) => {
-  try {
-    fn();
-  } catch (err) {
-    console.error(`[${fn.name}] failed — the rest of the page still loaded:`, err);
-  }
-});
-</script>
-</body>
+    </script>
+  </body>
 </html>

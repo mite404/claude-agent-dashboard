@@ -15,7 +15,10 @@ const DASHBOARD_DIR = new URL('..', import.meta.url).pathname;
 const LOG_FILE = `${DASHBOARD_DIR}/logs/hooks.log`;
 const API_BASE = 'http://localhost:3001';
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD', signal: AbortSignal.timeout(300) })
+const isServerUp = await fetch(`${API_BASE}/tasks`, {
+  method: 'HEAD',
+  signal: AbortSignal.timeout(300),
+})
   .then((r) => r.ok)
   .catch(() => false);
 

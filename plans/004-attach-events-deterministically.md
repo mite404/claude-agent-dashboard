@@ -215,20 +215,20 @@ anything exported. Module order is `IMPORTS -> DATA -> CALCULATION -> ACTIONS
 
 ## Commands you will need
 
-| Purpose               | Command                                             | Expected on success                    |
-| --------------------- | --------------------------------------------------- | -------------------------------------- |
-| Typecheck             | `bunx tsc --noEmit`                                 | exit 0, no output                      |
-| Lint                  | `bun run lint`                                      | exit 0, 6 pre-existing warnings        |
-| Full test suite       | `bunx vitest run`                                   | 133 passed before, 137+ after Phase 3  |
-| One test file         | `bunx vitest run src/lib/attachEvents.test.ts`      | that file's tests pass                 |
-| Start the API alone   | `bun run src/server.ts`                             | listens on :3001                       |
-| Start everything      | `bun run dev`                                       | Vite :5173 + Hono :3001                |
-| Read the list route   | `curl -s localhost:3001/tasks \| head -c 400`       | JSON array, each item has `events`     |
-| Read one task         | `curl -s localhost:3001/tasks/<id>`                 | JSON object, has `events` after Ph. 2  |
-| Count stored events   | `sqlite3 data/dashboard.db "select count(*) from hook_events"` | non-zero (42 when planned)   |
-| Inspect stored order  | `sqlite3 data/dashboard.db "select rowid,time_stamp from hook_events order by rowid limit 8"` | ascending timestamps |
-| Preflight: sqlite3    | `sqlite3 --version`                                 | any 3.x. Ships with macOS            |
-| Preflight: bun        | `bun --version`                                     | >= 1.0                                 |
+| Purpose              | Command                                                                                       | Expected on success                   |
+| -------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Typecheck            | `bunx tsc --noEmit`                                                                           | exit 0, no output                     |
+| Lint                 | `bun run lint`                                                                                | exit 0, 6 pre-existing warnings       |
+| Full test suite      | `bunx vitest run`                                                                             | 133 passed before, 137+ after Phase 3 |
+| One test file        | `bunx vitest run src/lib/attachEvents.test.ts`                                                | that file's tests pass                |
+| Start the API alone  | `bun run src/server.ts`                                                                       | listens on :3001                      |
+| Start everything     | `bun run dev`                                                                                 | Vite :5173 + Hono :3001               |
+| Read the list route  | `curl -s localhost:3001/tasks \| head -c 400`                                                 | JSON array, each item has `events`    |
+| Read one task        | `curl -s localhost:3001/tasks/<id>`                                                           | JSON object, has `events` after Ph. 2 |
+| Count stored events  | `sqlite3 data/dashboard.db "select count(*) from hook_events"`                                | non-zero (42 when planned)            |
+| Inspect stored order | `sqlite3 data/dashboard.db "select rowid,time_stamp from hook_events order by rowid limit 8"` | ascending timestamps                  |
+| Preflight: sqlite3   | `sqlite3 --version`                                                                           | any 3.x. Ships with macOS             |
+| Preflight: bun       | `bun --version`                                                                               | >= 1.0                                |
 
 ---
 
@@ -285,14 +285,14 @@ anything exported. Module order is `IMPORTS -> DATA -> CALCULATION -> ACTIONS
 Build order is leaf to trunk: the pure module first, then its test, then the
 routes that consume it.
 
-| Order | Path                          | Role          | What it holds                                          | You    |
-| ----- | ----------------------------- | ------------- | ------------------------------------------------------ | ------ |
-| -     | `src/lib/taskUtils.ts`        | exemplar      | The leaf-pure-module pattern Phase 2 copies             | Read   |
-| -     | `src/lib/taskUtils.test.ts`   | exemplar      | The test-beside-the-module pattern Phase 3 copies       | Read   |
-| 1     | `src/lib/attachEvents.ts`     | Calculation   | `toHookEvent` (moved) + `attachEvents` (new)            | Build  |
-| 2     | `src/lib/attachEvents.test.ts`| test          | Grouping, empty-bucket, order, no-mutation              | Build  |
-| 3     | `src/server.ts`               | Action        | `ORDER BY`; both routes call `attachEvents`             | Build  |
-| 4     | `plans/README.md`             | index         | One status row for this plan                            | Build  |
+| Order | Path                           | Role        | What it holds                                     | You   |
+| ----- | ------------------------------ | ----------- | ------------------------------------------------- | ----- |
+| -     | `src/lib/taskUtils.ts`         | exemplar    | The leaf-pure-module pattern Phase 2 copies       | Read  |
+| -     | `src/lib/taskUtils.test.ts`    | exemplar    | The test-beside-the-module pattern Phase 3 copies | Read  |
+| 1     | `src/lib/attachEvents.ts`      | Calculation | `toHookEvent` (moved) + `attachEvents` (new)      | Build |
+| 2     | `src/lib/attachEvents.test.ts` | test        | Grouping, empty-bucket, order, no-mutation        | Build |
+| 3     | `src/server.ts`                | Action      | `ORDER BY`; both routes call `attachEvents`       | Build |
+| 4     | `plans/README.md`              | index       | One status row for this plan                      | Build |
 
 ---
 
@@ -320,15 +320,15 @@ routes that consume it.
 Grokking Simplicity sorts every line of code into three buckets. The film-set
 version of the map:
 
-- **Data** is *footage*. Inert. A frame on disk is the same frame whether you
+- **Data** is _footage_. Inert. A frame on disk is the same frame whether you
   look at it now or next Tuesday. In this codebase: the `HookEvent` interface,
   a row object, the `VALID_STATUSES` array.
-- **Calculation** is a *LUT* (a color lookup table). Feed the same frame
+- **Calculation** is a _LUT_ (a color lookup table). Feed the same frame
   through it a thousand times, get the same graded frame a thousand times. It
   cannot know what time it is, cannot phone anyone, cannot remember the last
   frame. In this codebase: `toHookEvent`, `buildTree`, everything in
   `src/lib/taskUtils.ts`.
-- **Action** is a *live take*. The result depends on when you rolled and who
+- **Action** is a _live take_. The result depends on when you rolled and who
   was on set. Run it twice, get two different things. In this codebase:
   `db.select()`, `fetch()`, `c.json()`, the whole route handler.
 
@@ -449,16 +449,16 @@ In `src/server.ts`, inside `GET /tasks`:
 // CATEGORY: Action - reads the database. The ordering guarantee belongs
 // in the query, not in a follow-up sort.
 const hookEventRows = await db
-  .select()                                          // → HookEventRow[]
+  .select() // → HookEventRow[]
   .from(hookEventsTable)
   .where(inArray(hookEventsTable.taskId, ids));
-  // TODO(you): chain one more clause so the rows come back oldest-first.
-  //   - Which column carries the chronology? Check the schema at
-  //     src/db/schema.ts and note it is NOT spelled the same in TS as in SQL.
-  //   - Which direction helper do you need, and is it already imported?
-  //     Look at src/server.ts line 2 before you add an import.
-  //   - Drizzle's clause helpers are all chained the same way. You have
-  //     already used .from() and .where() in this very statement.
+// TODO(you): chain one more clause so the rows come back oldest-first.
+//   - Which column carries the chronology? Check the schema at
+//     src/db/schema.ts and note it is NOT spelled the same in TS as in SQL.
+//   - Which direction helper do you need, and is it already imported?
+//     Look at src/server.ts line 2 before you add an import.
+//   - Drizzle's clause helpers are all chained the same way. You have
+//     already used .from() and .where() in this very statement.
 ```
 
 ### Step 1.2: Work through it
@@ -480,7 +480,7 @@ memory before ordering. The database is the right place for this.
 ### Step 1.3: Quiz yourself
 
 1. If you added an index on `hook_events(task_id)` tomorrow, would the current
-   un-ordered query return rows in a different order? What would *tell* you it
+   un-ordered query return rows in a different order? What would _tell_ you it
    had changed - what error appears in the console?
 2. `time_stamp` is a text column. Why does `ORDER BY time_stamp` sort correctly
    when `ORDER BY` on a text column holding `"9"` and `"10"` does not?
@@ -497,15 +497,15 @@ Consult only after attempting.
 ```ts
 // CATEGORY: Action - reads the database.
 const hookEventRows = await db
-  .select()                                          // → HookEventRow[]
+  .select() // → HookEventRow[]
   .from(hookEventsTable)
-  .where(inArray(hookEventsTable.taskId, ids))       // → filtered
-  .orderBy(asc(hookEventsTable.timeStamp));          // → oldest-first
+  .where(inArray(hookEventsTable.taskId, ids)) // → filtered
+  .orderBy(asc(hookEventsTable.timeStamp)); // → oldest-first
 ```
 
 `asc` was already on line 2. No new import.
 
-Quiz answers: (1) Yes, and *nothing* tells you - no error, no warning, just a
+Quiz answers: (1) Yes, and _nothing_ tells you - no error, no warning, just a
 scrambled panel. That silence is the whole reason this is worth fixing.
 (2) ISO-8601 is fixed-width and zero-padded with the largest unit first, so
 lexicographic order equals chronological order; `"9"` vs `"10"` fails precisely
@@ -544,7 +544,7 @@ inside a function that cannot be tested. Phase 2 gets it out.
 ## Phase 2: Free the calculation from the action
 
 **Concepts**: Action vs Calculation; import-time side effects; reuse over
-re-derive; when *not* to extract.
+re-derive; when _not_ to extract.
 
 ### Concept: the calculation is already there, it is just trapped
 
@@ -561,12 +561,12 @@ a module that needs nothing but its arguments.
 **Why does it matter here?** Two payoffs, and they are the two remaining gaps
 from the "Why this matters" section.
 
-*Reuse.* `GET /tasks/:id` needs the identical grouping. Right now it would have
+_Reuse._ `GET /tasks/:id` needs the identical grouping. Right now it would have
 to copy the loop. Two copies of a join drift - somebody fixes the `?? []`
 fallback in one and not the other, and the single-task route starts returning
 `undefined` where the list route returns `[]`.
 
-*Testability.* This is the one worth slowing down for.
+_Testability._ This is the one worth slowing down for.
 `src/db/index.ts:5` runs `new Database('data/dashboard.db')` **at module
 scope** - the moment the file is imported, before any function is called. So:
 
@@ -606,12 +606,12 @@ where it is.
 The rule that distinguishes them is not "is it pure". It is **is something
 actually asking for it**:
 
-| | `toHookEvent` | `toTask` |
-| --- | --- | --- |
-| Pure? | yes | yes |
-| Second caller wants it? | yes - `/tasks/:id` | no |
-| A test wants it? | yes - via `attachEvents` | no |
-| **Move it?** | **yes** | **no** |
+|                         | `toHookEvent`            | `toTask` |
+| ----------------------- | ------------------------ | -------- |
+| Pure?                   | yes                      | yes      |
+| Second caller wants it? | yes - `/tasks/:id`       | no       |
+| A test wants it?        | yes - via `attachEvents` | no       |
+| **Move it?**            | **yes**                  | **no**   |
 
 Extracting `toTask` too would look tidier and buy nothing: one more file to
 open when reading the route, one more import, one more place for a stale
@@ -712,7 +712,7 @@ const hookEventRows = await db
   .select()
   .from(hookEventsTable)
   .where(inArray(hookEventsTable.taskId, ids))
-  .orderBy(asc(hookEventsTable.timeStamp));          // → HookEventRow[], sorted
+  .orderBy(asc(hookEventsTable.timeStamp)); // → HookEventRow[], sorted
 
 // TODO(you): replace the Map loop and the .map() attach - all of
 // src/server.ts:107-119 - with one call. Then delete toHookEvent from this
@@ -784,13 +784,13 @@ type HookEventRow = typeof hookEventsTable.$inferSelect;
  * Storage allows nulls and names the column `timeStamp`; the domain type does not.
  */
 export const toHookEvent = (row: HookEventRow): HookEvent => ({
-  id: row.id,                                              // → string
-  toolName: row.toolName ?? 'unknown',                     // → string
-  phase: (row.phase ?? 'pre') as HookEvent['phase'],       // → 'pre'|'post'
-  status: row.status as HookEvent['status'],               // → HookEvent status
-  summary: row.summary ?? '',                              // → string
-  timestamp: row.timeStamp ?? '',                          // → string
-  completedAt: row.completedAt ?? undefined,               // → string|undefined
+  id: row.id, // → string
+  toolName: row.toolName ?? 'unknown', // → string
+  phase: (row.phase ?? 'pre') as HookEvent['phase'], // → 'pre'|'post'
+  status: row.status as HookEvent['status'], // → HookEvent status
+  summary: row.summary ?? '', // → string
+  timestamp: row.timeStamp ?? '', // → string
+  completedAt: row.completedAt ?? undefined, // → string|undefined
 });
 
 /**
@@ -801,16 +801,17 @@ export const toHookEvent = (row: HookEventRow): HookEvent => ({
  * @returns the same tasks, same order, each with an `events` array
  */
 export const attachEvents = (tasks: Task[], rows: HookEventRow[]): Task[] => {
-  const eventsByTaskId = new Map<string, HookEvent[]>();    // → empty index
+  const eventsByTaskId = new Map<string, HookEvent[]>(); // → empty index
   for (const row of rows) {
-    const bucket = eventsByTaskId.get(row.taskId) ?? [];    // → HookEvent[]
-    bucket.push(toHookEvent(row));                          // → HookEvent[]
-    eventsByTaskId.set(row.taskId, bucket);                 // → Map updated
+    const bucket = eventsByTaskId.get(row.taskId) ?? []; // → HookEvent[]
+    bucket.push(toHookEvent(row)); // → HookEvent[]
+    eventsByTaskId.set(row.taskId, bucket); // → Map updated
   }
 
-  return tasks.map((task) => ({                             // → Task[]
-    ...task,                                                // → copy, no mutation
-    events: eventsByTaskId.get(task.id) ?? [],              // → HookEvent[]
+  return tasks.map((task) => ({
+    // → Task[]
+    ...task, // → copy, no mutation
+    events: eventsByTaskId.get(task.id) ?? [], // → HookEvent[]
   }));
 };
 ```
@@ -822,9 +823,9 @@ const hookEventRows = await db
   .select()
   .from(hookEventsTable)
   .where(inArray(hookEventsTable.taskId, ids))
-  .orderBy(asc(hookEventsTable.timeStamp));            // → HookEventRow[]
+  .orderBy(asc(hookEventsTable.timeStamp)); // → HookEventRow[]
 
-return c.json(attachEvents(tasks, hookEventRows));     // → Task[] with events
+return c.json(attachEvents(tasks, hookEventRows)); // → Task[] with events
 ```
 
 `src/server.ts`, `GET /tasks/:id`:
@@ -833,10 +834,10 @@ return c.json(attachEvents(tasks, hookEventRows));     // → Task[] with events
 const eventRows = await db
   .select()
   .from(hookEventsTable)
-  .where(eq(hookEventsTable.taskId, id))               // → one task's rows
-  .orderBy(asc(hookEventsTable.timeStamp));            // → sorted
+  .where(eq(hookEventsTable.taskId, id)) // → one task's rows
+  .orderBy(asc(hookEventsTable.timeStamp)); // → sorted
 
-const [task] = attachEvents([toTask(rows[0])], eventRows);  // → Task
+const [task] = attachEvents([toTask(rows[0])], eventRows); // → Task
 return c.json(task);
 ```
 
@@ -845,7 +846,7 @@ Also delete `toHookEvent` from `src/server.ts` and add
 `toHookEvent` from that import if nothing else in the file uses it, and let
 `tsc` tell you.
 
-Note that the solution *does* run `rows[0]` through `toTask()`. That is the
+Note that the solution _does_ run `rows[0]` through `toTask()`. That is the
 judgment call the stub left open: `GET /tasks` returns `toTask`-normalized
 objects, so a single-task route that skips it hands back a subtly different
 shape - the exact class of bug this plan exists to close. Say so in the commit
@@ -853,7 +854,7 @@ body.
 
 Quiz answers: (1) Testing it without a database. The moment it queries, it is
 an Action. (2) `attachEvents` is the Calculation. `computeBlockedState` mutates,
-so a test must construct input, call it, then inspect the *input* rather than a
+so a test must construct input, call it, then inspect the _input_ rather than a
 return value, and any other assertion in the same test file is now reading
 tampered objects. (3) `import` resolves `../server` -> `server.ts` runs its
 imports -> `./db/index` runs its module body -> `src/db/index.ts:5` executes
@@ -911,7 +912,7 @@ attachEvents(tasks, fakeClient);   // test passes a stand-in
 DI is a good technique and this codebase will need it eventually. Notice what
 Phase 2 did to the need for it here: `attachEvents` has no dependency to
 inject. There is no fake to write, no mocking library to configure, no cleanup
-between tests. The arrays *are* the fixture.
+between tests. The arrays _are_ the fixture.
 
 That is the point worth carrying out of this plan. **DI makes an Action
 testable; extraction makes it not an Action.** When you have the choice, take
@@ -941,12 +942,24 @@ import type { Task } from '../types/task';
 // are cheaper to read than a helper that constructs them.
 
 const task = (id: string): Task =>
-  ({ id, name: id, status: 'running', agentType: 'general-purpose',
-     createdAt: '', progressPercentage: 0 }) as Task;
+  ({
+    id,
+    name: id,
+    status: 'running',
+    agentType: 'general-purpose',
+    createdAt: '',
+    progressPercentage: 0,
+  }) as Task;
 
 const row = (id: string, taskId: string, timeStamp: string) => ({
-  id, taskId, toolName: 'Bash', phase: 'pre', status: 'completed',
-  summary: '', timeStamp, completedAt: null,
+  id,
+  taskId,
+  toolName: 'Bash',
+  phase: 'pre',
+  status: 'completed',
+  summary: '',
+  timeStamp,
+  completedAt: null,
 });
 
 // ─── TESTS ────────────────────────────────────────────────────────────────
@@ -1009,7 +1022,7 @@ Phase 2 bought.
 ### Step 3.3: Quiz yourself
 
 1. `expect(result[0].events).toBeFalsy()` passes when `events` is `undefined`
-   *and* when it is `[]`... actually, does it? Work out what `toBeFalsy` does
+   _and_ when it is `[]`... actually, does it? Work out what `toBeFalsy` does
    with `[]`, then explain why that matters for this specific test.
 2. Why does the mutation test need a matcher that compares identity rather than
    contents? What bug slips through if you only compare contents?
@@ -1023,13 +1036,13 @@ Phase 2 bought.
 ```ts
 describe('attachEvents', () => {
   it('groups events onto the task they belong to', () => {
-    const tasks = [task('a'), task('b')];                       // → Task[]
+    const tasks = [task('a'), task('b')]; // → Task[]
     const rows = [
       row('e1', 'a', '2026-08-21T06:00:00.000Z'),
       row('e2', 'a', '2026-08-21T06:00:01.000Z'),
       row('e3', 'b', '2026-08-21T06:00:02.000Z'),
     ];
-    const result = attachEvents(tasks, rows);                   // → Task[]
+    const result = attachEvents(tasks, rows); // → Task[]
 
     expect(result[0].events).toHaveLength(2);
     expect(result[1].events).toHaveLength(1);
@@ -1037,8 +1050,8 @@ describe('attachEvents', () => {
   });
 
   it('gives a task with no events an empty array, not undefined', () => {
-    const result = attachEvents([task('lonely')], []);          // → Task[]
-    expect(result[0].events).toEqual([]);                       // fails on undefined
+    const result = attachEvents([task('lonely')], []); // → Task[]
+    expect(result[0].events).toEqual([]); // fails on undefined
   });
 
   it('preserves the order the rows arrived in', () => {
@@ -1046,23 +1059,23 @@ describe('attachEvents', () => {
       row('late', 'a', '2026-08-21T09:00:00.000Z'),
       row('early', 'a', '2026-08-21T06:00:00.000Z'),
     ];
-    const result = attachEvents([task('a')], rows);             // → Task[]
+    const result = attachEvents([task('a')], rows); // → Task[]
     // Contract: the caller sorts (see the .orderBy in GET /tasks).
     // attachEvents preserves whatever order it was handed.
     expect(result[0].events?.map((e) => e.id)).toEqual(['late', 'early']);
   });
 
   it('does not mutate the tasks it was given', () => {
-    const original = task('a');                                 // → Task
+    const original = task('a'); // → Task
     const result = attachEvents([original], [row('e1', 'a', '')]);
     expect(original.events).toBeUndefined();
-    expect(result[0]).not.toBe(original);                       // identity, not contents
+    expect(result[0]).not.toBe(original); // identity, not contents
   });
 });
 ```
 
 Quiz answers: (1) No - `[]` is **truthy** in JavaScript, so `toBeFalsy()` would
-*fail* on the correct value and pass on the buggy one. It is exactly backwards,
+_fail_ on the correct value and pass on the buggy one. It is exactly backwards,
 which is why `toEqual([])` is the assertion. (2) `toEqual` compares structure,
 so a mutated original and a fresh copy both "equal" the same thing; only
 `not.toBe` proves two different objects. Without it, an implementation that did
@@ -1265,14 +1278,14 @@ Stop and report back. Do not improvise if:
   message never mentions the feature, using `git log -S`.
 - Look at a function and sort it into Data, Calculation, or Action in three
   questions, then say what that classification costs you at test time.
-- Recognize when a pure function is untestable *by association* - because of
+- Recognize when a pure function is untestable _by association_ - because of
   what its file imports - and move it rather than mocking around it.
 - Decide whether a `SELECT` needs an `ORDER BY` by asking what the consumer
   does with the sequence, not by looking at whether the output currently seems
   right.
 - Write a test that protects a fallback branch, and spot the truthiness
   assertions that silently invert on empty collections.
-- Judge when *not* to extract a function, using "is something asking for it"
+- Judge when _not_ to extract a function, using "is something asking for it"
   instead of "is it pure".
 
 ### Now true about this codebase
@@ -1374,8 +1387,8 @@ declared once, in the schema, instead of re-derived per route. **Not here**
 because `src/db/schema.ts` declares no `relations()` at all - adopting this
 means adding relation declarations for every table, which is a schema-wide
 change to solve a two-route problem. Worth revisiting the moment a third
-collection needs attaching. This is the alternate that is *worse here but
-better in most codebases*: at eight endpoints, the hand-written `Map` in eight
+collection needs attaching. This is the alternate that is _worse here but
+better in most codebases_: at eight endpoints, the hand-written `Map` in eight
 places is the thing you regret.
 
 ### Sorting in JavaScript instead of `ORDER BY`
@@ -1493,13 +1506,13 @@ written.
 
 ### Common patterns
 
-| Pattern | Shape | Where it appears here |
-| --- | --- | --- |
-| Group-then-attach | `Map<K, V[]>` built in one pass, one `.get` per parent | `attachEvents` |
-| Storage-to-domain converter | `(row) => Domain`, nullables collapsed with `??` | `toHookEvent`, `toTask` |
-| Guarantee in the query | `.orderBy()` rather than a later `.sort()` | both routes |
-| Leaf module | pure functions, no import that opens a connection | `src/lib/*` |
-| Test beside the module | `foo.ts` / `foo.test.ts` in the same directory | all of `src/lib/` |
+| Pattern                     | Shape                                                  | Where it appears here   |
+| --------------------------- | ------------------------------------------------------ | ----------------------- |
+| Group-then-attach           | `Map<K, V[]>` built in one pass, one `.get` per parent | `attachEvents`          |
+| Storage-to-domain converter | `(row) => Domain`, nullables collapsed with `??`       | `toHookEvent`, `toTask` |
+| Guarantee in the query      | `.orderBy()` rather than a later `.sort()`             | both routes             |
+| Leaf module                 | pure functions, no import that opens a connection      | `src/lib/*`             |
+| Test beside the module      | `foo.ts` / `foo.test.ts` in the same directory         | all of `src/lib/`       |
 
 ### Troubleshooting
 

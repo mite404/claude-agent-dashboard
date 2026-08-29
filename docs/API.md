@@ -11,19 +11,19 @@ Hook scripts call `http://localhost:3001` directly (no `/api` prefix).
 
 ## Endpoint Map
 
-| Method   | Path                    | Called by              | Purpose                         |
-| -------- | ----------------------- | ---------------------- | ------------------------------- |
-| `GET`    | `/tasks`                | Frontend (polling)     | List all tasks                  |
-| `GET`    | `/tasks/pool`           | Agents                 | List `unassigned` tasks by priority |
-| `GET`    | `/tasks/:id`            | Agents / hooks         | Get single task                 |
-| `POST`   | `/tasks`                | Hooks, pr-watcher, UI  | Create task                     |
-| `POST`   | `/tasks/:id/claim`      | Agents                 | Atomically claim an unassigned task |
-| `PATCH`  | `/tasks/:id`            | Hooks, UI              | Update task fields              |
-| `PUT`    | `/tasks/:id`            | Legacy scripts         | Alias for PATCH                 |
-| `DELETE` | `/tasks/:id`            | UI                     | Delete task                     |
-| `GET`    | `/sessionEvents`        | Frontend               | List session events             |
-| `POST`   | `/sessionEvents`        | `session-event.ts`     | Create session event            |
-| `DELETE` | `/sessionEvents`        | UI ("Clear all")       | Delete all session events       |
+| Method   | Path               | Called by             | Purpose                             |
+| -------- | ------------------ | --------------------- | ----------------------------------- |
+| `GET`    | `/tasks`           | Frontend (polling)    | List all tasks                      |
+| `GET`    | `/tasks/pool`      | Agents                | List `unassigned` tasks by priority |
+| `GET`    | `/tasks/:id`       | Agents / hooks        | Get single task                     |
+| `POST`   | `/tasks`           | Hooks, pr-watcher, UI | Create task                         |
+| `POST`   | `/tasks/:id/claim` | Agents                | Atomically claim an unassigned task |
+| `PATCH`  | `/tasks/:id`       | Hooks, UI             | Update task fields                  |
+| `PUT`    | `/tasks/:id`       | Legacy scripts        | Alias for PATCH                     |
+| `DELETE` | `/tasks/:id`       | UI                    | Delete task                         |
+| `GET`    | `/sessionEvents`   | Frontend              | List session events                 |
+| `POST`   | `/sessionEvents`   | `session-event.ts`    | Create session event                |
+| `DELETE` | `/sessionEvents`   | UI ("Clear all")      | Delete all session events           |
 
 ---
 
@@ -33,20 +33,20 @@ Defined in `src/db/schema.ts` (`tasksTable`).
 
 ```typescript
 interface Task {
-  id: string;                  // UUID or tool_use_id from Claude Code
-  sessionId: string;           // Required — links to sessions table
-  name: string;                // Human-readable task name
-  description?: string;        // Optional detail / outcome summary
+  id: string; // UUID or tool_use_id from Claude Code
+  sessionId: string; // Required — links to sessions table
+  name: string; // Human-readable task name
+  description?: string; // Optional detail / outcome summary
   status: TaskStatus;
   kind?: 'work' | 'evaluation' | 'planning';
   priority?: 'low' | 'normal' | 'high' | 'urgent';
-  parentId?: string;           // For subagent tree relationships
-  agentId?: string;            // Hex agent ID from SubagentStart hook
-  agentType?: string;          // e.g. "general-purpose", "Explore"
-  originatingSkill?: string;   // e.g. "/code-review"
-  taskKind?: string;           // "orchestrator" | "work" | "background-task"
-  claimedBy?: string;          // Agent or process that claimed the task
-  claimedAt?: string;          // ISO timestamp of claim
+  parentId?: string; // For subagent tree relationships
+  agentId?: string; // Hex agent ID from SubagentStart hook
+  agentType?: string; // e.g. "general-purpose", "Explore"
+  originatingSkill?: string; // e.g. "/code-review"
+  taskKind?: string; // "orchestrator" | "work" | "background-task"
+  claimedBy?: string; // Agent or process that claimed the task
+  claimedAt?: string; // ISO timestamp of claim
   createdAt?: string;
   startedAt?: string;
   completedAt?: string;
@@ -54,14 +54,14 @@ interface Task {
 }
 
 type TaskStatus =
-  | 'unassigned'  // in pool, waiting to be claimed
-  | 'claimed'     // claimed by an agent, not yet started
-  | 'running'     // actively executing
-  | 'completed'   // finished successfully
-  | 'failed'      // finished with error
-  | 'paused'      // manually paused
-  | 'cancelled'   // manually cancelled
-  | 'blocked';    // waiting on a dependency (computed client-side)
+  | 'unassigned' // in pool, waiting to be claimed
+  | 'claimed' // claimed by an agent, not yet started
+  | 'running' // actively executing
+  | 'completed' // finished successfully
+  | 'failed' // finished with error
+  | 'paused' // manually paused
+  | 'cancelled' // manually cancelled
+  | 'blocked'; // waiting on a dependency (computed client-side)
 ```
 
 **Note:** `logs` are stored in a separate `logsTable` (not embedded in the task object).
@@ -150,13 +150,13 @@ Priority order: `urgent` → `high` → `normal` → `low`.
 interface SessionEvent {
   id: string;
   sessionId: string;
-  type: string;         // e.g. "SessionStart", "UserPromptSubmit", "SubagentStop"
+  type: string; // e.g. "SessionStart", "UserPromptSubmit", "SubagentStop"
   summary?: string;
   timestamp?: string;
   agentId?: string;
   agentType?: string;
   model?: string;
-  metadata?: object;    // event-specific data (token counts, skill names, etc.)
+  metadata?: object; // event-specific data (token counts, skill names, etc.)
 }
 ```
 

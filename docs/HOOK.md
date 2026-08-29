@@ -174,14 +174,14 @@ Creates `SessionEvent` records and handles subagent task linkage.
 
 **Key event handlers:**
 
-| Event              | Action                                                      |
-| ------------------ | ----------------------------------------------------------- |
-| `SessionStart`     | Captures model name, creates session record                 |
-| `UserPromptSubmit` | Detects `/skill-name`, writes `/tmp/cc-skill-{sessionId}`  |
-| `SubagentStart`    | Reads temp file to link child agent back to parent task     |
-| `SubagentStop`     | Marks parent task `completed`, `progressPercentage: 100`    |
-| `Notification`     | Captures tool name and message                              |
-| `PreCompact`       | Captures token count for context compression events         |
+| Event              | Action                                                    |
+| ------------------ | --------------------------------------------------------- |
+| `SessionStart`     | Captures model name, creates session record               |
+| `UserPromptSubmit` | Detects `/skill-name`, writes `/tmp/cc-skill-{sessionId}` |
+| `SubagentStart`    | Reads temp file to link child agent back to parent task   |
+| `SubagentStop`     | Marks parent task `completed`, `progressPercentage: 100`  |
+| `Notification`     | Captures tool name and message                            |
+| `PreCompact`       | Captures token count for context compression events       |
 
 ---
 

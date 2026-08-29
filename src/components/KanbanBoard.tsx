@@ -201,7 +201,12 @@ interface NewTaskCardProps {
 
 function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: '', agentType: '', priority: 'normal', description: '' });
+  const [form, setForm] = useState({
+    name: '',
+    agentType: '',
+    priority: 'normal',
+    description: '',
+  });
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -233,8 +238,9 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
     }
   };
 
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  const set =
+    (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
   if (!open) {
     return (
@@ -260,7 +266,10 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
         onChange={set('name')}
         onKeyDown={(e) => {
           if (e.key === 'Enter') void handleSubmit();
-          if (e.key === 'Escape') { setOpen(false); setForm({ name: '', agentType: '', priority: 'normal', description: '' }); }
+          if (e.key === 'Escape') {
+            setOpen(false);
+            setForm({ name: '', agentType: '', priority: 'normal', description: '' });
+          }
         }}
         placeholder="Task name *"
         className="h-7 text-xs"
@@ -306,7 +315,10 @@ function NewTaskCard({ sessionId, onCreated }: NewTaskCardProps) {
           size="sm"
           variant="ghost"
           className="h-6 px-2"
-          onClick={() => { setOpen(false); setForm({ name: '', agentType: '', priority: 'normal', description: '' }); }}
+          onClick={() => {
+            setOpen(false);
+            setForm({ name: '', agentType: '', priority: 'normal', description: '' });
+          }}
         >
           <IconX size={12} />
         </Button>

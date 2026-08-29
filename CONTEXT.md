@@ -24,7 +24,7 @@ The Thread is [Trajectory](#trajectory)'s scope. Always.
 Trajectory shows every decision and every action the agent took within one Thread —
 never a slice of one, never several at once.
 
-[Turn](#turn) and [Step](#step) are zoom levels *within* a Thread, not alternative scopes.
+[Turn](#turn) and [Step](#step) are zoom levels _within_ a Thread, not alternative scopes.
 
 ## Turn
 
@@ -53,7 +53,7 @@ Context Injections earn a row in [Trajectory](#trajectory) because they explain 
 that otherwise looks unmotivated — the agent suddenly knowing something, or suddenly being
 able to do something.
 
-The test is whether the agent's knowledge or capabilities *changed*.
+The test is whether the agent's knowledge or capabilities _changed_.
 Machinery reporting that it worked is not a Context Injection, and is hidden by default.
 
 ## Tool Call

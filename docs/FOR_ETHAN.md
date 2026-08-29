@@ -4051,7 +4051,10 @@ You noticed that `smoke-test.ts` uses arrow function expressions for local helpe
 
 ```typescript
 const fmtOk = (msg: string) => `  ${G}✓${X} ${msg}`;
-const ok = (msg: string) => { console.log(fmtOk(msg)); passed++; };
+const ok = (msg: string) => {
+  console.log(fmtOk(msg));
+  passed++;
+};
 ```
 
 But `function` declarations for the main logic:
@@ -4227,11 +4230,11 @@ the compiler.
 
 It is a cousin of `as`, filed in a better place:
 
-| | `as` | `$type<>()` |
+|         | `as`                | `$type<>()`              |
 | ------- | ------------------- | ------------------------ |
-| Where | at one use site | at the column definition |
-| Reach | that one expression | every query, everywhere |
-| Written | once per use | once, ever |
+| Where   | at one use site     | at the column definition |
+| Reach   | that one expression | every query, everywhere  |
+| Written | once per use        | once, ever               |
 
 The claim "status is one of eight words" is true about the _column_, not about one particular
 read of it. So the column definition is the honest home for it. Twenty `as TaskStatus` casts
@@ -4386,12 +4389,9 @@ and blank lines are whitespace, so all three of these are identical to the parse
 ```js
 if (x) doThing();
 
-if (x)
-  doThing();
+if (x) doThing();
 
-if (x)
-
-  doThing();
+if (x) doThing();
 ```
 
 A `try { ... }` block is also one statement. A 45-line one, but one. So it became the `if`
@@ -4437,7 +4437,7 @@ claims.
 - **Indentation lied.** Every other statement at that level is top-level, so `try {` reads as
   a sibling of the `if`, not its child. Your eye uses indentation. The parser does not.
 - **The plan's own checklist would have caught it.** `No files outside the four in-scope
-  scripts are modified (git status)` was the unticked box. `src/server.ts` in `git status`
+scripts are modified (git status)` was the unticked box. `src/server.ts` in `git status`
   was the whole signal.
 
 ### The fix, and the guard against a repeat

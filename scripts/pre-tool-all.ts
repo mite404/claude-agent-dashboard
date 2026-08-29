@@ -25,7 +25,10 @@ interface ClaudePreToolPayload {
   agent_id?: string;
 }
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD', signal: AbortSignal.timeout(300) })
+const isServerUp = await fetch(`${API_BASE}/tasks`, {
+  method: 'HEAD',
+  signal: AbortSignal.timeout(300),
+})
   .then((r) => r.ok)
   .catch(() => false);
 

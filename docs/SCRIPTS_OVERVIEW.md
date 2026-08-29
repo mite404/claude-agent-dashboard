@@ -375,11 +375,11 @@ traces every task back to its originating skill (or main session).
 
 ## Known Issues
 
-| Issue                                | File           | Impact                                          |
-| ------------------------------------ | -------------- | ----------------------------------------------- |
-| taskId extracted as ReadableStream   | `post-task.ts` | CLI tool doesn't return valid taskId            |
-| Type mismatch: POST response parsing | `post-task.ts` | Caller can't capture taskId from stdout         |
-| Incomplete type narrowing            | `post-task.ts` | CLI args not validated for correct types        |
+| Issue                                | File           | Impact                                   |
+| ------------------------------------ | -------------- | ---------------------------------------- |
+| taskId extracted as ReadableStream   | `post-task.ts` | CLI tool doesn't return valid taskId     |
+| Type mismatch: POST response parsing | `post-task.ts` | Caller can't capture taskId from stdout  |
+| Incomplete type narrowing            | `post-task.ts` | CLI args not validated for correct types |
 
 ---
 

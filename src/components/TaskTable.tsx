@@ -74,12 +74,7 @@ import {
   type SortState,
 } from '@/lib/taskUtils';
 import { patchTask, deleteTask, clearAllSessionEvents, createTask } from '@/lib/taskApi';
-import type {
-  TaskNode,
-  TaskStatus,
-  LogEntry,
-  SessionEvent,
-} from '@/types/task';
+import type { TaskNode, TaskStatus, LogEntry, SessionEvent } from '@/types/task';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1130,7 +1125,14 @@ export function TaskTable({
 
         <div className="ml-auto flex items-center gap-1">
           {/* New Task */}
-          <Popover open={newTaskOpen} onOpenChange={(open) => { setNewTaskOpen(open); if (!open) setNewTaskForm({ name: '', agentType: '', priority: 'normal', description: '' }); }}>
+          <Popover
+            open={newTaskOpen}
+            onOpenChange={(open) => {
+              setNewTaskOpen(open);
+              if (!open)
+                setNewTaskForm({ name: '', agentType: '', priority: 'normal', description: '' });
+            }}
+          >
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5">
                 <IconPlus size={13} />
@@ -1143,7 +1145,9 @@ export function TaskTable({
                 placeholder="Task name *"
                 value={newTaskForm.name}
                 onChange={(e) => setNewTaskForm((prev) => ({ ...prev, name: e.target.value }))}
-                onKeyDown={(e) => { if (e.key === 'Enter') void handleCreateTask(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleCreateTask();
+                }}
                 className="h-8"
                 autoFocus
               />
