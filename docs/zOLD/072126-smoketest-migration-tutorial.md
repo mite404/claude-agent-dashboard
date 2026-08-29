@@ -59,7 +59,7 @@ Functions that touch the world.
 `fetch()` is an action.
 `Bun.spawn()` is an action.
 `console.log()` is an action (it writes to stdout).
-An action depends on *when* and *how many times* you call it.
+An action depends on _when_ and _how many times_ you call it.
 
 ```typescript
 async function checkEndpoint(url: string): Promise<boolean> {
@@ -365,7 +365,7 @@ bun scripts/smoke-test.ts      # terminal 2 — run after each stub
 **Provided in the scaffold — read, don't implement.**
 
 This function is already written for you.
-Your task is to read it and understand *why* it is a pure Calculation.
+Your task is to read it and understand _why_ it is a pure Calculation.
 
 **The bash equivalent:**
 
@@ -476,7 +476,7 @@ The full output for a failing check becomes something like:
 ```
 
 `label` is the test name. `detail` is the reason it failed. Concatenating them gives you a
-failure message that tells you both *what* broke and *why*.
+failure message that tells you both _what_ broke and _why_.
 
 ---
 
@@ -574,7 +574,7 @@ The `?.` protects against crashes. The `??` provides a fallback. They work as a 
 More importantly, the pattern itself matters: if `main()` is at the top and calls
 `buildPrePayload`, you have to scroll down to understand what `buildPrePayload` does before
 you can understand `main`.
-Leaf-to-tree means every function you encounter only calls things already defined *above it* —
+Leaf-to-tree means every function you encounter only calls things already defined _above it_ —
 you can read the file straight through without jumping around.
 
 ---

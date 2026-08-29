@@ -4051,7 +4051,10 @@ You noticed that `smoke-test.ts` uses arrow function expressions for local helpe
 
 ```typescript
 const fmtOk = (msg: string) => `  ${G}✓${X} ${msg}`;
-const ok = (msg: string) => { console.log(fmtOk(msg)); passed++; };
+const ok = (msg: string) => {
+  console.log(fmtOk(msg));
+  passed++;
+};
 ```
 
 But `function` declarations for the main logic:
@@ -4227,11 +4230,11 @@ the compiler.
 
 It is a cousin of `as`, filed in a better place:
 
-| | `as` | `$type<>()` |
+|         | `as`                | `$type<>()`              |
 | ------- | ------------------- | ------------------------ |
-| Where | at one use site | at the column definition |
-| Reach | that one expression | every query, everywhere |
-| Written | once per use | once, ever |
+| Where   | at one use site     | at the column definition |
+| Reach   | that one expression | every query, everywhere  |
+| Written | once per use        | once, ever               |
 
 The claim "status is one of eight words" is true about the _column_, not about one particular
 read of it. So the column definition is the honest home for it. Twenty `as TaskStatus` casts
@@ -4352,3 +4355,125 @@ game. Concept, then worked example, then the blank. One live snippet at a time.
 line lengths. It reformats every code fence - reindenting and reflowing quotes - across the
 whole document. Run `rumdl check` and fix the handful of real warnings by hand. Never `fmt` a
 file whose code samples you care about.
+
+## 4h. Bloopers — The Brace That Wasn't There (2026-08-22)
+
+### 🎬 Blooper 34: One missing brace pair turned off every hook in the project
+
+Commit `ed80cd9` was titled "wrap `JSON.parse` in `pre-tools-agent.ts`". It also rewrote the
+status guard in `GET /tasks`, which was nowhere in Plan 003's scope:
+
+```diff
+-  if (status && !VALID_STATUSES.includes(status)) {
+-    return c.json({ error: `status must be one of: ...` }, 400);
++  function isTaskStatus (v: unknown): v is TaskStatus {
++    return (VALID_STATUSES as readonly Array<unknown>).includes(v)
+   }
+
++  if (status !== undefined && !isTaskStatus(status))
++
+   try {
+     const conditions = [];
+-    if (status) conditions.push(eq(tasksTable.status, status as TaskStatus));
+```
+
+Two things broke in that one hunk. The early `return` lost its braces, and the line that
+actually applies the status filter was deleted.
+
+### The grammar rule nobody remembers
+
+`if (condition) <one statement>`. Exactly one. Braces are not part of `if` syntax at all -
+`{ ... }` is a _block statement_, which is one statement that happens to hold many. Newlines
+and blank lines are whitespace, so all three of these are identical to the parser:
+
+```js
+if (x) doThing();
+
+if (x) doThing();
+
+if (x) doThing();
+```
+
+A `try { ... }` block is also one statement. A 45-line one, but one. So it became the `if`
+body, and the handler read as "if the status is invalid, do all the work; otherwise do nothing":
+
+```mermaid
+flowchart TD
+    A["GET /tasks"] --> B{"status invalid?"}
+    B -- "true (?status=banana)" --> C["try block runs<br/>returns c.json(...)"]
+    B -- "false (no query string)" --> D["nothing runs<br/>handler returns undefined"]
+    D --> E["Hono has no response<br/>→ 404"]
+```
+
+### Why the symptom was inverted
+
+Guards describe the exceptional case: `if (bad) return 400`. Drop the braces and the _return_
+falls out of the body while the normal-path code falls in. The branch meant to run rarely
+becomes the only branch that runs at all. That is why the failure showed up as a 404 on the
+plain `GET /tasks` - the common request - rather than as a broken filter on the rare one.
+
+### The blast radius
+
+Every hook script opens with the same health check:
+
+```ts
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
+  .then((r) => r.ok)
+  .catch(() => false);
+
+if (!isServerUp) process.exit(0);
+```
+
+`HEAD /tasks` returned 404, `res.ok` was false, and all four hooks exited at line one of their
+real work. Plan 003 spent its entire effort hardening scripts that the same commit had just
+switched off. "The guards are verified" and "the guards ever run" turned out to be different
+claims.
+
+### Why nothing caught it
+
+- **`tsc` cannot object.** An `if` with a `try` body is valid TypeScript. There is no type
+  error to raise.
+- **133 tests passed.** Not one of them starts the Hono app, so no test touches this route.
+- **Indentation lied.** Every other statement at that level is top-level, so `try {` reads as
+  a sibling of the `if`, not its child. Your eye uses indentation. The parser does not.
+- **The plan's own checklist would have caught it.** `No files outside the four in-scope
+scripts are modified (git status)` was the unticked box. `src/server.ts` in `git status`
+  was the whole signal.
+
+### The fix, and the guard against a repeat
+
+`537843c` restored the braces and the filter line, and kept the one good idea from the
+rewrite - `isTaskStatus` narrows `status` to `TaskStatus`, so the `as TaskStatus` cast at the
+query is gone.
+
+The mechanical prevention is one line in `.oxlintrc.json`:
+
+```json
+"curly": ["error", "multi-line"],
+```
+
+`multi-line` only objects when the body sits on a different line from the condition. Plain
+`curly` would flag every legitimate one-liner in this repo - `if (status) conditions.push(...)`
+appears dozens of times - and a rule that noisy gets switched off within a week. Measured
+against the current tree, `multi-line` produces exactly two hits, both `if (cond)` /
+`return false;` pairs in `TaskTable.tsx`. Harmless today, and the same shape as the bug:
+harmless only until someone inserts a line between the two.
+
+**Film analogy:** the unbraced `if` is a cut that lands one frame early. The footage is fine,
+the edit is technically valid, and the whole scene plays in the wrong order. Nothing in the
+timeline flags it. You only catch it on playback.
+
+### Director's Commentary: three reviewers, three different doors
+
+Greptile found this from the diff. Grok found it from the commit history. I found it from a
+404 while trying to test something unrelated in a hook script. None of the three would have
+seen it coming from the others' direction.
+
+That is a decent argument for machine-checkable done criteria over more reviewers.
+`git status` showing an out-of-scope file needs no reviewer at all, costs nothing, and would
+have stopped this before the commit existed.
+
+A second lesson about reviews themselves: Greptile's comment is anchored to a line range in
+an old diff, so it keeps reading as an open P1 long after `537843c` resolved it. Review
+comments do not retract themselves. Resolve the thread with a pointer to the fixing commit, or
+the next reader re-litigates a bug that is already dead.

@@ -93,9 +93,21 @@ export function useTaskPolling(intervalMs: number = 2500): UseTaskPollingResult 
 
   useEffect(() => {
     void fetch_();
-    const timer = setInterval(() => { void fetch_(); }, intervalMs);
+    const timer = setInterval(() => {
+      void fetch_();
+    }, intervalMs);
     return () => clearInterval(timer);
   }, [fetch_, intervalMs]);
 
-  return { tasks, tree, sessionEvents, loading, lastUpdated, error, refresh: () => { void fetch_(); } };
+  return {
+    tasks,
+    tree,
+    sessionEvents,
+    loading,
+    lastUpdated,
+    error,
+    refresh: () => {
+      void fetch_();
+    },
+  };
 }

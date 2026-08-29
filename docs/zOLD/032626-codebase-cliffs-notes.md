@@ -275,13 +275,7 @@ interface Task {
 }
 
 type TaskStatus =
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'paused'
-  | 'cancelled'
-  | 'blocked'
-  | 'unassigned';
+  'running' | 'completed' | 'failed' | 'paused' | 'cancelled' | 'blocked' | 'unassigned';
 ```
 
 ### `TaskNode` — frontend-only tree form

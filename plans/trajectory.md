@@ -6,14 +6,14 @@ for the data-source decision.
 
 ## The six decisions
 
-| | Decision |
-| --- | --- |
-| Purpose | Debug a single run that went wrong. Not analytics, not compliance. |
-| Scope | The Conversation Thread. Turns and Calls are zoom levels, not scopes. |
-| Source | The transcript JSONL. Hooks keep feeding the simple view. |
-| Access | Parse on demand, project server-side. No index, no polling. |
-| Rows | `USER`, `ASSISTANT`, `TOOL`, `CONTEXT`. Noise hidden behind one toggle. |
-| Entry | Thread picker sourced from the filesystem, plus a degrading breadcrumb from task rows. |
+|         | Decision                                                                               |
+| ------- | -------------------------------------------------------------------------------------- |
+| Purpose | Debug a single run that went wrong. Not analytics, not compliance.                     |
+| Scope   | The Conversation Thread. Turns and Calls are zoom levels, not scopes.                  |
+| Source  | The transcript JSONL. Hooks keep feeding the simple view.                              |
+| Access  | Parse on demand, project server-side. No index, no polling.                            |
+| Rows    | `USER`, `ASSISTANT`, `TOOL`, `CONTEXT`. Noise hidden behind one toggle.                |
+| Entry   | Thread picker sourced from the filesystem, plus a degrading breadcrumb from task rows. |
 
 ## Build steps
 
@@ -82,7 +82,7 @@ view to find.
 
 There is also no key to filter on: `hook_events` has no `toolUseId`, so timestamps are the only
 correlation between a task and a transcript row.
-Using one to pick a *scroll target* is safe — a wrong match lands you slightly off and you look
+Using one to pick a _scroll target_ is safe — a wrong match lands you slightly off and you look
 around.
 Using one to build a view is not — a wrong match hides rows silently, and you never learn what
 you missed.
@@ -108,7 +108,7 @@ Unrelated to Trajectory but real: `${API_BASE}/api/tasks` should be `${API_BASE}
   `result`). Dissolved by ADR 0001.
 - Live polling of Trajectory. It is a diagnostic opened after the fact, not a monitor.
 
-## What this design does *not* invalidate
+## What this design does _not_ invalidate
 
 `src/server.ts` carries a `TODO(human)` to attach `hook_events` to `GET /tasks` (issue #59).
 ADR 0001 says Trajectory does not need `hook_events` — it does **not** say nothing needs them.

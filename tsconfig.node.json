@@ -17,5 +17,5 @@
     "noUncheckedSideEffectImports": true,
     "types": ["bun"]
   },
-  "include": ["vite.config.ts", "src/**/*", "scripts/**/*"]
+  "include": ["vite.config.ts"]
 }

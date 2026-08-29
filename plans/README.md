@@ -9,6 +9,9 @@ Each executor: read the plan fully before starting, honor its STOP conditions,
 and update your row when done. Every plan is self-contained — you do not need
 `docs/IMPROVE.md` or any other plan to execute one.
 
+Plan 004 was added later, by hand, and is not one of those findings. It picks up
+the three gaps left behind after ETH-17's event attach landed in commit `211e5e4`.
+
 ## Execution order & status
 
 | Plan | Title                                                                         | Priority | Effort | Depends on | Status |
@@ -16,6 +19,8 @@ and update your row when done. Every plan is self-contained — you do not need
 | 001  | Bind dev servers to loopback + reject cross-origin `/spawn` (findings #1, #2) | P0       | S      | —          | DONE   |
 | 002  | Fix PostToolUse-all hook dead health check + events guard (finding #3)        | P0       | S      | —          | DONE   |
 | 003  | Guard `JSON.parse` in all hook scripts (finding #4)                           | P0       | S      | —          | DONE   |
+| 004  | Order, share, and test the `hook_events` attach (finishes ETH-17)             | P2       | M      | —          | TODO   |
+| 005  | Add a CI gate and put typecheck in the build script (ETH-18)                  | P1       | S      | —          | DONE   |
 
 Status values: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED` (one-line reason),
 `REJECTED` (one-line rationale).
@@ -46,11 +51,10 @@ server files and must ship together — splitting them would mean two plans edit
 
 ## Not yet planned
 
-The P1/P2/P3 findings in `docs/IMPROVE.md` (CI gate, log-writer race, server
-tests, poll re-render, mass assignment, the god-file split, doc drift, etc.) are
-**not** turned into plans yet. Ask the improve skill to plan specific ones when
-ready — a good next batch is #5 (CI + build typecheck) and #6 (log-writer append
-fix), both S-effort and independent.
+The P1/P2/P3 findings in `docs/IMPROVE.md` (log-writer race, server tests,
+poll re-render, mass assignment, the god-file split, doc drift, etc.) are **not**
+turned into plans yet. Ask the improve skill to plan specific ones when ready — a
+good next batch is #6 (log-writer append fix), S-effort and independent.
 
 ## Findings considered and rejected
 

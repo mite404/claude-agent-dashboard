@@ -1,7 +1,7 @@
 # Linear ticket proposal — Trajectory arc
 
 **Status: proposal.** No new issues have been created in Linear.
-One *existing* issue (ETH-15) was edited in place during this session — see the note
+One _existing_ issue (ETH-15) was edited in place during this session — see the note
 under "What already exists".
 
 Goal: turn `plans/learning-ladder.md` (the five ordered hands-on tasks) and
@@ -15,13 +15,13 @@ Checked via `list_issues` against the **Claude Agent Dashboard** project (team `
 2026-08-19). Five issues exist. Three of them are ladder steps 1–3, already fully
 specified by `plans/001`–`003`:
 
-| Issue | Title | Maps to |
-|-------|-------|---------|
+| Issue  | Title                                                                     | Maps to                                                           |
+| ------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | ETH-15 | Fix the dead health check in the PostToolUse-all and PreToolUse-all hooks | Ladder step 1 · plan 002 (scope widened past the plan — see note) |
-| ETH-16 | Guard `JSON.parse` in all four hook scripts | Ladder step 2 · plan 003 |
-| ETH-14 | Bind dev servers to loopback + reject cross-origin `/spawn` | Ladder step 3 · plan 001 |
-| ETH-17 | Attach `hook_events` to `GET /tasks` | Unrelated — see note below |
-| ETH-18 | Add a CI gate + typecheck in build | Unrelated — P1 from `docs/IMPROVE.md` |
+| ETH-16 | Guard `JSON.parse` in all four hook scripts                               | Ladder step 2 · plan 003                                          |
+| ETH-14 | Bind dev servers to loopback + reject cross-origin `/spawn`               | Ladder step 3 · plan 001                                          |
+| ETH-17 | Attach `hook_events` to `GET /tasks`                                      | Unrelated — see note below                                        |
+| ETH-18 | Add a CI gate + typecheck in build                                        | Unrelated — P1 from `docs/IMPROVE.md`                             |
 
 All five are mirrored to GitHub issues `#56`–`#60` in `mite404/claude-agent-dashboard`,
 each titled with its Linear ID.
@@ -72,39 +72,39 @@ Closes when all seven sub-issues close. No effort label — it is not a work ite
 
 ### Sub-issues, in build order
 
-| # | Title | Scope | Depends on | Ladder step |
-|---|-------|-------|------------|-------------|
-| TR-1 | `parseTranscript.ts`: list threads, parse rows, pair `tool_use`/`tool_result`, group into Turns | New file. Mechanical: read `~/.claude/projects/<slug>/*.jsonl`, one parse function, pairing by `tool_use_id`, grouping by `promptId`. No classification logic yet. | — | — |
-| TR-2 | `parseTranscript.ts`: classify Context Injection signal vs. noise | Same file, new function. The signal/noise line from `CONTEXT.md` — `hook_additional_context`, `skill_listing`, etc. vs. `hook_success`, `output_style`, `task_reminder` — is a *starting* classification inferred from one transcript; this ticket is validating and refining it against more sessions. | TR-1 | **Ladder step 4** |
-| TR-3 | Three Trajectory endpoints + parse cache | `GET /trajectory`, `GET /trajectory/:sessionId`, `GET /trajectory/:sessionId/:rowId` in `src/server.ts`. Cache the parse by file mtime + size so the 3.9 MB raw transcript is never sent to the browser. | TR-1 | — |
-| TR-4 | `TrajectoryView.tsx`: port mockup + `USER`/`ASSISTANT`/`CONTEXT` rows + Turn gutter + toolbar | Port `docs/mockups/trajectory.html`, add the three row kinds the mockup doesn't have, add Turn boundary markers in the gutter. Toolbar carries the **noise toggle** and **search** (client-side filter over the projected rows; the mockup already has search markup, the toggle is new). Duration zoom (every row) only — the default view. | TR-3 | — |
-| TR-5 | `TrajectoryView.tsx`: Turns and Calls zoom-level collapse | Same file, new function: collapse to Turn boundaries with roll-up counts, and a denser level that keeps Assistant steps but rolls up Tool Calls. Recursive-with-a-density-argument, same shape as `sortNodes` in `TaskTable.tsx`. | TR-4 | **Ladder step 5** |
-| TR-6 | Wire Trajectory into Dashboard | `Dashboard.tsx` already has `useState<'table' \| 'board'>`; add `'trajectory'`, a third toolbar button, and the thread picker (filesystem-sourced). | TR-4 | — |
-| TR-7 | Task-row breadcrumb into Trajectory | Tool-call count chip per task row (amber/red on failure), counted from `hook_events`. Opens the thread at Duration zoom, scrolled to the Turn matching the task's first `hook_events.timeStamp`, gutter-marked. **Full thread renders — no filter:** `hook_events` has no `toolUseId` to filter on, and `CONTEXT.md` makes the Thread the scope. Shown only when `sessions.id` matches a transcript filename — silently absent otherwise. | TR-6 | — |
+| #    | Title                                                                                           | Scope                                                                                                                                                                                                                                                                                                                                                                                                                                     | Depends on | Ladder step       |
+| ---- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------------- |
+| TR-1 | `parseTranscript.ts`: list threads, parse rows, pair `tool_use`/`tool_result`, group into Turns | New file. Mechanical: read `~/.claude/projects/<slug>/*.jsonl`, one parse function, pairing by `tool_use_id`, grouping by `promptId`. No classification logic yet.                                                                                                                                                                                                                                                                        | —          | —                 |
+| TR-2 | `parseTranscript.ts`: classify Context Injection signal vs. noise                               | Same file, new function. The signal/noise line from `CONTEXT.md` — `hook_additional_context`, `skill_listing`, etc. vs. `hook_success`, `output_style`, `task_reminder` — is a _starting_ classification inferred from one transcript; this ticket is validating and refining it against more sessions.                                                                                                                                   | TR-1       | **Ladder step 4** |
+| TR-3 | Three Trajectory endpoints + parse cache                                                        | `GET /trajectory`, `GET /trajectory/:sessionId`, `GET /trajectory/:sessionId/:rowId` in `src/server.ts`. Cache the parse by file mtime + size so the 3.9 MB raw transcript is never sent to the browser.                                                                                                                                                                                                                                  | TR-1       | —                 |
+| TR-4 | `TrajectoryView.tsx`: port mockup + `USER`/`ASSISTANT`/`CONTEXT` rows + Turn gutter + toolbar   | Port `docs/mockups/trajectory.html`, add the three row kinds the mockup doesn't have, add Turn boundary markers in the gutter. Toolbar carries the **noise toggle** and **search** (client-side filter over the projected rows; the mockup already has search markup, the toggle is new). Duration zoom (every row) only — the default view.                                                                                              | TR-3       | —                 |
+| TR-5 | `TrajectoryView.tsx`: Turns and Calls zoom-level collapse                                       | Same file, new function: collapse to Turn boundaries with roll-up counts, and a denser level that keeps Assistant steps but rolls up Tool Calls. Recursive-with-a-density-argument, same shape as `sortNodes` in `TaskTable.tsx`.                                                                                                                                                                                                         | TR-4       | **Ladder step 5** |
+| TR-6 | Wire Trajectory into Dashboard                                                                  | `Dashboard.tsx` already has `useState<'table' \| 'board'>`; add `'trajectory'`, a third toolbar button, and the thread picker (filesystem-sourced).                                                                                                                                                                                                                                                                                       | TR-4       | —                 |
+| TR-7 | Task-row breadcrumb into Trajectory                                                             | Tool-call count chip per task row (amber/red on failure), counted from `hook_events`. Opens the thread at Duration zoom, scrolled to the Turn matching the task's first `hook_events.timeStamp`, gutter-marked. **Full thread renders — no filter:** `hook_events` has no `toolUseId` to filter on, and `CONTEXT.md` makes the Thread the scope. Shown only when `sessions.id` matches a transcript filename — silently absent otherwise. | TR-6       | —                 |
 
 Sub-issues are split at decision boundaries, not by file count — TR-7 in particular touches
-the task row *and* whatever routes into a filtered Trajectory. Each is S-effort by the same
+the task row _and_ whatever routes into a filtered Trajectory. Each is S-effort by the same
 yardstick as ETH-14/15/16.
 
 **The two ladder steps are deliberately off the critical path.** TR-3 depends on TR-1, not
 TR-2: the endpoint projects rows whatever the classifier decides, so it only needs TR-1's row
 shape. TR-6 depends on TR-4, not TR-5: wiring needs a component that renders, and zoom collapse
-is a control *inside* one that already does.
+is a control _inside_ one that already does.
 That means TR-2 and TR-5 — the two you write by hand, on your own clock — can sit open without
 stalling anything, and each lands as an additive enhancement to working code.
 
 ## Recommended order (not a hard chain)
 
-1. ETH-15 — dead health check *(exists)*
-2. ETH-16 — `JSON.parse` guard *(exists)*
-3. ETH-14 — cross-origin `/spawn` *(exists)*
+1. ETH-15 — dead health check _(exists)_
+2. ETH-16 — `JSON.parse` guard _(exists)_
+3. ETH-14 — cross-origin `/spawn` _(exists)_
 4. TR-1 — transcript parsing, mechanical
 5. TR-3 — three endpoints
 6. TR-4 — `TrajectoryView.tsx`, Duration zoom + toolbar
 7. TR-6 — wire into Dashboard
 8. TR-7 — task-row breadcrumb
-9. TR-2 — signal/noise classifier — **ladder step 4** *(any time after TR-1)*
-10. TR-5 — zoom-level collapse — **ladder step 5** *(any time after TR-4)*
+9. TR-2 — signal/noise classifier — **ladder step 4** _(any time after TR-1)_
+10. TR-5 — zoom-level collapse — **ladder step 5** _(any time after TR-4)_
 
 Steps 4–8 are the spine. Steps 9–10 are yours and slot in wherever you want them, as long as
 their one dependency has landed.

@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "concurrently --names \"vite,hono,hooks,spawn\" \"vite --port 5173\" \"PORT=3001 bun --watch src/server.ts\" \"tail -F logs/hooks.log\" \"bun scripts/spawn-terminal.ts\"",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint .",
@@ -16,7 +17,9 @@
     "server": "PORT=3001 bun --watch src/server.ts",
     "smoke": "bun scripts/smoke-test.ts",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ci": "vitest run",
+    "test:ui": "vitest --ui",
+    "prepare": "husky"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -54,9 +57,12 @@
     "@vitest/ui": "^4.1.11",
     "concurrently": "^9.1.2",
     "drizzle-kit": "^0.31.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.79.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "rumdl": "^0.2.62",
     "stylelint-config-standard": "^40.0.0",
     "stylelint-config-tailwindcss": "^1.0.1",
     "tailwindcss": "^4.3.3",

@@ -14,10 +14,8 @@ function createTask(id: string, overrides: Partial<TaskNode> = {}): TaskNode {
     startedAt: null,
     completedAt: null,
     progressPercentage: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
     children: [],
-    summary: '',
-    agentSummary: null,
-    logs: [],
     events: [],
     ...overrides,
   };

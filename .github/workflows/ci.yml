@@ -1,0 +1,50 @@
+name: CI
+
+# Gate on pull requests. Push-to-default would catch direct commits, but this repo
+# lands work via PR onto gitbutler/workspace; the PR run is the enforcement point.
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        # Coverage snapshot (2026-08-29): tsc -b checks 33 src files via
+        # tsconfig.app.json plus vite.config.ts via tsconfig.node.json.
+        # NOT checked (tsconfig.app.json exclude): src/server.ts, src/db/*
+        # Lifting that exclude would add 3 src files; 0 type errors observed.
+        run: bunx tsc -b
+
+      - name: Lint
+        # Block on oxlint, CSS, and format — same severity as type errors.
+        # Markdown lint is advisory: plan 004 has pre-existing MD013 long lines.
+        run: |
+          bun run lint
+          bun run lint:css
+          bun run format:check
+
+      - name: Lint markdown
+        continue-on-error: true
+        run: bun run lint:md
+
+      - name: Test
+        run: bun run test:ci
+
+      - name: Build
+        # Redundant with Typecheck for types, but catches Vite bundling failures
+        # (bad imports, missing assets) that tsc does not see.
+        run: bun run build

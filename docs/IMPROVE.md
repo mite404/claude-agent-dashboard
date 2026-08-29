@@ -28,7 +28,7 @@ Effort: S (< half day), M (1–2 days), L (multi-day).
 - **Evidence**: `scripts/spawn-terminal.ts:46-53` runs
   `Bun.spawn(['osascript','-e',script])` — which opens a terminal and types
   `claude` — for any POST to `/spawn`. The `Access-Control-Allow-Origin`
-  header (line 3) only gates *reading the response*; the side effect fires
+  header (line 3) only gates _reading the response_; the side effect fires
   before CORS is consulted, and the real caller
   (`TaskTable.tsx:1206`) sends a header-less "simple request" with no preflight.
 - **Impact**: any website the developer visits can `fetch('http://localhost:3002/spawn', {method:'POST'})`
@@ -45,7 +45,7 @@ Effort: S (< half day), M (1–2 days), L (multi-day).
   `0.0.0.0`.
 - **Impact**: the task API (:3001) and the spawn server (:3002) are reachable
   from any host on the LAN with no auth — anyone on the network can read/mutate
-  the task DB or (with #1) trigger the terminal spawn. This is *why* the
+  the task DB or (with #1) trigger the terminal spawn. This is _why_ the
   "no auth is fine, it's localhost" assumption doesn't hold: the socket isn't
   loopback-only.
 - **Fix**: pass `hostname: '127.0.0.1'` to both.
@@ -207,16 +207,16 @@ Effort: M · Risk: low · Confidence: high.
 
 ## P3 — Hygiene
 
-| #  | Finding                                          | Evidence                          | Fix                              |
-|----|--------------------------------------------------|-----------------------------------|----------------------------------|
-| 16 | AGENTS.md issue tracker points at `mite404/a24-puzzle` (wrong repo) + phantom `docs/agents/*` | `AGENTS.md` issue-tracker section | fix slug to `claude-agent-dashboard`; create or drop the refs |
-| 17 | AGENTS.md Key Files references `.sh` hooks migrated to `.ts` | `AGENTS.md` Key Files table | update `.sh` → `.ts` |
-| 18 | AGENTS.md says `lint # ESLint`; it's oxlint      | `AGENTS.md:30`                    | correct to oxlint                |
-| 19 | Stale `eslint.config.js` + `.prettierrc.json` tracked after OXC migration (deps absent) | both files tracked | delete both |
-| 20 | Test libs in `dependencies` not `devDependencies` | `package.json` (`@testing-library/*`, `jsdom`) | move to devDeps |
-| 21 | `vite-tsconfig-paths` unneeded (Vite 8 native); prints deprecation | `vite.config.ts`, `package.json` | native `resolve.tsconfigPaths`, drop dep |
-| 22 | `SessionEventUtils.ts` PascalCase among camelCase siblings — CI/Linux footgun | `src/lib/` | `git mv` to `sessionEventUtils.ts`, update 2 imports |
-| 23 | `docs/` has no index; dated files + `zOLD/`/`zExamples/` mixed with canonical | `docs/` | add `docs/README.md` marking canonical vs archived |
+| #   | Finding                                                                                       | Evidence                                       | Fix                                                           |
+| --- | --------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| 16  | AGENTS.md issue tracker points at `mite404/a24-puzzle` (wrong repo) + phantom `docs/agents/*` | `AGENTS.md` issue-tracker section              | fix slug to `claude-agent-dashboard`; create or drop the refs |
+| 17  | AGENTS.md Key Files references `.sh` hooks migrated to `.ts`                                  | `AGENTS.md` Key Files table                    | update `.sh` → `.ts`                                          |
+| 18  | AGENTS.md says `lint # ESLint`; it's oxlint                                                   | `AGENTS.md:30`                                 | correct to oxlint                                             |
+| 19  | Stale `eslint.config.js` + `.prettierrc.json` tracked after OXC migration (deps absent)       | both files tracked                             | delete both                                                   |
+| 20  | Test libs in `dependencies` not `devDependencies`                                             | `package.json` (`@testing-library/*`, `jsdom`) | move to devDeps                                               |
+| 21  | `vite-tsconfig-paths` unneeded (Vite 8 native); prints deprecation                            | `vite.config.ts`, `package.json`               | native `resolve.tsconfigPaths`, drop dep                      |
+| 22  | `SessionEventUtils.ts` PascalCase among camelCase siblings — CI/Linux footgun                 | `src/lib/`                                     | `git mv` to `sessionEventUtils.ts`, update 2 imports          |
+| 23  | `docs/` has no index; dated files + `zOLD/`/`zExamples/` mixed with canonical                 | `docs/`                                        | add `docs/README.md` marking canonical vs archived            |
 
 ## Lower-priority / watch items
 

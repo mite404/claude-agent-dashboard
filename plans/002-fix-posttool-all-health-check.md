@@ -46,12 +46,12 @@ excerpts:
 The broken health check (lines 28–34):
 
 ```ts
-const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: "HEAD" })
-    .then((r) => r.ok)
-    .catch(() => false);
+const isServerUp = await fetch(`${API_BASE}/api/tasks`, { method: 'HEAD' })
+  .then((r) => r.ok)
+  .catch(() => false);
 
 if (!isServerUp) {
-    process.exit(0);
+  process.exit(0);
 }
 ```
 
@@ -61,18 +61,18 @@ The correct pattern, for reference, from `scripts/session-event.ts:45`
 (do NOT edit that file — it is shown only as the exemplar):
 
 ```ts
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: "HEAD" });
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' });
 ```
 
 The unguarded `.map` (lines 96–101):
 
 ```ts
 const events = (existing as unknown as Record<string, unknown>).events as Array<
-    Record<string, unknown>
+  Record<string, unknown>
 >;
 
 const updatedEvents = events.map((e) =>
-    e.id === eventId ? { ...e, phase: "post", status: finalStatus, completedAt: now } : e,
+  e.id === eventId ? { ...e, phase: 'post', status: finalStatus, completedAt: now } : e,
 );
 ```
 
@@ -118,9 +118,9 @@ Here `existing` is a `Task` fetched from `GET /tasks?...`; that response has no
 In `scripts/post-tool-all.ts` line 28, change `/api/tasks` to `/tasks`:
 
 ```ts
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: "HEAD" })
-    .then((r) => r.ok)
-    .catch(() => false);
+const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
+  .then((r) => r.ok)
+  .catch(() => false);
 ```
 
 **Verify**: `grep -n "/api/tasks" scripts/post-tool-all.ts` → no matches.
@@ -132,8 +132,7 @@ In `scripts/post-tool-all.ts` lines 96–97, default `events` to an empty array 
 
 ```ts
 const events =
-    ((existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>) ??
-    [];
+  ((existing as unknown as Record<string, unknown>).events as Array<Record<string, unknown>>) ?? [];
 ```
 
 **Verify**: `bunx tsc --noEmit` → exit 0.
@@ -150,21 +149,22 @@ server with a real payload:
    hook exits 0 and reaches its lookup logic instead of bailing at the health
    check:
 
-    ```
-    echo '{"tool_name":"Read","tool_use_id":"t1","session_id":"s1"}' \
-      | bun scripts/post-tool-all.ts; echo "exit=$?"
-    ```
+   ```
+   echo '{"tool_name":"Read","tool_use_id":"t1","session_id":"s1"}' \
+     | bun scripts/post-tool-all.ts; echo "exit=$?"
+   ```
 
    → prints `exit=0`. Then check the log shows it ran past the health check:
 
-    ```
-    tail -n 3 logs/hooks.log
-    ```
+   ```
+   tail -n 3 logs/hooks.log
+   ```
 
    → contains a `[post-all]` line such as `SKIP: no active task found ...`
    (this proves the hook executed its body rather than silently exiting at the
    health check — before this plan there would be **no** new `[post-all]` line
    at all).
+
 3. **No crash on missing `events`** — the fact that step 2 exits 0 and logs a
    `[post-all]` line (rather than a non-zero exit / stack trace) confirms the
    Step 2 guard holds even though `GET /tasks` returns no `events` field.

@@ -47,7 +47,10 @@ async function log(msg: string) {
   await Bun.write(file, existing + line);
 }
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
+const isServerUp = await fetch(`${API_BASE}/tasks`, {
+  method: 'HEAD',
+  signal: AbortSignal.timeout(300),
+})
   .then((res) => res.ok)
   .catch(() => false);
 

@@ -73,7 +73,7 @@ export function TaskCard({ task, depth = 0, onStatusChange }: TaskCardProps) {
           </div>
 
           {/* Logs accordion */}
-          <LogViewer logs={task.logs} taskId={task.id} />
+          <LogViewer logs={task.logs ?? []} taskId={task.id} />
 
           {/* Controls */}
           <div className="flex justify-end pt-0.5">

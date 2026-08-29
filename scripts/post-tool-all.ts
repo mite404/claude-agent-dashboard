@@ -25,13 +25,17 @@ interface PostToolAllPayload {
   tool_result?: { is_error?: boolean };
 }
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, { method: 'HEAD' })
+const isServerUp = await fetch(`${API_BASE}/tasks`, {
+  method: 'HEAD',
+  signal: AbortSignal.timeout(300),
+})
   .then((r) => r.ok)
   .catch(() => false);
 
 if (!isServerUp) {
-  console.error(`[ERROR] Dashboard server unreachable at ${API_BASE}`);
-  process.exit(1);
+  // Dashboard off is the normal state. Stay silent and exit 0 rather than
+  // printing on every tool call of every session on this machine.
+  process.exit(0);
 }
 
 // stdin parsing

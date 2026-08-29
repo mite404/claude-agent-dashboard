@@ -6,13 +6,13 @@ Each one is small, has a visible result, and teaches something that transfers.
 Tasks 1–3 already have full executor plans in this directory — this file is the
 running order and the "why bother", not a duplicate of the steps.
 
-| # | Task | Teaches | Time | Detail in | Status |
-|---|------|---------|------|-----------|--------|
-| 1 | Fix the dead health check | Silent failure | 5 min | [002](002-fix-posttool-all-health-check.md) | TODO |
-| 2 | Guard `JSON.parse` in the hooks | Trust boundaries | 30 min | [003](003-guard-hook-json-parse.md) | TODO |
-| 3 | Reject cross-origin `/spawn` | CORS is not security | 45 min | [001](001-harden-reachable-servers.md) | TODO |
-| 4 | Signal/noise classifier | Domain judgment as code | 20 min | [trajectory](trajectory.md) step 1 | BLOCKED |
-| 5 | Zoom-level collapse | Grouping and derived views | 40 min | [trajectory](trajectory.md) step 3 | BLOCKED |
+| #   | Task                            | Teaches                    | Time   | Detail in                                   | Status  |
+| --- | ------------------------------- | -------------------------- | ------ | ------------------------------------------- | ------- |
+| 1   | Fix the dead health check       | Silent failure             | 5 min  | [002](002-fix-posttool-all-health-check.md) | TODO    |
+| 2   | Guard `JSON.parse` in the hooks | Trust boundaries           | 30 min | [003](003-guard-hook-json-parse.md)         | TODO    |
+| 3   | Reject cross-origin `/spawn`    | CORS is not security       | 45 min | [001](001-harden-reachable-servers.md)      | TODO    |
+| 4   | Signal/noise classifier         | Domain judgment as code    | 20 min | [trajectory](trajectory.md) step 1          | BLOCKED |
+| 5   | Zoom-level collapse             | Grouping and derived views | 40 min | [trajectory](trajectory.md) step 3          | BLOCKED |
 
 ---
 
@@ -58,8 +58,8 @@ rather than throwing and interrupting the agent.
 Follow [plan 001](001-harden-reachable-servers.md), especially Step 2.
 This is the one worth doing slowly.
 
-**The lesson:** `Access-Control-Allow-Origin` controls whether a page can *read your
-response*.
+**The lesson:** `Access-Control-Allow-Origin` controls whether a page can _read your
+response_.
 It does nothing to stop the request from arriving and firing a side effect.
 `/spawn` opens a terminal and types `claude`.
 Any website you visit while `bun run dev` is running can trigger that today.
@@ -73,7 +73,7 @@ Blocked until `src/lib/parseTranscript.ts` exists ([trajectory plan](trajectory.
 
 You will decide which transcript attachments earn a row in Trajectory and which are hidden.
 The proposed line is in [CONTEXT.md](../CONTEXT.md) under **Context Injection**: an
-attachment earns a row if it *changed what the agent knew or could do*.
+attachment earns a row if it _changed what the agent knew or could do_.
 
 This is yours rather than mine because the line was inferred from a single transcript.
 You have watched these sessions; the classification is judgment, not lookup.

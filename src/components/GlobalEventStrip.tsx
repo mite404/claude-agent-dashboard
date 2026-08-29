@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { IconChevronRight, IconTrash } from '@tabler/icons-react';
 import { cn, formatTimestamp } from '@/lib/utils';
 import { Button } from '@/components/ui/button';

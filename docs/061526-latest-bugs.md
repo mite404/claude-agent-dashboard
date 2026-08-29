@@ -4,16 +4,16 @@
 
 ## ✅ Resolved since last review
 
-| Issue | Resolution |
-| ----- | ---------- |
-| `hookEventsTable` missing from SQLite schema | Added. PATCH handler now writes hook events. |
-| Hook scripts still in bash | All migrated to TypeScript (`.ts`). |
-| `post-tool-agent.ts` incomplete (1-line stub) | Fully implemented. |
-| `claimedBy` silently dropped on PATCH | Added to `validCols` whitelist in server. |
-| `sessionId` optional in `createTask()` but required by backend | Made required in type. |
-| Double-click race on "Create Task" button | `creatingTask` boolean guard added. |
-| Stale form values when popover dismissed | `onOpenChange` now resets form on close. |
-| `post-task.ts` taskId bug (P3) | Now parses JSON body (`data.id`) instead of raw stream. |
+| Issue                                                          | Resolution                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------- |
+| `hookEventsTable` missing from SQLite schema                   | Added. PATCH handler now writes hook events.            |
+| Hook scripts still in bash                                     | All migrated to TypeScript (`.ts`).                     |
+| `post-tool-agent.ts` incomplete (1-line stub)                  | Fully implemented.                                      |
+| `claimedBy` silently dropped on PATCH                          | Added to `validCols` whitelist in server.               |
+| `sessionId` optional in `createTask()` but required by backend | Made required in type.                                  |
+| Double-click race on "Create Task" button                      | `creatingTask` boolean guard added.                     |
+| Stale form values when popover dismissed                       | `onOpenChange` now resets form on close.                |
+| `post-task.ts` taskId bug (P3)                                 | Now parses JSON body (`data.id`) instead of raw stream. |
 
 ---
 
