@@ -5,7 +5,7 @@ import { patchTask, deleteTask, createTask, claimTask, clearAllSessionEvents } f
 
 beforeEach(() => {
   vi.clearAllMocks();
-  global.fetch = vi.fn();
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>());
 });
 
 // ─── patchTask Tests ─────────────────────────────────────────────────────────
