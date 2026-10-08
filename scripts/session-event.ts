@@ -47,14 +47,19 @@ async function log(msg: string) {
   await Bun.write(file, existing + line);
 }
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, {
+const healthRes = await fetch(`${API_BASE}/tasks`, {
   method: 'HEAD',
   signal: AbortSignal.timeout(300),
-})
-  .then((res) => res.ok)
-  .catch(() => false);
+}).catch(() => null); // → Response | null
 
-if (!isServerUp) {
+if (!healthRes) {
+  // Dashboard off is the normal state. Stay silent.
+  process.exit(0);
+}
+
+if (!healthRes.ok) {
+  // The server answered with an error, so it is up but broken. Say so.
+  await log(`WARN: server up but HEAD /tasks returned HTTP ${healthRes.status}, skipping`);
   process.exit(0);
 }
 

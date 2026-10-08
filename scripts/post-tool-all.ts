@@ -25,16 +25,20 @@ interface PostToolAllPayload {
   tool_result?: { is_error?: boolean };
 }
 
-const isServerUp = await fetch(`${API_BASE}/tasks`, {
+const healthRes = await fetch(`${API_BASE}/tasks`, {
   method: 'HEAD',
   signal: AbortSignal.timeout(300),
-})
-  .then((r) => r.ok)
-  .catch(() => false);
+}).catch(() => null); // → Response | null
 
-if (!isServerUp) {
+if (!healthRes) {
   // Dashboard off is the normal state. Stay silent and exit 0 rather than
   // printing on every tool call of every session on this machine.
+  process.exit(0);
+}
+
+if (!healthRes.ok) {
+  // The server answered with an error, so it is up but broken. Say so.
+  await log(`WARN: server up but HEAD /tasks returned HTTP ${healthRes.status}, skipping`);
   process.exit(0);
 }
 
