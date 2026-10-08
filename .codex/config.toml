@@ -1,0 +1,8 @@
+[mcp_servers.gitbutler]
+command = "but"
+args = ["mcp"]
+
+[mcp_servers.postman]
+command = "npx"
+args = ["@postman/postman-mcp-server@latest", "--code"]
+env_vars = ["POSTMAN_API_KEY"]
